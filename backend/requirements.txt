@@ -29,3 +29,12 @@ whitenoise==6.8.2
 pytest==8.3.4
 pytest-django==4.9.0
 ruff==0.9.1
+
+# --- Phase 2: memory + async ---
+celery==5.5.0
+redis==5.2.1
+# chromadb-client: lightweight HTTP client only (no C++ build needed on Windows).
+# Full chromadb can be used on Linux/macOS by replacing this with chromadb==0.6.3+.
+chromadb-client==1.5.8
+django-celery-beat==2.7.0
+django-celery-results==2.5.1

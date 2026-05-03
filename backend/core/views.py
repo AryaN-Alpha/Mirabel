@@ -8,6 +8,7 @@ from rest_framework.throttling import AnonRateThrottle
 
 from core.models import Conversation, Message
 from core.services.llm import generate_reply
+from memory.tasks import embed_and_store
 
 logger = logging.getLogger("core.views")
 
@@ -30,7 +31,7 @@ def chat(request: Request) -> Response:
     else:
         conversation = Conversation.objects.create()
 
-    Message.objects.create(
+    user_msg = Message.objects.create(
         conversation=conversation,
         role=Message.Role.USER,
         text=message_text,
@@ -41,14 +42,18 @@ def chat(request: Request) -> Response:
     )
     history = [{"role": m["role"], "content": m["text"]} for m in reversed(recent)]
 
-    result = generate_reply(history)
+    result = generate_reply(history=history, user_label=conversation.user_label)
 
-    Message.objects.create(
+    assistant_msg = Message.objects.create(
         conversation=conversation,
         role=Message.Role.ASSISTANT,
         text=result["text"],
         mood=result["mood"],
     )
+
+    # Fire-and-forget: embed both turns asynchronously via Celery.
+    embed_and_store.delay(user_msg.id)
+    embed_and_store.delay(assistant_msg.id)
 
     return Response(
         {
