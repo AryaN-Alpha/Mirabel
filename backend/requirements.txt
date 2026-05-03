@@ -1,0 +1,31 @@
+# --- Web framework ---
+Django==6.0.4
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+
+# --- Database ---
+mysqlclient==2.2.7
+# If mysqlclient compilation gives you trouble on macOS/Windows,
+# swap it for: PyMySQL==1.1.1  (and add a small shim in mirabel/__init__.py)
+
+# --- Config / env ---
+python-dotenv==1.0.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# --- AI core ---
+anthropic==0.42.0
+
+# --- HTTP / utilities ---
+requests==2.32.3
+httpx==0.28.1
+tenacity==9.0.0
+
+# --- Production server ---
+gunicorn==23.0.0
+whitenoise==6.8.2
+
+# --- Dev / testing ---
+pytest==8.3.4
+pytest-django==4.9.0
+ruff==0.9.1

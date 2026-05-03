@@ -1,0 +1,59 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Virtual envs ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Django ---
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+/static/
+
+# --- Migrations: KEEP committed; only ignore local fixtures ---
+**/migrations/__pycache__/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Caches & build ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# --- Celery / Redis (Phase 2+) ---
+celerybeat-schedule
+celerybeat.pid
+dump.rdb
+
+# --- ChromaDB local persistence (Phase 2+) ---
+chroma_db/
+*.parquet
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# --- Logs ---
+logs/
+*.log
