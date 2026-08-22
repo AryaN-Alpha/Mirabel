@@ -2,6 +2,11 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+# Ensure ffmpeg is in PATH for pydub without needing to restart the IDE/terminal
+FFMPEG_DIR = r"C:\Users\HP\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin"
+if os.path.exists(FFMPEG_DIR) and FFMPEG_DIR not in os.environ.get("PATH", ""):
+    os.environ["PATH"] += os.pathsep + FFMPEG_DIR
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
@@ -16,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "daphne",
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
@@ -61,10 +67,11 @@ DATABASES = {
         "ENGINE": "django.db.backends.mysql",
         "NAME": os.getenv("DB_NAME", "mirabel"),
         "USER": os.getenv("DB_USER", "root"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "Password1!"),
+        "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "3306"),
     }
+
 }
 
 CORS_ALLOWED_ORIGINS = os.getenv(
@@ -107,6 +114,7 @@ CELERY_TASK_TIME_LIMIT = 60
 CELERY_TASK_SOFT_TIME_LIMIT = 45
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ALWAYS_EAGER = True  # Run tasks synchronously without a broker
 
 # --- ChromaDB ---
 CHROMA_HOST = os.getenv("CHROMA_HOST", "127.0.0.1")
@@ -152,9 +160,32 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "voice": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
     "root": {
         "handlers": ["file", "console"],
         "level": "WARNING",
     },
 }
+
+# --- Channels ---
+ASGI_APPLICATION = "mirabel.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+
+# Add 'channels' and 'voice' to INSTALLED_APPS
+INSTALLED_APPS += ["channels", "voice"]
+
+# --- Groq + edge-tts config ---
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_STT_MODEL = os.environ.get("GROQ_STT_MODEL", "whisper-large-v3-turbo")
+EDGE_TTS_VOICE = os.environ.get("EDGE_TTS_VOICE", "en-US-JennyNeural")
+EDGE_TTS_RATE = os.environ.get("EDGE_TTS_RATE", "+5%")
+EDGE_TTS_PITCH = os.environ.get("EDGE_TTS_PITCH", "+2Hz")

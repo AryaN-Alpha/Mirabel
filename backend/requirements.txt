@@ -36,5 +36,23 @@ redis==5.2.1
 # chromadb-client: lightweight HTTP client only (no C++ build needed on Windows).
 # Full chromadb can be used on Linux/macOS by replacing this with chromadb==0.6.3+.
 chromadb-client==1.5.8
-django-celery-beat==2.7.0
-django-celery-results==2.5.1
+django-celery-beat==2.9.0
+django-celery-results==2.6.0
+
+# --- Phase 3: voice + websockets ---
+channels==4.2.0
+channels-redis==4.2.1
+daphne==4.1.2
+uvicorn[standard]==0.34.0
+
+groq==0.15.0
+edge-tts==7.0.0
+
+# Sentence segmentation for streaming TTS — pure-python, no model download
+pysbd==0.3.4
+
+# WebM/Opus → WAV conversion for Whisper
+pydub==0.25.1
+# audioop was removed in Python 3.13. We use audioop-lts as a backport.
+audioop-lts==0.2.2
+# pydub needs ffmpeg available on PATH; the Dockerfile installs it.

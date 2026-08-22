@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Build deps for mysqlclient on Linux (no PyMySQL shim needed in containers).
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     default-libmysqlclient-dev pkg-config gcc \
     && rm -rf /var/lib/apt/lists/*
 

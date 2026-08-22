@@ -15,7 +15,8 @@
     "axios": "^1.7.9",
     "lucide-react": "^0.469.0",
     "clsx": "^2.1.1",
-    "framer-motion": "^11.15.0"
+    "framer-motion": "^11.15.0",
+    "@ricky0123/vad-web": "^0.0.24"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

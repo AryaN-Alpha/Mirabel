@@ -18,14 +18,10 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def get_client() -> chromadb.ClientAPI:
-    """Process-wide singleton. HttpClient is thread-safe."""
-    return chromadb.HttpClient(
-        host=django_settings.CHROMA_HOST,
-        port=django_settings.CHROMA_PORT,
-        tenant=django_settings.CHROMA_TENANT,
-        database=django_settings.CHROMA_DATABASE,
-        settings=Settings(),
-    )
+    """Process-wide singleton. PersistentClient runs locally without a separate Docker server."""
+    import os
+    chroma_path = os.path.join(django_settings.BASE_DIR, "chroma_data")
+    return chromadb.PersistentClient(path=chroma_path, settings=Settings())
 
 
 def get_collection(user_label: str) -> chromadb.Collection:

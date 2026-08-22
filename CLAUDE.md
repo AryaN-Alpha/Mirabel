@@ -23,8 +23,8 @@ Never cross the boundary in imports.
    .env files are gitignored; .env.example files are committed and exhaustive.
 
 ## Phase tracking
-We are currently on: Phase 2 (Emotional Memory).
-Do not implement Phase 3+ features (voice, WebSocket, MCP) until explicitly told.
+We are currently on: Phase 3 (The Voice).
+Do not implement Phase 4+ features (MCP, tool use) until explicitly told.
 
 ## Phase 2 additions
 
@@ -54,3 +54,32 @@ Hard rules for Phase 2:
 - Frontend: function components only, hooks for state, no class components.
   Tailwind for styling; no global CSS files except index.css for resets.
 - Commits: conventional commits (feat:, fix:, chore:, refactor:).
+
+## Phase 3 additions
+
+We now have:
+- Django Channels (ASGI) replacing pure WSGI for real-time
+- WebSocket endpoint /ws/chat/ alongside the existing REST /api/chat/
+- Groq Whisper API for STT (fastest hosted Whisper available)
+- edge-tts for TTS (free, fast, multiple voices)
+- A new Django app: `voice`
+
+REST /api/chat/ STAYS. It's the fallback for clients that can't do WebSocket
+and the contract for tests. The voice path is additive, not a replacement.
+
+Hard rules for Phase 3:
+11. NEVER block the WebSocket consumer's event loop with sync I/O. All Groq,
+    Anthropic, and edge-tts calls go through their async clients OR through
+    asyncio.to_thread / channels.db.database_sync_to_async.
+12. The streaming JSON contract: deltas are plain text (NOT partial JSON).
+    The model is instructed to emit text first, then a sentinel, then the
+    JSON envelope. The consumer parses the envelope only after stream end.
+13. TTS chunks are emitted in order, never in parallel. Out-of-order audio
+    is worse than slow audio. Use a single asyncio.Queue per turn.
+14. Barge-in: if the client sends a new audio frame while the assistant is
+    still speaking, the consumer cancels the in-flight LLM + TTS tasks
+    immediately. asyncio.CancelledError must be handled cleanly — close
+    HTTP connections, drain queues, do not leak workers.
+15. Do not store raw audio. Store transcripts only. The recorded audio
+    blob never touches disk; it lives in memory for the duration of one
+    transcription call and is then dropped.
