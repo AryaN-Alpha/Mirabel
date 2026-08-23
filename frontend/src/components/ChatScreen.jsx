@@ -4,6 +4,7 @@ import ChatInput from "./ChatInput";
 import ErrorBoundary from "./ErrorBoundary";
 import { sendMessage } from "../services/api";
 import { getGreeting } from "../utils/greeting";
+import { getErrorMessage, chatDegradedMessage } from "../utils/errors";
 
 let _msgId = 0;
 const nextId = () => ++_msgId;
@@ -29,7 +30,12 @@ export default function ChatScreen() {
       setConversationId(data.conversation_id);
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), role: "assistant", text: data.text, mood: data.mood },
+        {
+          id: nextId(),
+          role: "assistant",
+          text: data.error ? chatDegradedMessage(data.reason) : data.text,
+          mood: data.error ? "annoyed" : data.mood,
+        },
       ]);
     } catch (err) {
       console.error(err);
@@ -38,7 +44,7 @@ export default function ChatScreen() {
         {
           id: nextId(),
           role: "assistant",
-          text: "…something went wrong. don't make it weird.",
+          text: getErrorMessage(err, "…something went wrong. don't make it weird."),
           mood: "annoyed",
         },
       ]);

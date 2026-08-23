@@ -16,5 +16,5 @@ def get_api_key(provider: str) -> str:
     except ProviderCredential.DoesNotExist:
         cred = None
     if cred and cred.api_key:
-        return cred.api_key
+        return cred.get_api_key()
     return os.environ.get(ENV_VAR_NAMES.get(provider, ""), "")

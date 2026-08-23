@@ -8,6 +8,7 @@ import {
   setModelPreference,
   setProviderCredential,
 } from "../services/api";
+import { getErrorMessage } from "../utils/errors";
 
 const PROVIDER_LABELS = {
   anthropic: "Anthropic",
@@ -83,8 +84,8 @@ export default function ModelSettingsModal({ open, onClose }) {
           temperature: data.temperature,
         });
       })
-      .catch(() => {
-        if (!cancelled) setError("Couldn't load model settings. Is the backend running?");
+      .catch((err) => {
+        if (!cancelled) setError(getErrorMessage(err, "Couldn't load model settings. Is the backend running?"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -138,7 +139,7 @@ export default function ModelSettingsModal({ open, onClose }) {
         temperature: data.temperature,
       });
     } catch (err) {
-      setError(err.response?.data?.error || "Couldn't save that selection.");
+      setError(getErrorMessage(err, "Couldn't save that selection."));
     } finally {
       setSaving(false);
     }
@@ -158,7 +159,7 @@ export default function ModelSettingsModal({ open, onClose }) {
         return next;
       });
     } catch (err) {
-      setCredError(err.response?.data?.error || "Couldn't save that key.");
+      setCredError(getErrorMessage(err, "Couldn't save that key."));
     } finally {
       setCredBusy(false);
     }
@@ -171,7 +172,7 @@ export default function ModelSettingsModal({ open, onClose }) {
       const data = await listProviderModels(provider);
       setLiveModels((prev) => ({ ...prev, [provider]: data.models }));
     } catch (err) {
-      setLiveError(err.response?.data?.error || "Couldn't fetch models.");
+      setLiveError(getErrorMessage(err, "Couldn't fetch models."));
     } finally {
       setLiveLoading(false);
     }
@@ -184,7 +185,7 @@ export default function ModelSettingsModal({ open, onClose }) {
       const data = await clearProviderCredential(provider);
       setCredentials((prev) => ({ ...prev, [provider]: data }));
     } catch (err) {
-      setCredError(err.response?.data?.error || "Couldn't clear that key.");
+      setCredError(getErrorMessage(err, "Couldn't clear that key."));
     } finally {
       setCredBusy(false);
     }

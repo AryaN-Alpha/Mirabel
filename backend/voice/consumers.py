@@ -11,13 +11,12 @@ import json
 import logging
 from typing import Any
 
-import anthropic
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.conf import settings
 
-from core.models import Conversation, Message
+from core.models import Conversation, Message, ModelPreference
 from core.prompts.persona import MIRABEL_STREAMING_SYSTEM_PROMPT
+from core.services.providers import get_provider
 from memory.services.retrieval import (
     format_memories_for_prompt,
     retrieve_relevant_memories,
@@ -116,19 +115,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
 
         try:
-            client = anthropic.AsyncAnthropic()
-            async with client.messages.stream(
-                model=settings.ANTHROPIC_MODEL,
-                max_tokens=500,
+            provider_name, model, max_tokens, temperature = await self._current_model_preference()
+            provider = get_provider(provider_name)
+            async for delta in provider.stream_text(
+                model=model,
                 system=system_prompt,
-                messages=history,
-            ) as stream:
-                async for delta in stream.text_stream:
-                    speakable = parser.feed(delta)
-                    if speakable:
-                        await self._send_json({"type": "text_delta", "text": speakable})
-                        for sentence in sentence_buffer.feed(speakable):
-                            await tts_queue.put(sentence)
+                history=history,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            ):
+                speakable = parser.feed(delta)
+                if speakable:
+                    await self._send_json({"type": "text_delta", "text": speakable})
+                    for sentence in sentence_buffer.feed(speakable):
+                        await tts_queue.put(sentence)
 
             # Stream finished — flush any remaining sentence and the parser tail.
             leftover_text = sentence_buffer.flush()
@@ -194,6 +194,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _send_json(self, payload: dict[str, Any]) -> None:
         await self.send(text_data=json.dumps(payload))
+
+    @database_sync_to_async
+    def _current_model_preference(self) -> tuple[str, str, int, float]:
+        pref = ModelPreference.current()
+        return pref.provider, pref.model, pref.max_tokens, pref.temperature
 
     @database_sync_to_async
     def _persist_user_message(self, text: str) -> tuple[int, int]:

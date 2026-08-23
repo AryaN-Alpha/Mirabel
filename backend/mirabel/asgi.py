@@ -12,6 +12,7 @@ import os
 import django
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mirabel.settings")
@@ -22,5 +23,9 @@ from voice.routing import websocket_urlpatterns  # noqa: E402
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+    # AllowedHostsOriginValidator checks the WS handshake's Origin header
+    # against ALLOWED_HOSTS — without it, any external site can open a
+    # connection here and trigger billed LLM/TTS calls (browsers don't
+    # enforce CORS for WebSocket connections).
+    "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(URLRouter(websocket_urlpatterns))),
 })

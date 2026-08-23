@@ -11,6 +11,7 @@ export function useVoiceSession() {
   const [streamingText, setStreamingText] = useState("");
   const [mood, setMood] = useState("neutral");
   const [thinking, setThinking] = useState(false);
+  const [wsError, setWsError] = useState("");
 
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
@@ -31,13 +32,17 @@ export function useVoiceSession() {
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
     ws.onclose = () => setConnected(false);
-    ws.onerror = (e) => console.warn("ws error", e);
+    ws.onerror = (e) => {
+      console.warn("ws error", e);
+      setWsError("Voice connection trouble. Reconnecting or reload might help.");
+    };
     ws.onmessage = async (ev) => {
       const msg = JSON.parse(ev.data);
       switch (msg.type) {
         case "ready":
           break;
         case "transcript":
+          setWsError("");
           setTranscript(msg.text || "");
           if (msg.text) {
             setThinking(true);
@@ -66,6 +71,11 @@ export function useVoiceSession() {
         case "error":
           console.error("server error:", msg.message);
           setThinking(false);
+          setWsError(
+            msg.message === "voice pipeline error"
+              ? "had trouble hearing that — try again?"
+              : "had trouble replying — try again?"
+          );
           break;
       }
     };
@@ -147,6 +157,7 @@ export function useVoiceSession() {
     streamingText,
     mood,
     thinking,
+    wsError,
     startMic,
     stopMic,
     micAnalyserRef,

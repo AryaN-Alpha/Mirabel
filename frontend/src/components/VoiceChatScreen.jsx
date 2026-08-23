@@ -4,6 +4,7 @@ import { useVoiceSession } from "../hooks/useVoiceSession";
 import CozyWave from "./CozyWave";
 import { motion, AnimatePresence } from "framer-motion";
 import { getGreeting } from "../utils/greeting";
+import { micErrorMessage } from "../utils/errors";
 
 export default function VoiceChatScreen() {
   const {
@@ -11,12 +12,14 @@ export default function VoiceChatScreen() {
     transcript,
     streamingText,
     thinking,
+    wsError,
     startMic,
     stopMic,
     micAnalyserRef,
     playbackAnalyserRef,
   } = useVoiceSession();
   const [micOn, setMicOn] = useState(false);
+  const [micError, setMicError] = useState("");
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -30,12 +33,22 @@ export default function VoiceChatScreen() {
       stopMic();
       setMicOn(false);
     } else {
-      await startMic();
-      setMicOn(true);
+      try {
+        setMicError("");
+        await startMic();
+        setMicOn(true);
+      } catch (err) {
+        console.error(err);
+        setMicError(micErrorMessage(err));
+      }
     }
   };
 
-  const subline = micOn
+  const subline = micError
+    ? micError
+    : wsError
+    ? wsError
+    : micOn
     ? "I am listening. Say anything — there is no wrong way to start."
     : "Resting quietly. Tap the circle whenever you want me back.";
 

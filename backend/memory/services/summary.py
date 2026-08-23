@@ -14,6 +14,7 @@ import anthropic
 from django.conf import settings
 
 from core.models import Message
+from core.services.providers.credentials import get_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def build_weekly_summary(
         ).most_common(3)
     ]
 
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=get_api_key("anthropic") or None)
     resp = client.messages.create(
         model=settings.ANTHROPIC_MODEL,
         max_tokens=400,

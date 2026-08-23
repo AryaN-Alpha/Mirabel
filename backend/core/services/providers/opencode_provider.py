@@ -1,3 +1,5 @@
+from typing import AsyncIterator
+
 from .base import Provider, ProviderError
 
 
@@ -15,6 +17,18 @@ class OpenCodeProvider(Provider):
         temperature: float,
     ) -> str:
         raise ProviderError("OpenCode support isn't wired up yet — pick another provider for now.")
+
+    async def stream_text(
+        self,
+        *,
+        model: str,
+        system: str,
+        history: list[dict],
+        max_tokens: int,
+        temperature: float,
+    ) -> AsyncIterator[str]:
+        raise ProviderError("OpenCode support isn't wired up yet — pick another provider for now.")
+        yield ""  # unreachable — keeps this an async generator, not a coroutine
 
     def list_models(self) -> list[dict[str, str]]:
         raise ProviderError("OpenCode support isn't wired up yet — pick another provider for now.")

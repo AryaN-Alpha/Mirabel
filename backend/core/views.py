@@ -1,4 +1,3 @@
-import logging
 import os
 
 from django.db import connection
@@ -12,9 +11,8 @@ from core.services.llm import generate_reply
 from core.services.providers import AVAILABLE_MODELS, ENV_VAR_NAMES, ProviderError, get_provider
 from memory.tasks import embed_and_store
 
-logger = logging.getLogger("core.views")
-
 HISTORY_WINDOW = 20
+MAX_MESSAGE_LENGTH = 4000
 
 
 @api_view(["POST"])
@@ -23,6 +21,8 @@ def chat(request: Request) -> Response:
     message_text: str = (request.data.get("message") or "").strip()
     if not message_text:
         return Response({"error": "message is required"}, status=400)
+    if len(message_text) > MAX_MESSAGE_LENGTH:
+        return Response({"error": f"message must be under {MAX_MESSAGE_LENGTH} characters"}, status=400)
 
     conversation_id = request.data.get("conversation_id")
     if conversation_id:
@@ -57,13 +57,15 @@ def chat(request: Request) -> Response:
     embed_and_store.delay(user_msg.id)
     embed_and_store.delay(assistant_msg.id)
 
-    return Response(
-        {
-            "conversation_id": conversation.id,
-            "text": result["text"],
-            "mood": result["mood"],
-        }
-    )
+    response_data = {
+        "conversation_id": conversation.id,
+        "text": result["text"],
+        "mood": result["mood"],
+    }
+    if result.get("error"):
+        response_data["error"] = True
+        response_data["reason"] = result.get("reason", "unknown")
+    return Response(response_data)
 
 
 def _credential_status() -> dict[str, dict]:
@@ -156,7 +158,9 @@ def provider_credential(request: Request, provider: str) -> Response:
     api_key = (request.data.get("api_key") or "").strip()
     if not api_key:
         return Response({"error": "api_key is required"}, status=400)
-    ProviderCredential.objects.update_or_create(provider=provider, defaults={"api_key": api_key})
+    cred, _created = ProviderCredential.objects.get_or_create(provider=provider)
+    cred.set_api_key(api_key)
+    cred.save()
     return Response(_credential_status()[provider])
 
 

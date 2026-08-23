@@ -3,8 +3,8 @@ import os
 from dotenv import load_dotenv
 
 # Ensure ffmpeg is in PATH for pydub without needing to restart the IDE/terminal
-FFMPEG_DIR = r"C:\Users\HP\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin"
-if os.path.exists(FFMPEG_DIR) and FFMPEG_DIR not in os.environ.get("PATH", ""):
+FFMPEG_DIR = os.getenv("FFMPEG_DIR", "")
+if FFMPEG_DIR and os.path.exists(FFMPEG_DIR) and FFMPEG_DIR not in os.environ.get("PATH", ""):
     os.environ["PATH"] += os.pathsep + FFMPEG_DIR
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,6 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+# Encrypts ProviderCredential.api_key at rest (see core/models.py).
+CREDENTIAL_ENCRYPTION_KEY = os.environ["CREDENTIAL_ENCRYPTION_KEY"]
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
@@ -67,7 +69,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "mirabel"),
         "USER": os.getenv("DB_USER", "postgres"),
-        "PASSWORD": os.getenv("DB_PASSWORD", "Password1!"),
+        "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
@@ -87,6 +89,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/min",
     },
+    "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
 AUTH_PASSWORD_VALIDATORS = [

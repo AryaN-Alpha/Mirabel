@@ -1,4 +1,10 @@
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
 from django.db import models
+
+
+def _fernet() -> Fernet:
+    return Fernet(settings.CREDENTIAL_ENCRYPTION_KEY.encode())
 
 
 class Conversation(models.Model):
@@ -70,7 +76,11 @@ class ProviderCredential(models.Model):
     """API key for one provider, editable from the frontend.
 
     Takes priority over the provider's env var when present — see
-    core/services/providers/credentials.py.
+    core/services/providers/credentials.py. Stored encrypted (Fernet) at
+    rest; api_key on this model is always ciphertext once set via
+    set_api_key(). get_api_key() falls back to treating the stored value as
+    plaintext if decryption fails, so rows written before encryption was
+    added keep working until they're next re-saved.
     """
 
     provider = models.CharField(max_length=20, unique=True)
@@ -80,9 +90,21 @@ class ProviderCredential(models.Model):
     def __str__(self) -> str:
         return f"ProviderCredential({self.provider})"
 
-    def masked(self) -> str:
+    def set_api_key(self, raw: str) -> None:
+        self.api_key = _fernet().encrypt(raw.encode()).decode() if raw else ""
+
+    def get_api_key(self) -> str:
         if not self.api_key:
             return ""
-        if len(self.api_key) <= 4:
+        try:
+            return _fernet().decrypt(self.api_key.encode()).decode()
+        except InvalidToken:
+            return self.api_key
+
+    def masked(self) -> str:
+        raw = self.get_api_key()
+        if not raw:
+            return ""
+        if len(raw) <= 4:
             return "••••"
-        return f"••••{self.api_key[-4:]}"
+        return f"••••{raw[-4:]}"

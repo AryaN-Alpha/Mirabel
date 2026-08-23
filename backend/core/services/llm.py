@@ -41,10 +41,10 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
         )
     except ProviderError as exc:
         logger.error("%s provider call failed: %s", pref.provider, exc)
-        return {"text": "...", "mood": "neutral", "memories_used": 0}
+        return {"text": "...", "mood": "neutral", "memories_used": 0, "error": True, "reason": "provider"}
     except Exception as exc:
         logger.error("LLM call failed after retries: %s", exc)
-        return {"text": "...", "mood": "neutral", "memories_used": 0}
+        return {"text": "...", "mood": "neutral", "memories_used": 0, "error": True, "reason": "unknown"}
 
     raw = raw.strip()
     if raw.startswith("```json"):
@@ -62,7 +62,7 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
         if mood not in ALLOWED_MOODS:
             logger.warning("Invalid mood tag %r from LLM, falling back to neutral", mood)
             mood = "neutral"
-        return {"text": text, "mood": mood, "memories_used": len(memories)}
+        return {"text": text, "mood": mood, "memories_used": len(memories), "error": False}
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         logger.warning("LLM JSON parse failure (%s). Raw: %r", exc, raw[:200])
         
@@ -73,4 +73,4 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
             text = match.group(1)
             text = text.replace('\\"', '"').replace('\\n', '\n').replace('\\\\', '\\')
             
-        return {"text": text, "mood": "neutral", "memories_used": len(memories)}
+        return {"text": text, "mood": "neutral", "memories_used": len(memories), "error": False}
