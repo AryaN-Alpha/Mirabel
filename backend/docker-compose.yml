@@ -1,0 +1,80 @@
+name: mirabel
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: mirabel-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: mirabel-chroma
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/data
+    # No shell/curl/python in this image to run a real healthcheck against —
+    # it's a minimal Rust binary. depends_on below just waits for boot, not readiness.
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mirabel-celery-worker
+    restart: unless-stopped
+    command: celery -A mirabel worker -l info
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      CHANNEL_LAYER_REDIS_URL: redis://redis:6379/3
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      DB_HOST: host.docker.internal
+      CELERY_TASK_ALWAYS_EAGER: "False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mirabel-celery-beat
+    restart: unless-stopped
+    command: celery -A mirabel beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      CHANNEL_LAYER_REDIS_URL: redis://redis:6379/3
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      DB_HOST: host.docker.internal
+      CELERY_TASK_ALWAYS_EAGER: "False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  chroma_data:

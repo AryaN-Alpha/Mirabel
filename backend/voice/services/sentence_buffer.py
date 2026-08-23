@@ -5,12 +5,21 @@ every token.
 """
 
 from __future__ import annotations
+import re
 from typing import Iterator
 import pysbd
 
 # Min chars before we'll release a "sentence" — guards against tiny fragments
 # like "Tch." being sent to TTS as their own clip.
 _MIN_RELEASE_CHARS = 18
+
+# pysbd's regex-heavy segmenter is not cheap enough to re-run on every token
+# delta (it was — this used to be O(sentence-length) calls per sentence,
+# stalling the event loop mid-stream). A sentence boundary can only appear
+# where there's terminal punctuation, so skip the expensive pass entirely
+# until the buffer actually contains a candidate — safe because pysbd would
+# always return a single (incomplete) sentence for punctuation-free text anyway.
+_SENTENCE_END_HINT = re.compile(r"[.!?\n]")
 
 
 class StreamingSentenceBuffer:
@@ -24,7 +33,9 @@ class StreamingSentenceBuffer:
             return
         self._buffer += delta
 
-        # pysbd is fast enough to re-run on the whole buffer per delta.
+        if not _SENTENCE_END_HINT.search(self._buffer):
+            return
+
         sentences = self._segmenter.segment(self._buffer)
         if len(sentences) < 2:
             # Only one (possibly incomplete) sentence so far — keep buffering.

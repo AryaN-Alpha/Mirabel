@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 # flaky on very short clips.
 _TARGET_SAMPLE_RATE: Final = 16_000
 
+# Module-level singleton — reused across calls (all via asyncio.to_thread from
+# one consumer method at a time) so the underlying HTTP connection pool is
+# kept warm instead of reconnecting on every utterance.
+_client: Groq | None = None
+
+
+def _get_client() -> Groq:
+    global _client
+    if _client is None:
+        _client = Groq(api_key=settings.GROQ_API_KEY)
+    return _client
+
 
 def _to_wav_mono16k(audio_bytes: bytes, source_format: str = "webm") -> bytes:
     seg = AudioSegment.from_file(io.BytesIO(audio_bytes), format=source_format)
@@ -34,8 +46,7 @@ def transcribe(audio_bytes: bytes, source_format: str = "webm") -> str:
 
     wav_bytes = _to_wav_mono16k(audio_bytes, source_format=source_format)
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    resp = client.audio.transcriptions.create(
+    resp = _get_client().audio.transcriptions.create(
         file=("audio.wav", wav_bytes, "audio/wav"),
         model=settings.GROQ_STT_MODEL,
         response_format="text",

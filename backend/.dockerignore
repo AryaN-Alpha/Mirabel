@@ -1,0 +1,12 @@
+.venv/
+.git/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+staticfiles/
+chroma_data/
+logs/
+*.sqlite3

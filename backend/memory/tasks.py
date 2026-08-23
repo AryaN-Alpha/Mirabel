@@ -44,7 +44,6 @@ def embed_and_store(self, message_id: int) -> None:
         return
 
     add_memory(
-        user_label=msg.conversation.user_label,
         memory_id=f"msg_{msg.id}",
         text=msg.text,
         metadata={
@@ -60,36 +59,24 @@ def embed_and_store(self, message_id: int) -> None:
     logger.info("embed_and_store: stored message %s (s=%.3f)", message_id, salience)
 
 
-@shared_task(name="memory.tasks.run_weekly_summary_for_all_users")
-def run_weekly_summary_for_all_users() -> None:
-    from core.models import Conversation
-
-    user_labels = Conversation.objects.values_list("user_label", flat=True).distinct()
-    for label in user_labels:
-        run_weekly_summary_for_user.delay(label)
-
-
 @shared_task(
     bind=True,
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_kwargs={"max_retries": 3},
-    name="memory.tasks.run_weekly_summary_for_user",
+    name="memory.tasks.run_weekly_summary",
 )
-def run_weekly_summary_for_user(self, user_label: str) -> None:
+def run_weekly_summary(self) -> None:
     period_end = datetime.now(timezone.utc)
     period_start = period_end - timedelta(days=7)
 
-    summary = build_weekly_summary(
-        user_label=user_label, period_start=period_start, period_end=period_end
-    )
+    summary = build_weekly_summary(period_start=period_start, period_end=period_end)
     if summary is None:
-        logger.info("weekly_summary: nothing to summarize for %s", user_label)
+        logger.info("weekly_summary: nothing to summarize")
         return
 
-    chroma_id = f"summary_{user_label}_{uuid.uuid4().hex[:12]}"
+    chroma_id = f"summary_{uuid.uuid4().hex[:12]}"
     add_memory(
-        user_label=user_label,
         memory_id=chroma_id,
         text=summary["summary_text"],
         metadata={
@@ -105,7 +92,6 @@ def run_weekly_summary_for_user(self, user_label: str) -> None:
     )
 
     MemorySummary.objects.create(
-        user_label=user_label,
         period_start=period_start,
         period_end=period_end,
         summary_text=summary["summary_text"],
@@ -114,5 +100,5 @@ def run_weekly_summary_for_user(self, user_label: str) -> None:
         chroma_id=chroma_id,
     )
     logger.info(
-        "weekly_summary: created summary for %s (%d messages)", user_label, summary["message_count"]
+        "weekly_summary: created summary (%d messages)", summary["message_count"]
     )

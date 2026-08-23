@@ -9,17 +9,13 @@ from memory.services.salience import score_for_retrieval
 logger = logging.getLogger(__name__)
 
 
-def retrieve_relevant_memories(*, user_label: str, query_text: str) -> list[dict]:
+def retrieve_relevant_memories(*, query_text: str) -> list[dict]:
     """
     Returns top-k memories re-ranked by combined score.
     Falls back to [] on any error — chat must never break because of memory.
     """
     try:
-        raw = query_memories(
-            user_label=user_label,
-            query_text=query_text,
-            n_results=12,
-        )
+        raw = query_memories(query_text=query_text, n_results=12)
     except Exception as exc:
         logger.exception("memory retrieval failed: %s", exc)
         return []

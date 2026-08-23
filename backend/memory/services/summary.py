@@ -34,11 +34,10 @@ Style:
 
 
 def build_weekly_summary(
-    *, user_label: str, period_start: datetime, period_end: datetime
+    *, period_start: datetime, period_end: datetime
 ) -> dict[str, Any] | None:
     qs = (
         Message.objects.filter(
-            conversation__user_label=user_label,
             created_at__gte=period_start,
             created_at__lt=period_end,
         )
@@ -71,7 +70,7 @@ def build_weekly_summary(
         parsed = json.loads(raw)
         summary_text = parsed["summary"]
     except (json.JSONDecodeError, KeyError):
-        logger.warning("weekly_summary: JSON parse failed for %s, using raw", user_label)
+        logger.warning("weekly_summary: JSON parse failed, using raw")
         summary_text = raw[:600]
 
     return {

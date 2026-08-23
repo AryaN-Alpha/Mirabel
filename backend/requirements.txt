@@ -4,17 +4,19 @@ djangorestframework==3.16.0
 django-cors-headers==4.7.0
 
 # --- Database ---
-mysqlclient==2.2.7
-# If mysqlclient compilation gives you trouble on macOS/Windows,
-# swap it for: PyMySQL==1.1.1  (and add a small shim in mirabel/__init__.py)
+# psycopg[binary] ships precompiled wheels on Windows/Linux/macOS — no C
+# compiler or libpq headers needed, unlike mysqlclient.
+psycopg[binary]==3.2.3
 
 # --- Config / env ---
 python-dotenv==1.0.1
-pydantic==2.10.4
+pydantic==2.13.4
 pydantic-settings==2.7.1
 
 # --- AI core ---
 anthropic==0.42.0
+google-genai==2.19.0
+openai==3.3.1
 
 # --- HTTP / utilities ---
 requests==2.32.3
@@ -33,9 +35,10 @@ ruff==0.9.1
 # --- Phase 2: memory + async ---
 celery==5.5.0
 redis==5.2.1
-# chromadb-client: lightweight HTTP client only (no C++ build needed on Windows).
-# Full chromadb can be used on Linux/macOS by replacing this with chromadb==0.6.3+.
-chromadb-client==1.5.8
+# Full chromadb — ships prebuilt wheels for Windows/Linux/macOS (no C++ build
+# needed), and is required for PersistentClient. The chromadb-client package
+# is HTTP-only and cannot open a local persistent store.
+chromadb==1.5.9
 django-celery-beat==2.9.0
 django-celery-results==2.6.0
 

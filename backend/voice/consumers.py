@@ -32,9 +32,6 @@ logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # Single hardcoded user for now — Phase 4 wires real auth.
-    USER_LABEL = "default"
-
     async def connect(self) -> None:
         self._audio_buffer = bytearray()
         self._inflight_task: asyncio.Task | None = None
@@ -106,7 +103,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         history = await self._build_history(conv_id)
         memories = await asyncio.to_thread(
             retrieve_relevant_memories,
-            user_label=self.USER_LABEL,
             query_text=user_text,
         )
         memory_block = format_memories_for_prompt(memories)
@@ -201,12 +197,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _persist_user_message(self, text: str) -> tuple[int, int]:
-        conv, _ = Conversation.objects.get_or_create(
-            user_label=self.USER_LABEL,
-            defaults={"user_label": self.USER_LABEL},
+        if self._conversation_id is None:
+            self._conversation_id = Conversation.objects.create().id
+        msg = Message.objects.create(
+            conversation_id=self._conversation_id, role="user", text=text, mood=""
         )
-        msg = Message.objects.create(conversation=conv, role="user", text=text, mood="")
-        return conv.id, msg.id
+        return self._conversation_id, msg.id
 
     @database_sync_to_async
     def _persist_assistant_message(self, conv_id: int, text: str, mood: str) -> int:

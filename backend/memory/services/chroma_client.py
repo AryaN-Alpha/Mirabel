@@ -1,6 +1,6 @@
 """
 Single source of truth for ChromaDB access.
-Wraps the chromadb-client SDK so the rest of the codebase can be tested with a fake.
+Wraps the chromadb SDK so the rest of the codebase can be tested with a fake.
 """
 
 from __future__ import annotations
@@ -18,30 +18,34 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def get_client() -> chromadb.ClientAPI:
-    """Process-wide singleton. PersistentClient runs locally without a separate Docker server."""
-    import os
-    chroma_path = os.path.join(django_settings.BASE_DIR, "chroma_data")
-    return chromadb.PersistentClient(path=chroma_path, settings=Settings())
+    """Process-wide singleton. HttpClient talks to the chroma container so the
+    Django process (host) and the Celery worker (container) share one store."""
+    return chromadb.HttpClient(
+        host=django_settings.CHROMA_HOST,
+        port=django_settings.CHROMA_PORT,
+        tenant=django_settings.CHROMA_TENANT,
+        database=django_settings.CHROMA_DATABASE,
+        settings=Settings(),
+    )
 
 
-def get_collection(user_label: str) -> chromadb.Collection:
-    """One collection per user, created on first access."""
+def get_collection() -> chromadb.Collection:
+    """Single collection — this app has exactly one user."""
     client = get_client()
     return client.get_or_create_collection(
-        name=f"mirabel_user_{user_label}",
+        name="mirabel_memories",
         metadata={"hnsw:space": "cosine"},
     )
 
 
 def add_memory(
     *,
-    user_label: str,
     memory_id: str,
     text: str,
     metadata: dict[str, Any],
 ) -> None:
     """Idempotent on memory_id — Chroma upserts on duplicate IDs."""
-    collection = get_collection(user_label)
+    collection = get_collection()
     collection.upsert(
         ids=[memory_id],
         documents=[text],
@@ -50,13 +54,13 @@ def add_memory(
 
 
 def query_memories(
-    *, user_label: str, query_text: str, n_results: int = 12
+    *, query_text: str, n_results: int = 12
 ) -> list[dict[str, Any]]:
     """
     Returns {id, text, metadata, similarity} dicts.
     Over-fetches (n_results=12) so the re-ranker in retrieval.py has room to work.
     """
-    collection = get_collection(user_label)
+    collection = get_collection()
     raw = collection.query(query_texts=[query_text], n_results=n_results)
 
     out: list[dict[str, Any]] = []

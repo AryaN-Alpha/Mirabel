@@ -1,23 +1,54 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import ChatScreen from "./components/ChatScreen";
 import VoiceChatScreen from "./components/VoiceChatScreen";
+import CozyBackdrop from "./components/CozyBackdrop";
+import CozyHeader from "./components/CozyHeader";
+import ModelSettingsModal from "./components/ModelSettingsModal";
 
 export default function App() {
   const [mode, setMode] = useState("text"); // "text" | "voice"
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <div className="relative h-screen">
-      {mode === "text" ? <ChatScreen /> : <VoiceChatScreen />}
+    <CozyBackdrop>
+      <CozyHeader mode={mode} onModeChange={setMode} onOpenSettings={() => setSettingsOpen(true)} />
+      <ModelSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Mode toggle — floating pill in top-right corner */}
-      <button
-        onClick={() => setMode((m) => (m === "text" ? "voice" : "text"))}
-        className="fixed top-4 right-4 z-50 px-4 py-2 rounded-full text-xs font-medium
-          bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition border border-zinc-700"
-        id="mode-toggle"
+      <div className="relative flex-1 min-h-0 w-full flex flex-col items-center">
+        <AnimatePresence mode="wait">
+          {mode === "text" ? (
+            <motion.div
+              key="text"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-full flex-1 min-h-0 flex flex-col items-center"
+            >
+              <ChatScreen />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="voice"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-full flex-1 min-h-0 flex flex-col items-center"
+            >
+              <VoiceChatScreen />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <footer
+        className="text-center pb-8 pt-2 text-[12px] font-light tracking-[0.04em]"
+        style={{ color: "rgba(243,233,226,0.26)" }}
       >
-        {mode === "text" ? "🎙 voice mode" : "⌨ text mode"}
-      </button>
-    </div>
+        {mode === "voice" ? "always here, never in a hurry" : "your words stay between us"}
+      </footer>
+    </CozyBackdrop>
   );
 }

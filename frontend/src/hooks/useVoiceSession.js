@@ -16,6 +16,9 @@ export function useVoiceSession() {
   const recorderRef = useRef(null);
   const vadRef = useRef(null);
   const audioQueueRef = useRef(new AudioQueue());
+  const micCtxRef = useRef(null);
+  const micAnalyserRef = useRef(null);
+  const playbackAnalyserRef = useRef(null);
 
   const sendJSON = useCallback((obj) => {
     const ws = wsRef.current;
@@ -49,10 +52,12 @@ export function useVoiceSession() {
           const bin = atob(msg.data);
           const bytes = new Uint8Array(bin.length);
           for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          audioQueueRef.current.enqueue(bytes.buffer);
+          audioQueueRef.current.addChunk(bytes.buffer);
           break;
         }
         case "audio_sentence_end":
+          audioQueueRef.current.endSentence();
+          playbackAnalyserRef.current = audioQueueRef.current.analyser;
           break;
         case "final":
           setMood(msg.mood || "neutral");
@@ -64,7 +69,17 @@ export function useVoiceSession() {
           break;
       }
     };
-    return () => ws.close();
+    return () => {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener('open', () => ws.close());
+      } else {
+        ws.close();
+      }
+    };
   }, []);
 
   // ---- Mic + VAD ------------------------------------------------------
@@ -74,6 +89,16 @@ export function useVoiceSession() {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
     });
+
+    // Dedicated analysis-only graph — never connected to a destination,
+    // just lets the visualizer read live mic levels while the mic is on.
+    const micCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const micAnalyser = micCtx.createAnalyser();
+    micAnalyser.fftSize = 256;
+    micAnalyser.smoothingTimeConstant = 0.6;
+    micCtx.createMediaStreamSource(stream).connect(micAnalyser);
+    micCtxRef.current = micCtx;
+    micAnalyserRef.current = micAnalyser;
 
     // MediaRecorder streams chunks during recording; we forward them as binary frames.
     const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
@@ -111,6 +136,9 @@ export function useVoiceSession() {
     recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
     recorderRef.current = null;
     vadRef.current = null;
+    micAnalyserRef.current = null;
+    micCtxRef.current?.close();
+    micCtxRef.current = null;
   }, []);
 
   return {
@@ -121,5 +149,7 @@ export function useVoiceSession() {
     thinking,
     startMic,
     stopMic,
+    micAnalyserRef,
+    playbackAnalyserRef,
   };
 }

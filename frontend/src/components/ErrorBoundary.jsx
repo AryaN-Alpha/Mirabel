@@ -17,8 +17,8 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full items-center justify-center bg-zinc-900 text-zinc-300 p-8 text-center">
-          <p className="text-lg">ugh, something broke. don&apos;t look at me like that.</p>
+        <div className="flex h-full items-center justify-center p-8 text-center" style={{ color: "rgba(243,233,226,0.6)" }}>
+          <p className="text-lg font-light">ugh, something broke. don&apos;t look at me like that.</p>
         </div>
       );
     }

@@ -1,7 +1,7 @@
 # Mirabel — Tsundere Voice Assistant
 
-A voice assistant with a Tsundere persona, dynamic 2D sprite reactions,
-emotional long-term memory (RAG), and agentic tool use via MCP.
+A voice assistant with a Tsundere persona, a live voice-reactive frequency
+visualizer, and emotional long-term memory (RAG).
 
 ## Monorepo layout
 - `/backend` — Django 6 + DRF, Python 3.13+

@@ -64,12 +64,12 @@ WSGI_APPLICATION = "mirabel.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "mirabel"),
-        "USER": os.getenv("DB_USER", "root"),
+        "USER": os.getenv("DB_USER", "postgres"),
         "PASSWORD": os.getenv("DB_PASSWORD", "Password1!"),
         "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "3306"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 
 }
@@ -78,7 +78,7 @@ CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
 ).split(",")
 
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
@@ -114,13 +114,13 @@ CELERY_TASK_TIME_LIMIT = 60
 CELERY_TASK_SOFT_TIME_LIMIT = 45
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-CELERY_TASK_ALWAYS_EAGER = True  # Run tasks synchronously without a broker
+CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "False") == "True"
 
 # --- ChromaDB ---
 CHROMA_HOST = os.getenv("CHROMA_HOST", "127.0.0.1")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8001"))
 CHROMA_TENANT = os.getenv("CHROMA_TENANT", "default_tenant")
-CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "mirabel")
+CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "default_database")
 
 # --- Memory tuning ---
 MEMORY_RETRIEVAL_TOP_K = int(os.getenv("MEMORY_RETRIEVAL_TOP_K", "6"))
@@ -174,11 +174,22 @@ LOGGING = {
 
 # --- Channels ---
 ASGI_APPLICATION = "mirabel.asgi.application"
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
-}
+CHANNEL_LAYER_REDIS_URL = os.environ.get("CHANNEL_LAYER_REDIS_URL", "")
+if CHANNEL_LAYER_REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [CHANNEL_LAYER_REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
 
 # Add 'channels' and 'voice' to INSTALLED_APPS
 INSTALLED_APPS += ["channels", "voice"]

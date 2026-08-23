@@ -1,6 +1,7 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mirabel.settings")
 
@@ -11,7 +12,7 @@ app.autodiscover_tasks()
 # Beat schedule — weekly emotional summary, every Sunday at 03:00 UTC.
 app.conf.beat_schedule = {
     "weekly-emotional-summary": {
-        "task": "memory.tasks.run_weekly_summary_for_all_users",
-        "schedule": 60 * 60 * 24 * 7,
+        "task": "memory.tasks.run_weekly_summary",
+        "schedule": crontab(day_of_week=0, hour=3, minute=0),
     },
 }
