@@ -1,4 +1,5 @@
-import { Mic, Keyboard, Settings } from "lucide-react";
+import { Mic, Keyboard, House } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function pillStyle(on) {
   return on
@@ -10,7 +11,9 @@ function pillStyle(on) {
     : { background: "transparent", color: "rgba(243,233,226,0.58)", boxShadow: "none" };
 }
 
-export default function CozyHeader({ mode, onModeChange, onOpenSettings }) {
+export default function CozyHeader({ mode, onModeChange }) {
+  const navigate = useNavigate();
+
   return (
     <header className="w-full max-w-[880px] mx-auto flex items-center justify-between gap-5 px-6 pt-7">
       <div className="flex items-center gap-3">
@@ -55,12 +58,12 @@ export default function CozyHeader({ mode, onModeChange, onOpenSettings }) {
       </div>
 
       <button
-        onClick={onOpenSettings}
-        aria-label="Model settings"
+        onClick={() => navigate("/home")}
+        aria-label="Open home"
         className="grid place-items-center w-[38px] h-[38px] rounded-full border-none cursor-pointer transition-all duration-200"
         style={{ background: "rgba(243,233,226,0.06)", color: "rgba(243,233,226,0.58)" }}
       >
-        <Settings size={16} strokeWidth={1.7} />
+        <House size={16} strokeWidth={1.7} />
       </button>
     </header>
   );
