@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <style>
+  /* xhtml2pdf/reportlab applies a default ~1em top+bottom margin to every
+     block element (div/p/h1/ul/li) unlike real browsers, which default
+     div/p to 0. Every rule below only sets the *specific* margin it wants
+     (e.g. margin-bottom), so without this reset each block silently keeps
+     the other, unset side at that ~1em default — that's what produced the
+     large, uneven blank gaps between every line in the exported PDF while
+     the on-screen React preview (real browser, real defaults) looked fine. */
+  div, p, h1, h2, ul, li { margin: 0; padding: 0; }
   @page { size: A4; margin: 0; }
   body { font-family: "{{ font_family }}"; font-size: 9.5pt; color: #222222; margin: 0; }
   table.layout { width: 100%; border-collapse: collapse; }
@@ -93,7 +101,7 @@
   <div class="entry">
     <div class="entry-title">{{ exp.title }}{% if exp.company %} | {{ exp.company }}{% endif %}</div>
     {% if exp.start_date or exp.end_date or exp.location %}
-    <div class="entry-sub">{% if exp.start_date or exp.end_date %}{{ exp.start_date }} – {{ exp.end_date }}{% endif %}{% if exp.location %} • {{ exp.location }}{% endif %}</div>
+    <div class="entry-sub">{% if exp.start_date or exp.end_date %}{{ exp.start_date }} – {{ exp.end_date }}{% if exp.location %} • {{ exp.location }}{% endif %}{% elif exp.location %}{{ exp.location }}{% endif %}</div>
     {% endif %}
     {% if exp.bullets %}
     <ul class="bullets">{% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
