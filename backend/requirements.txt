@@ -59,3 +59,15 @@ pydub==0.25.1
 # audioop was removed in Python 3.13. We use audioop-lts as a backport.
 audioop-lts==0.2.2
 # pydub needs ffmpeg available on PATH; the Dockerfile installs it.
+
+# --- Phase 4: Outlook / Microsoft Graph integration ---
+msal==1.37.0
+
+# --- Phase 5: CV builder ---
+# pdfplumber (MIT) extracts text from an uploaded CV PDF at upload time only
+# — chosen over PyMuPDF (AGPL) for license reasons. xhtml2pdf renders the
+# structured CV back out to PDF at export time — pure Python (reportlab-
+# based), no system libs required, unlike weasyprint (which needs Pango/
+# GObject and doesn't work out of the box on a bare Windows dev machine).
+pdfplumber==0.11.10
+xhtml2pdf==0.2.17

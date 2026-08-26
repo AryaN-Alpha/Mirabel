@@ -1,8 +1,11 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
 
 @theme {
   --font-sans: "Quicksand", system-ui, sans-serif;
   --font-serif: "Caveat", cursive;
+  --font-home-heading: "Cormorant Garamond", system-ui, serif;
+  --font-home-body: "Lora", system-ui, serif;
 }
 
 *, *::before, *::after {
@@ -65,4 +68,32 @@ html, body, #root {
 @keyframes cz-rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Home dashboard ("hearth") theme — scoped to /home, see HomeLayout/Sidebar/HomePage */
+@keyframes home-hearth {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .55; }
+  50% { transform: translate3d(2%, -2%, 0) scale(1.12); opacity: .85; }
+}
+@keyframes home-drift {
+  0%, 100% { transform: translate3d(-3%, 2%, 0) scale(1.05); }
+  50% { transform: translate3d(4%, -3%, 0) scale(1.18); }
+}
+@keyframes home-ember {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: .8; }
+  70% { opacity: .5; }
+  100% { transform: translate3d(24px, -320px, 0); opacity: 0; }
+}
+@keyframes home-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 173, 102, 0.4); opacity: .85; }
+  50% { box-shadow: 0 0 18px 4px rgba(225, 173, 102, 0.26); opacity: 1; }
+}
+@keyframes home-rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes home-rule-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }

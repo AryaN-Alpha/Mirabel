@@ -47,6 +47,7 @@ class GeminiProvider(Provider):
                     system_instruction=system,
                     max_output_tokens=max_tokens,
                     temperature=temperature,
+                    thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
                 ),
             )
         except genai_errors.APIError as exc:
@@ -83,6 +84,7 @@ class GeminiProvider(Provider):
                     system_instruction=system,
                     max_output_tokens=max_tokens,
                     temperature=temperature,
+                    thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
                 ),
             )
             async for chunk in stream:

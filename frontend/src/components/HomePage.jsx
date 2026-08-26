@@ -1,25 +1,17 @@
-import { Link, useOutletContext } from "react-router-dom";
-import { MessageCircle, SlidersHorizontal, Brain, Zap, Mic2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { MessageCircle, SlidersHorizontal, Mail, Brain, Linkedin, GraduationCap, FileText, SquareKanban, ArrowRight } from "lucide-react";
 
 const cardStyle = {
   background: "linear-gradient(165deg, rgba(46,30,26,0.9), rgba(30,19,17,0.94))",
   border: "1px solid rgba(243,233,226,0.1)",
 };
 
-function FeatureCard({ icon: Icon, title, description, action, soon }) {
+function FeatureCard({ icon: Icon, title, description, action }) {
   return (
     <div
       className="relative rounded-3xl p-6 flex flex-col gap-4"
-      style={{ ...cardStyle, opacity: soon ? 0.6 : 1 }}
+      style={cardStyle}
     >
-      {soon && (
-        <span
-          className="absolute top-5 right-5 text-[9.5px] uppercase tracking-[0.06em] px-2 py-[3px] rounded-full"
-          style={{ background: "rgba(243,233,226,0.07)", color: "rgba(243,233,226,0.45)" }}
-        >
-          Soon
-        </span>
-      )}
       <div
         className="w-10 h-10 grid place-items-center rounded-2xl"
         style={{ background: "rgba(243,233,226,0.06)", color: "#f0c9a2" }}
@@ -40,10 +32,8 @@ function FeatureCard({ icon: Icon, title, description, action, soon }) {
 }
 
 export default function HomePage() {
-  const { onOpenModelSettings } = useOutletContext();
-
   return (
-    <div className="w-full max-w-[980px] flex flex-col gap-8">
+    <div className="w-full flex flex-col gap-8">
       <div
         className="rounded-3xl p-7 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6"
         style={cardStyle}
@@ -84,32 +74,98 @@ export default function HomePage() {
             title="AI Model"
             description="Choose the provider and model Mirabel uses, and manage API keys."
             action={
-              <button
-                onClick={onOpenModelSettings}
-                className="mt-auto self-start flex items-center gap-1.5 text-[13px] border-none bg-transparent cursor-pointer px-0"
+              <Link
+                to="/home/ai-model"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
                 style={{ color: "#f0c9a2" }}
               >
                 Configure <ArrowRight size={13} strokeWidth={1.8} />
-              </button>
+              </Link>
+            }
+          />
+          <FeatureCard
+            icon={Mail}
+            title="Outlook"
+            description="Read and reply to email, with AI-drafted replies and compositions."
+            action={
+              <Link
+                to="/home/outlook"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                Configure <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
+            }
+          />
+          <FeatureCard
+            icon={Linkedin}
+            title="LinkedIn"
+            description="Draft, schedule, and publish posts with AI assistance."
+            action={
+              <Link
+                to="/home/linkedin"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                Manage <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
+            }
+          />
+          <FeatureCard
+            icon={GraduationCap}
+            title="Classroom"
+            description="View coursework, assignments, and generated solutions."
+            action={
+              <Link
+                to="/home/classroom"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                Open <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
+            }
+          />
+          <FeatureCard
+            icon={SquareKanban}
+            title="Tasks"
+            description="Organize your personal and AI-assisted workflow on a Kanban board."
+            action={
+              <Link
+                to="/home/tasks"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                View board <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
+            }
+          />
+          <FeatureCard
+            icon={FileText}
+            title="CV & Resume"
+            description="Tailor and export clean, professional resumes with AI."
+            action={
+              <Link
+                to="/home/cv"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                Open <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
             }
           />
           <FeatureCard
             icon={Brain}
-            title="Memory"
-            description="Let Mirabel remember details across conversations."
-            soon
-          />
-          <FeatureCard
-            icon={Zap}
-            title="Automations"
-            description="Give Mirabel small tasks to run on its own."
-            soon
-          />
-          <FeatureCard
-            icon={Mic2}
-            title="Voice presets"
-            description="Save favorite voices and speaking styles."
-            soon
+            title="Agent & Memory"
+            description="Explore conversational memories, moods, and reflections."
+            action={
+              <Link
+                to="/home/agent"
+                className="mt-auto self-start flex items-center gap-1.5 text-[13px] no-underline px-0"
+                style={{ color: "#f0c9a2" }}
+              >
+                Explore <ArrowRight size={13} strokeWidth={1.8} />
+              </Link>
+            }
           />
         </div>
       </div>

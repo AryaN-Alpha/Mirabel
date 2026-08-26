@@ -7,7 +7,11 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      # Host port 6380 (not the default 6379) — another project's Redis
+      # container was already bound to 6379 on this machine. Containers
+      # inside this compose network still reach it at redis:6379 internally;
+      # only host-side processes (native Django/Celery) need the 6380 port.
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:

@@ -9,10 +9,15 @@ app = Celery("mirabel")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
-# Beat schedule — weekly emotional summary, every Sunday at 03:00 UTC.
+# Beat schedule — weekly emotional summary, every Sunday at 03:00 UTC;
+# scheduled Outlook sends, checked every minute for anything now due.
 app.conf.beat_schedule = {
     "weekly-emotional-summary": {
         "task": "memory.tasks.run_weekly_summary",
         "schedule": crontab(day_of_week=0, hour=3, minute=0),
+    },
+    "outlook-scheduled-emails": {
+        "task": "outlook.tasks.send_due_scheduled_emails",
+        "schedule": 60.0,
     },
 }

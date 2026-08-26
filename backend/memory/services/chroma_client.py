@@ -53,6 +53,72 @@ def add_memory(
     )
 
 
+def list_memories(
+    *,
+    where: dict[str, Any] | None = None,
+    where_document: dict[str, Any] | None = None,
+    sort: str = "created_at",
+    limit: int,
+    offset: int,
+) -> tuple[int, list[dict[str, Any]]]:
+    """
+    Filtered + paginated read over the whole collection.
+
+    Chroma's .get() has no server-side sort or true offset-pagination, so this
+    fetches every match for the filter (fine for a single-user collection —
+    same over-fetch approach as query_memories), sorts in Python, and slices.
+    Returns (total_matching, page_items) where each item is
+    {id, text, metadata}.
+    """
+    collection = get_collection()
+    kwargs: dict[str, Any] = {"include": ["documents", "metadatas"]}
+    if where:
+        kwargs["where"] = where
+    if where_document:
+        kwargs["where_document"] = where_document
+    raw = collection.get(**kwargs)
+
+    ids = raw["ids"] or []
+    docs = raw["documents"] or []
+    metas = raw["metadatas"] or []
+
+    items = [
+        {"id": mid, "text": doc, "metadata": meta or {}}
+        for mid, doc, meta in zip(ids, docs, metas)
+    ]
+
+    sort_key = "salience" if sort == "salience" else "created_at"
+    items.sort(key=lambda item: item["metadata"].get(sort_key, ""), reverse=True)
+
+    total = len(items)
+    page = items[offset : offset + limit]
+    return total, page
+
+
+def collection_stats() -> dict[str, Any]:
+    """Total count, mood breakdown, and date range across the whole collection."""
+    collection = get_collection()
+    raw = collection.get(include=["metadatas"])
+    metas = raw["metadatas"] or []
+
+    mood_breakdown: dict[str, int] = {}
+    dates: list[str] = []
+    for meta in metas:
+        mood = (meta or {}).get("mood", "neutral")
+        mood_breakdown[mood] = mood_breakdown.get(mood, 0) + 1
+        created_at = (meta or {}).get("created_at")
+        if created_at:
+            dates.append(created_at)
+    dates.sort()
+
+    return {
+        "total": len(metas),
+        "mood_breakdown": mood_breakdown,
+        "oldest": dates[0] if dates else None,
+        "newest": dates[-1] if dates else None,
+    }
+
+
 def query_memories(
     *, query_text: str, n_results: int = 12
 ) -> list[dict[str, Any]]:

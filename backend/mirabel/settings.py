@@ -31,6 +31,11 @@ INSTALLED_APPS = [
     "django_celery_results",
     "core",
     "memory",
+    "outlook",
+    "linkedin",
+    "classroom",
+    "cv",
+    "kanban",
 ]
 
 MIDDLEWARE = [
@@ -129,6 +134,50 @@ CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "default_database")
 MEMORY_RETRIEVAL_TOP_K = int(os.getenv("MEMORY_RETRIEVAL_TOP_K", "6"))
 MEMORY_RECENCY_HALF_LIFE_DAYS = float(os.getenv("MEMORY_RECENCY_HALF_LIFE_DAYS", "30"))
 
+# --- Outlook / Microsoft Graph ---
+# MS_CLIENT_ID / MS_CLIENT_SECRET are deliberately not read here — they're
+# read lazily in outlook/services/oauth.py (like ANTHROPIC_API_KEY etc.), so
+# a dev without Azure credentials configured can still run the server.
+MS_TENANT_ID = os.getenv("MS_TENANT_ID", "common")
+MS_REDIRECT_URI = os.getenv("MS_REDIRECT_URI", "http://localhost:8000/api/outlook/auth/callback/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+OUTLOOK_ALLOWED_SENDER_DOMAIN = os.getenv("OUTLOOK_ALLOWED_SENDER_DOMAIN", "dgtdata.com")
+
+# --- LinkedIn ---
+# LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET are deliberately not read here —
+# they're read lazily in linkedin/services/oauth.py (same reasoning as
+# MS_CLIENT_ID/MS_CLIENT_SECRET above), so a dev without a LinkedIn app
+# configured can still run the server.
+LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/api/linkedin/auth/callback/")
+LINKEDIN_SCOPES = os.getenv("LINKEDIN_SCOPES", "openid profile email w_member_social")
+LINKEDIN_API_VERSION = os.getenv("LINKEDIN_API_VERSION", "202608")
+# Standard self-serve LinkedIn apps don't get refresh tokens (partner-only
+# program) — leave this False unless LinkedIn has granted yours that.
+LINKEDIN_ENABLE_REFRESH_TOKEN = os.getenv("LINKEDIN_ENABLE_REFRESH_TOKEN", "False") == "True"
+
+# --- Google Classroom ---
+# GOOGLE_CLASSROOM_CLIENT_ID / GOOGLE_CLASSROOM_CLIENT_SECRET are deliberately
+# not read here — they're read lazily in classroom/services/oauth.py (same
+# reasoning as MS_CLIENT_ID/LINKEDIN_CLIENT_ID above), so a dev without a
+# Google Cloud OAuth client configured can still run the server.
+GOOGLE_CLASSROOM_REDIRECT_URI = os.getenv(
+    "GOOGLE_CLASSROOM_REDIRECT_URI", "http://localhost:8000/api/classroom/auth/callback/"
+)
+GOOGLE_CLASSROOM_SCOPES = os.getenv(
+    "GOOGLE_CLASSROOM_SCOPES",
+    "openid https://www.googleapis.com/auth/userinfo.email "
+    "https://www.googleapis.com/auth/userinfo.profile "
+    "https://www.googleapis.com/auth/classroom.courses.readonly "
+    "https://www.googleapis.com/auth/classroom.coursework.me "
+    "https://www.googleapis.com/auth/drive.readonly "
+    "https://www.googleapis.com/auth/drive.file "
+    "https://www.googleapis.com/auth/documents",
+)
+
+# --- Media (LinkedIn post images, staged locally before upload) ---
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -164,6 +213,31 @@ LOGGING = {
             "propagate": False,
         },
         "voice": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "outlook": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "linkedin": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "classroom": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "cv": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "kanban": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": False,
