@@ -59,6 +59,8 @@ export default function KanbanPage() {
 
   const [activeTask, setActiveTask] = useState(null);
   const [activeWidth, setActiveWidth] = useState(null);
+  // Offset of the cursor within the card at the moment dragging starts
+  const [grabOffset, setGrabOffset] = useState({ x: 0, y: 0 });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -66,15 +68,25 @@ export default function KanbanPage() {
   );
 
   function handleDragStart(event) {
-    const { active } = event;
+    const { active, activatorEvent } = event;
     if (active.data.current?.type === "Task") {
       setActiveTask(active.data.current.task);
-      const measuredWidth =
-        active.rect.current?.initial?.width ||
+      const cardRect =
+        active.rect.current?.initial ||
         (typeof document !== "undefined" &&
-          document.querySelector(`[data-task-id="${active.id}"]`)?.getBoundingClientRect().width) ||
+          document.querySelector(`[data-task-id="${active.id}"]`)?.getBoundingClientRect()) ||
         null;
-      if (measuredWidth) setActiveWidth(measuredWidth);
+      if (cardRect) {
+        setActiveWidth(cardRect.width);
+        // Capture where inside the card the user clicked so the overlay
+        // stays anchored to that exact point instead of jumping to top-left.
+        const pointerX = activatorEvent?.clientX ?? (cardRect.left + cardRect.width / 2);
+        const pointerY = activatorEvent?.clientY ?? (cardRect.top + cardRect.height / 2);
+        setGrabOffset({
+          x: pointerX - cardRect.left,
+          y: pointerY - cardRect.top,
+        });
+      }
     }
   }
 
@@ -119,6 +131,7 @@ export default function KanbanPage() {
   function handleDragEnd(event) {
     setActiveTask(null);
     setActiveWidth(null);
+    setGrabOffset({ x: 0, y: 0 });
     const { active, over } = event;
     if (!over) return;
 
@@ -387,7 +400,14 @@ export default function KanbanPage() {
             
             <DragOverlay dropAnimation={null}>
               {activeTask ? (
-                <div style={{ width: activeWidth ? `${activeWidth}px` : "100%", pointerEvents: "none" }}>
+                // translateX/Y shift the overlay so the grab point stays
+                // under the cursor rather than the card jumping to top-left.
+                <div style={{
+                  width: activeWidth ? `${activeWidth}px` : "100%",
+                  pointerEvents: "none",
+                  transform: `translate(${-grabOffset.x}px, ${-grabOffset.y}px)`,
+                  transformOrigin: "top left",
+                }}>
                   <KanbanCardUI task={activeTask} isOverlay />
                 </div>
               ) : null}
