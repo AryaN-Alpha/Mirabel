@@ -5,12 +5,13 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from cv.models import CVProfile
-from cv.schema import MAX_FIELD_LENGTH, normalize_sections
+from cv.models import CVProfile, CvStylePreference
+from cv.schema import MAX_FIELD_LENGTH, default_section_order, normalize_sections
 from cv.services.generation import generate_project_description, regenerate_section
 from cv.services.parsing import MAX_EXTRACTED_CHARS, extract_hyperlinks, extract_text
 from cv.services.pdf_export import render_cv_pdf
 from cv.services.structuring import structure_cv
+from cv.style_catalog import FONTS, TEMPLATES, THEMES
 
 logger = logging.getLogger("cv.views")
 
@@ -200,3 +201,59 @@ def export_pdf(_request: Request, cv_id: int) -> HttpResponse:
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename="cv.pdf"'
     return response
+
+
+def _is_valid_section_order(order) -> bool:
+    if not isinstance(order, dict) or set(order) != {"main", "sidebar"}:
+        return False
+    expected = default_section_order()
+    for column, keys in expected.items():
+        value = order[column]
+        if not isinstance(value, list) or set(value) != set(keys) or len(value) != len(keys):
+            return False
+    return True
+
+
+@api_view(["GET", "PUT"])
+def cv_style_preference(request: Request) -> Response:
+    pref = CvStylePreference.current()
+
+    if request.method == "GET":
+        return Response(
+            {
+                "font_choice": pref.font_choice,
+                "theme_choice": pref.theme_choice,
+                "template_choice": pref.template_choice,
+                "section_order": pref.section_order,
+                "available": {"fonts": FONTS, "themes": THEMES, "templates": TEMPLATES},
+            }
+        )
+
+    font_choice = request.data.get("font_choice", pref.font_choice)
+    theme_choice = request.data.get("theme_choice", pref.theme_choice)
+    template_choice = request.data.get("template_choice", pref.template_choice)
+    section_order = request.data.get("section_order", pref.section_order)
+
+    if font_choice not in FONTS:
+        return Response({"error": f"unknown font_choice: {font_choice!r}"}, status=400)
+    if theme_choice not in THEMES:
+        return Response({"error": f"unknown theme_choice: {theme_choice!r}"}, status=400)
+    if template_choice not in TEMPLATES:
+        return Response({"error": f"unknown template_choice: {template_choice!r}"}, status=400)
+    if not _is_valid_section_order(section_order):
+        return Response({"error": "section_order must list each section exactly once per column"}, status=400)
+
+    pref.font_choice = font_choice
+    pref.theme_choice = theme_choice
+    pref.template_choice = template_choice
+    pref.section_order = section_order
+    pref.save()
+    return Response(
+        {
+            "font_choice": pref.font_choice,
+            "theme_choice": pref.theme_choice,
+            "template_choice": pref.template_choice,
+            "section_order": pref.section_order,
+            "available": {"fonts": FONTS, "themes": THEMES, "templates": TEMPLATES},
+        }
+    )

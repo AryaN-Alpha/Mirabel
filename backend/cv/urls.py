@@ -4,6 +4,7 @@ from cv import views
 
 urlpatterns = [
     path("", views.cv_list, name="cv-list"),
+    path("style/", views.cv_style_preference, name="cv-style-preference"),
     path("<int:cv_id>/", views.cv_detail, name="cv-detail"),
     path("<int:cv_id>/upload/", views.upload, name="cv-upload"),
     path("<int:cv_id>/export/", views.export_pdf, name="cv-export"),

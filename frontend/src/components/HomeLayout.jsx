@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import HomeNavbar from "./HomeNavbar";
 import { bg, accent, accent2700 } from "./homeTheme";
+import { ScrollContainerProvider, useScrollContainer } from "./ScrollContainerContext";
 
 const PAGE_TITLES = {
   "/home/ai-model": "AI Model",
@@ -27,6 +28,16 @@ const EMBERS = [
 export default function HomeLayout() {
   const { pathname } = useLocation();
   const title = PAGE_TITLES[pathname];
+
+  return (
+    <ScrollContainerProvider>
+      <HomeLayoutInner title={title} />
+    </ScrollContainerProvider>
+  );
+}
+
+function HomeLayoutInner({ title }) {
+  const scrollRef = useScrollContainer();
 
   return (
     <div className="relative flex-1 min-h-0 w-full flex items-stretch overflow-hidden" style={{ background: bg }}>
@@ -71,9 +82,9 @@ export default function HomeLayout() {
 
       <Sidebar />
 
-      <div className="relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col">
+      <div ref={scrollRef} className={`relative flex-1 min-w-0 min-h-0 flex flex-col ${title ? "overflow-y-auto" : "overflow-hidden"}`}>
         {title && <HomeNavbar title={title} />}
-        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full" : "flex-1 w-full"}>
+        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full" : "flex-1 w-full min-h-0"}>
           <Outlet />
         </div>
       </div>

@@ -7,8 +7,8 @@ from django.urls import reverse
 from pypdf import PdfReader
 from rest_framework.test import APITestCase
 
-from cv.models import CVProfile
-from cv.schema import MAX_FIELD_LENGTH, MAX_URL_LENGTH, empty_sections
+from cv.models import CVProfile, CvStylePreference
+from cv.schema import MAX_FIELD_LENGTH, MAX_URL_LENGTH, default_section_order, empty_sections
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
@@ -385,3 +385,73 @@ class CvExportPdfEndpointTests(CvAPITestCase):
         # no start/end date used to render with a stray leading "• ".
         self.assertIn("Berlin, Germany", text)
         self.assertNotIn("• Berlin, Germany", text)
+
+
+class CvStylePreferenceEndpointTests(CvAPITestCase):
+    def test_get_creates_default_singleton(self):
+        response = self.client.get(reverse("cv-style-preference"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["font_choice"], CvStylePreference.DEFAULT_FONT)
+        self.assertEqual(response.data["theme_choice"], CvStylePreference.DEFAULT_THEME)
+        self.assertEqual(response.data["template_choice"], CvStylePreference.DEFAULT_TEMPLATE)
+        self.assertEqual(response.data["section_order"], default_section_order())
+        self.assertIn("fonts", response.data["available"])
+        self.assertIn("themes", response.data["available"])
+        self.assertIn("templates", response.data["available"])
+
+    def test_put_updates_font_and_theme(self):
+        response = self.client.put(
+            reverse("cv-style-preference"),
+            {"font_choice": "lora", "theme_choice": "midnight-blue"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["font_choice"], "lora")
+        self.assertEqual(response.data["theme_choice"], "midnight-blue")
+        # template_choice/section_order weren't in the PUT body — untouched
+        self.assertEqual(response.data["template_choice"], CvStylePreference.DEFAULT_TEMPLATE)
+        pref = CvStylePreference.current()
+        self.assertEqual(pref.font_choice, "lora")
+
+    def test_put_rejects_unknown_font(self):
+        response = self.client.put(reverse("cv-style-preference"), {"font_choice": "comic-sans"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_rejects_unknown_theme(self):
+        response = self.client.put(reverse("cv-style-preference"), {"theme_choice": "bogus"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_rejects_unknown_template(self):
+        response = self.client.put(reverse("cv-style-preference"), {"template_choice": "bogus"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_accepts_permuted_section_order(self):
+        order = {
+            "main": ["experience", "summary", "certifications", "projects"],
+            "sidebar": ["education", "strengths", "skills"],
+        }
+        response = self.client.put(reverse("cv-style-preference"), {"section_order": order}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["section_order"], order)
+
+    def test_put_rejects_section_order_missing_a_key(self):
+        order = {
+            "main": ["experience", "summary", "certifications"],  # missing "projects"
+            "sidebar": ["education", "strengths", "skills"],
+        }
+        response = self.client.put(reverse("cv-style-preference"), {"section_order": order}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_rejects_section_order_with_foreign_key(self):
+        order = {
+            "main": ["experience", "summary", "certifications", "bogus"],
+            "sidebar": ["education", "strengths", "skills"],
+        }
+        response = self.client.put(reverse("cv-style-preference"), {"section_order": order}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_rejects_section_order_missing_a_column(self):
+        response = self.client.put(
+            reverse("cv-style-preference"), {"section_order": {"main": default_section_order()["main"]}}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)

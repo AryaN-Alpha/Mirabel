@@ -49,7 +49,7 @@ export default function Sidebar() {
       </p>
 
       <nav className="flex flex-col">
-        <NavRow icon={LayoutDashboard} label="Overview" to="/home" end />
+        <NavRow icon={LayoutDashboard} label="Me" to="/home" end />
         <NavRow icon={SlidersHorizontal} label="AI Model" to="/home/ai-model" />
         <NavRow icon={Mail} label="Outlook" to="/home/outlook" />
         <NavRow icon={Linkedin} label="LinkedIn" to="/home/linkedin" />

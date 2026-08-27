@@ -82,7 +82,7 @@ DATABASES = {
 }
 
 CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
+    "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174"
 ).split(",")
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")

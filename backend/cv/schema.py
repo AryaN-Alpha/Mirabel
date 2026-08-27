@@ -49,6 +49,19 @@ def empty_sections() -> dict:
     }
 
 
+# The two-column resume layout has a structurally fixed split — sidebar
+# always holds skills/education/strengths, main always holds
+# summary/experience/projects/certifications, and contact is pinned first in
+# the sidebar (identity info, never reordered) — so section order is stored
+# per-column rather than as one flat list. Used as CvStylePreference.section_order's
+# default (cv/models.py).
+def default_section_order() -> dict:
+    return {
+        "main": ["summary", "experience", "projects", "certifications"],
+        "sidebar": ["skills", "education", "strengths"],
+    }
+
+
 def _as_str(value) -> str:
     if value is None:
         return ""
