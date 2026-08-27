@@ -12,6 +12,12 @@ this app renders (CvPreview.jsx, resume.html) and edits.
 
 import uuid
 
+# Shared with cv/views.py (imported from here, not redefined) so the two
+# ad-hoc AI-endpoint truncations and this PUT-path normalization agree on
+# what "too long" means.
+MAX_FIELD_LENGTH = 500
+MAX_URL_LENGTH = 2000
+
 PERSONAL_INFO_KEYS = ("name", "title", "email", "phone", "location")
 
 EXPERIENCE_KEYS = ("title", "company", "location", "start_date", "end_date")
@@ -55,18 +61,37 @@ def _as_list(value) -> list:
     return []
 
 
+def _link_dedupe_key(url: str) -> str:
+    return url.strip().lower().rstrip("/")
+
+
 def _normalize_links(raw) -> list[dict]:
     links = []
+    seen_urls = set()
     for item in _as_list(raw):
         if isinstance(item, dict):
             url = _as_str(item.get("url")).strip()
-            if url:
-                links.append({"label": _as_str(item.get("label")).strip(), "url": url})
+            label = _as_str(item.get("label")).strip()
         elif isinstance(item, str) and item.strip():
             # The structuring prompt asks for {label, url} objects, but a
             # model occasionally returns bare URL strings instead — treat
             # that as a link with no label rather than silently dropping it.
-            links.append({"label": "", "url": item.strip()})
+            url = item.strip()
+            label = ""
+        else:
+            continue
+        if not url:
+            continue
+        # Same URL saved twice under different labels (or pasted twice) —
+        # keep the first occurrence rather than storing a second, visually
+        # near-identical row. Compared before truncation below so two
+        # distinct long URLs that happen to share a truncated prefix are
+        # never mistaken for duplicates.
+        key = _link_dedupe_key(url)
+        if key in seen_urls:
+            continue
+        seen_urls.add(key)
+        links.append({"label": label[:MAX_FIELD_LENGTH], "url": url[:MAX_URL_LENGTH]})
     return links
 
 
@@ -111,7 +136,7 @@ def normalize_sections(data) -> dict:
     personal_info_raw = data.get("personal_info")
     if isinstance(personal_info_raw, dict):
         for key in PERSONAL_INFO_KEYS:
-            result["personal_info"][key] = _as_str(personal_info_raw.get(key))
+            result["personal_info"][key] = _as_str(personal_info_raw.get(key))[:MAX_FIELD_LENGTH]
         result["personal_info"]["links"] = _normalize_links(personal_info_raw.get("links"))
 
     result["summary"] = _as_str(data.get("summary"))

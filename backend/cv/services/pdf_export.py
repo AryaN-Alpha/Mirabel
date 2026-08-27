@@ -1,5 +1,6 @@
 import io
 import os
+import re
 
 from django.template.loader import render_to_string
 
@@ -51,19 +52,54 @@ def _register_fonts() -> None:
     _fonts_registered = True
 
 
+_SAFE_SCHEMES = re.compile(r"^(https?|mailto|tel):", re.IGNORECASE)
+_ANY_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
+_SCHEME_PREFIX = re.compile(r"^[a-z][a-z0-9+.-]*:/*", re.IGNORECASE)
+
+
+def _as_href(url: str) -> str:
+    """CV links/project URLs are free-typed text (e.g. "linkedin.com/in/x"
+    pasted without a scheme, or AI-extracted bare domains) — used verbatim as
+    an <a href> that becomes relative to the PDF's own (nonexistent) base
+    URL, producing a dead link. Mirrors frontend/src/utils/url.js's
+    normalizeUrl so the same free-text value ends up clickable everywhere.
+
+    Any scheme outside the safe allowlist (javascript:, data:, ...) is
+    stripped and treated as a bare domain instead of passed through as an
+    href verbatim — this field has no server-side sanitization, so a value
+    like "javascript:..." would otherwise land in the exported PDF as a
+    clickable link action."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if _SAFE_SCHEMES.match(url):
+        return url
+    if _ANY_SCHEME.match(url):
+        return f"https://{_SCHEME_PREFIX.sub('', url)}"
+    if "@" in url and "/" not in url:
+        return f"mailto:{url}"
+    return f"https://{url}"
+
+
 def _with_description_lines(projects: list[dict]) -> list[dict]:
     """xhtml2pdf's HTML->PDF engine has no reliable way to split a string by
     newline in-template, so bullet-per-line project descriptions (both
     AI-generated and structured-from-PDF ones can contain multiple lines)
     are pre-split here into a fresh list of dicts — the original `sections`
-    passed in is never mutated."""
+    passed in is never mutated. Also stamps a normalized `href` for the
+    project link so the template can emit a real clickable PDF hyperlink."""
     return [
         {
             **proj,
+            "href": _as_href(proj.get("link", "")),
             "description_lines": [line.strip() for line in proj.get("description", "").split("\n") if line.strip()],
         }
         for proj in projects
     ]
+
+
+def _with_hrefs(links: list[dict]) -> list[dict]:
+    return [{**link, "href": _as_href(link.get("url", ""))} for link in links]
 
 
 def render_cv_pdf(sections: dict) -> bytes:
@@ -74,9 +110,17 @@ def render_cv_pdf(sections: dict) -> bytes:
     from xhtml2pdf import pisa
 
     _register_fonts()
+    personal_info = sections.get("personal_info", {})
     context = {
         "font_family": FONT_FAMILY,
-        "sections": {**sections, "projects": _with_description_lines(sections.get("projects", []))},
+        "sections": {
+            **sections,
+            "personal_info": {
+                **personal_info,
+                "links": _with_hrefs(personal_info.get("links", [])),
+            },
+            "projects": _with_description_lines(sections.get("projects", [])),
+        },
     }
     html = render_to_string("cv/resume.html", context)
 

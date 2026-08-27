@@ -117,14 +117,36 @@ export function useVoiceSession() {
         wsRef.current.send(await ev.data.arrayBuffer());
       }
     };
+    // Critical: send utterance_end from onstop, NOT from onSpeechEnd.
+    // MediaRecorder.stop() queues a final ondataavailable THEN onstop.
+    // This guarantees the last audio chunk reaches the backend BEFORE
+    // utterance_end, preventing the backend from treating it as barge-in.
+    recorder.onstop = () => {
+      sendJSON({ type: "utterance_end" });
+    };
     recorderRef.current = recorder;
+
+    // Suppress noisy ONNX runtime warnings emitted from the WASM binary
+    // during model session creation. These are harmless "Removing initializer"
+    // messages that cannot be silenced via ort.env — they come from C++ code
+    // compiled to WASM and are routed through console.warn.
+    const _origWarn = console.warn;
+    console.warn = function (...args) {
+      if (typeof args[0] === "string" && args[0].includes("Removing initializer")) return;
+      _origWarn.apply(console, args);
+    };
 
     // VAD owns the start/stop logic so the user never holds a button.
     const vad = await MicVAD.new({
       stream,
-      positiveSpeechThreshold: 0.6,
-      negativeSpeechThreshold: 0.45,
+      model: "v5",
+      positiveSpeechThreshold: 0.5,
+      negativeSpeechThreshold: 0.35,
       minSpeechFrames: 4,
+      redemptionFrames: 16,
+      // When the user manually pauses the mic, flush any in-progress speech
+      // segment as a proper onSpeechEnd event instead of silently discarding.
+      submitUserSpeechOnPause: true,
       onSpeechStart: () => {
         // Barge-in: kill any audio currently playing
         audioQueueRef.current.stop();
@@ -132,17 +154,32 @@ export function useVoiceSession() {
         if (recorder.state === "inactive") recorder.start(250); // 250ms timeslice
       },
       onSpeechEnd: () => {
+        // Just stop the recorder — the onstop handler sends utterance_end
+        // AFTER the final ondataavailable chunk, preventing the race condition.
         if (recorder.state === "recording") recorder.stop();
-        sendJSON({ type: "utterance_end" });
       },
     });
+
+    // Restore console.warn now that model session creation is done.
+    console.warn = _origWarn;
+
     vad.start();
     vadRef.current = vad;
   }, [sendJSON]);
 
   const stopMic = useCallback(() => {
+    // Pause VAD first — with submitUserSpeechOnPause=true, this fires
+    // onSpeechEnd (which stops the recorder) if the user was mid-speech.
+    // The recorder's onstop handler then sends utterance_end.
     vadRef.current?.pause();
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+
+    // Safety net: if the recorder is *still* recording after the VAD pause
+    // (e.g. speech was too short to meet minSpeechFrames → VAD misfire),
+    // stop it manually. The onstop handler will send utterance_end.
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+    }
+
     recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
     recorderRef.current = null;
     vadRef.current = null;
@@ -164,3 +201,4 @@ export function useVoiceSession() {
     playbackAnalyserRef,
   };
 }
+

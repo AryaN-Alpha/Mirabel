@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { generateOutlookCompose, scheduleOutlookMessage, sendOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle, tabStyle } from "../OutlookPage";
+import { space, cream } from "../homeTheme";
+import { labelStyle, GhostLink, OutlineButton, TabLink, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
 export default function OutlookComposeTab() {
   const [to, setTo] = useState("");
@@ -70,79 +71,55 @@ export default function OutlookComposeTab() {
     to.trim() && subject.trim() && body.trim() && !sending && !sent && (!scheduling || sendAtInFuture);
 
   return (
-    <div className="flex flex-col gap-3">
-      <input
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        placeholder="To — comma-separated addresses"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
-      <input
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        placeholder="Subject"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
+    <div style={{ maxWidth: 720 }}>
+      <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="To — comma-separated addresses" style={underlineInputStyle} />
+      <div style={{ marginTop: space[4] }}>
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={underlineInputStyle} />
+      </div>
 
-      <div className="rounded-2xl p-4" style={{ background: "rgba(243,233,226,0.03)" }}>
-        <p className="text-[11px] uppercase tracking-[0.08em] mb-2.5" style={{ color: "rgba(243,233,226,0.4)" }}>
-          Generate with AI
-        </p>
-        <div className="flex gap-2">
+      <div style={{ marginTop: space[6] }}>
+        <div style={labelStyle}>Generate with AI</div>
+        <div className="flex items-center flex-wrap" style={{ gap: space[4], marginTop: space[3] }}>
           <input
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="What should this email say?"
-            className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-            style={inputStyle}
+            style={{ ...underlineInputStyle, flex: 1, minWidth: 220 }}
           />
-          <button
-            onClick={handleGenerate}
-            disabled={generating || !prompt.trim()}
-            className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-            style={{
-              background: "rgba(243,233,226,0.1)",
-              color: "#f3e9e2",
-              opacity: generating || !prompt.trim() ? 0.5 : 1,
-            }}
-          >
-            {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} strokeWidth={1.8} />}
-            Generate content via AI
-          </button>
+          <GhostLink disabled={generating || !prompt.trim()} onClick={handleGenerate}>
+            {generating && <Loader2 size={13} className="animate-spin" />}
+            Generate →
+          </GhostLink>
         </div>
-        {genError && (
-          <p className="text-[12px] mt-2.5" style={{ color: "rgba(224,140,140,0.9)" }}>
-            {genError}
-          </p>
-        )}
+        <ErrorNote>{genError}</ErrorNote>
       </div>
 
-      <textarea
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Write your email…"
-        rows={10}
-        className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-        style={inputStyle}
-      />
+      <div
+        style={{
+          marginTop: space[6],
+          padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
+          border: `1px solid ${cream(0.12)}`,
+          borderRadius: 4,
+          background: "rgba(15,12,10,0.35)",
+        }}
+      >
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write your email…"
+          rows={9}
+          className="w-full resize-y"
+          style={{ background: "transparent", border: 0, color: cream(1), fontSize: 16, lineHeight: 1.85, outline: "none" }}
+        />
+      </div>
 
-      <div className="flex items-center gap-1.5 p-[5px] rounded-full w-fit" style={{ background: "rgba(243,233,226,0.06)", border: "1px solid rgba(243,233,226,0.09)" }}>
-        <button
-          onClick={() => setScheduling(false)}
-          className="px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
-          style={tabStyle(!scheduling)}
-        >
+      <div className="flex items-center flex-wrap" style={{ gap: space[6], marginTop: space[6] }}>
+        <TabLink active={!scheduling} onClick={() => setScheduling(false)}>
           Send now
-        </button>
-        <button
-          onClick={() => setScheduling(true)}
-          className="px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
-          style={tabStyle(scheduling)}
-        >
+        </TabLink>
+        <TabLink active={scheduling} onClick={() => setScheduling(true)}>
           Schedule for later
-        </button>
+        </TabLink>
       </div>
 
       {scheduling && (
@@ -150,45 +127,27 @@ export default function OutlookComposeTab() {
           type="datetime-local"
           value={sendAt}
           onChange={(e) => setSendAt(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
+          style={{ ...underlineInputStyle, marginTop: space[4], colorScheme: "dark" }}
         />
       )}
-      {scheduling && sendAt && !sendAtInFuture && (
-        <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          Pick a time in the future.
-        </p>
-      )}
+      {scheduling && sendAt && !sendAtInFuture && <ErrorNote>Pick a time in the future.</ErrorNote>}
+      <ErrorNote>{sendError}</ErrorNote>
 
-      {sendError && (
-        <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {sendError}
-        </p>
-      )}
-
-      <button
-        onClick={handleSend}
-        disabled={!canSend}
-        className="w-full py-3 rounded-full text-[13px] tracking-[0.02em] border-none cursor-pointer transition-opacity duration-200"
-        style={{
-          background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-          color: "#2c1c16",
-          opacity: canSend ? 1 : 0.4,
-          cursor: canSend ? "pointer" : "not-allowed",
-        }}
-      >
-        {sent
-          ? scheduling
-            ? "Scheduled"
-            : "Sent"
-          : sending
+      <div className="flex items-center" style={{ gap: space[4], marginTop: space[6] }}>
+        <OutlineButton onClick={handleSend} disabled={!canSend}>
+          {sent
             ? scheduling
-              ? "Scheduling…"
-              : "Sending…"
-            : scheduling
-              ? "Schedule"
-              : "Send"}
-      </button>
+              ? "Scheduled"
+              : "Sent"
+            : sending
+              ? scheduling
+                ? "Scheduling…"
+                : "Sending…"
+              : scheduling
+                ? "Schedule"
+                : "Send"}
+        </OutlineButton>
+      </div>
     </div>
   );
 }

@@ -24,6 +24,7 @@
   .side-h { font-size: 10pt; font-weight: bold; color: #ffffff; letter-spacing: 1.5pt; margin: 0 0 8pt 0; border-bottom: 1pt solid #555555; padding-bottom: 4pt; }
   .side-block { margin-bottom: 16pt; }
   .side-item { font-size: 9pt; color: #dddddd; margin-bottom: 4pt; }
+  .side-item a, .entry-sub a { color: #e0a878; text-decoration: underline; }
   .skill-cat { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 2pt 0; }
   .skill-item { font-size: 8.5pt; color: #cccccc; margin: 0 0 1pt 6pt; }
   .strength-title { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 1pt 0; }
@@ -47,7 +48,7 @@
     {% if sections.personal_info.phone %}<div class="side-item">{{ sections.personal_info.phone }}</div>{% endif %}
     {% if sections.personal_info.email %}<div class="side-item">{{ sections.personal_info.email }}</div>{% endif %}
     {% if sections.personal_info.location %}<div class="side-item">{{ sections.personal_info.location }}</div>{% endif %}
-    {% for link in sections.personal_info.links %}<div class="side-item">{{ link.label|default:link.url }}</div>{% endfor %}
+    {% for link in sections.personal_info.links %}<div class="side-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
   </div>
 
   {% if sections.skill_groups %}
@@ -117,7 +118,7 @@
   {% if proj.title or proj.description_lines %}
   <div class="entry">
     <div class="entry-title">{{ proj.title }}</div>
-    {% if proj.link %}<div class="entry-sub">{{ proj.link }}</div>{% endif %}
+    {% if proj.link %}<div class="entry-sub">{% if proj.href %}<a href="{{ proj.href }}">{{ proj.link }}</a>{% else %}{{ proj.link }}{% endif %}</div>{% endif %}
     {% if proj.tech %}<div class="entry-sub">{{ proj.tech }}</div>{% endif %}
     {% if proj.description_lines %}
     <ul class="bullets">{% for line in proj.description_lines %}<li>{{ line }}</li>{% endfor %}</ul>

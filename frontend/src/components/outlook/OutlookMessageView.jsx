@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import DOMPurify from "dompurify";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { generateOutlookReply, getOutlookMessage, replyOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle } from "../OutlookPage";
+import { fontHeading, text, space, cream } from "../homeTheme";
+import { labelStyle, GhostLink, OutlineButton, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -101,124 +102,99 @@ export default function OutlookMessageView({ messageId, onBack }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16" style={{ color: "rgba(243,233,226,0.5)" }}>
-        <Loader2 size={20} className="animate-spin" />
-      </div>
-    );
+    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-[13px] border-none bg-transparent cursor-pointer w-fit"
-        style={{ color: "rgba(243,233,226,0.6)" }}
-      >
-        <ArrowLeft size={14} strokeWidth={1.8} />
-        Back to inbox
-      </button>
+    <div>
+      <GhostLink onClick={onBack} muted>
+        ← Back to inbox
+      </GhostLink>
 
       {error ? (
-        <p className="text-[13px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
+        <ErrorNote>{error}</ErrorNote>
       ) : (
         <>
-          <h3 className="text-[17px]" style={{ color: "#f7ece4" }}>
+          <h3
+            style={{
+              margin: `${space[6]}px 0 0`,
+              fontFamily: fontHeading,
+              fontSize: "clamp(24px,2.6vw,32px)",
+              color: text.bright,
+            }}
+          >
             {message.subject || "(no subject)"}
           </h3>
 
           {justSent && (
-            <div
-              className="rounded-2xl px-5 py-3 text-[13px]"
-              style={{
-                background: "rgba(120,200,150,0.12)",
-                color: "#8fd6a8",
-                border: "1px solid rgba(120,200,150,0.25)",
-              }}
-            >
-              Reply sent.
-            </div>
+            <p style={{ marginTop: space[3], fontSize: 13, color: "#8fd6a8" }}>Reply sent.</p>
           )}
 
-          {(message.thread || [message]).map((item) => (
-            <div key={item.id}>
-              <p className="text-[12.5px] mb-1.5" style={{ color: "rgba(243,233,226,0.5)" }}>
-                {item.is_from_me ? "You" : item.from?.emailAddress?.name || item.from?.emailAddress?.address}
-                {" · "}
-                {formatDate(item.receivedDateTime || item.sentDateTime)}
-              </p>
+          <div style={{ marginTop: space[6] }}>
+            {(message.thread || [message]).map((item, i) => (
               <div
-                className="rounded-2xl p-5 text-[13.5px] leading-relaxed overflow-x-auto"
-                style={{
-                  background: item.is_from_me ? "rgba(240,168,120,0.08)" : "rgba(243,233,226,0.04)",
-                  color: "#e8dcd4",
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(item.body?.content || "", { ADD_ATTR: ["target"] }),
-                }}
-              />
-            </div>
-          ))}
+                key={item.id}
+                style={{ paddingTop: i === 0 ? 0 : space[6], marginTop: i === 0 ? 0 : space[6], borderTop: i === 0 ? "none" : `1px solid ${cream(0.09)}` }}
+              >
+                <p style={{ fontSize: 13, marginBottom: space[2], color: cream(0.5) }}>
+                  {item.is_from_me ? "You" : item.from?.emailAddress?.name || item.from?.emailAddress?.address}
+                  {" · "}
+                  {formatDate(item.receivedDateTime || item.sentDateTime)}
+                </p>
+                <div
+                  className="text-[15px] leading-relaxed overflow-x-auto"
+                  style={{ color: cream(0.85) }}
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(item.body?.content || "", { ADD_ATTR: ["target"] }),
+                  }}
+                />
+              </div>
+            ))}
+          </div>
 
-          <div className="rounded-2xl p-5" style={{ background: "rgba(243,233,226,0.03)" }}>
-            <p className="text-[11px] uppercase tracking-[0.08em] mb-2.5" style={{ color: "rgba(243,233,226,0.4)" }}>
-              {justSent ? "Write another reply" : "Reply"}
-            </p>
+          <div style={{ marginTop: space[8], paddingTop: space[6], borderTop: `1px solid ${cream(0.1)}` }}>
+            <div style={labelStyle}>{justSent ? "Write another reply" : "Reply"}</div>
 
-            <div className="flex gap-2 mb-3">
+            <div className="flex items-center flex-wrap" style={{ gap: space[4], marginTop: space[3] }}>
               <input
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 placeholder="Optional: what should the reply say? (leave blank for a general reply)"
-                className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-                style={inputStyle}
+                style={{ ...underlineInputStyle, flex: 1, minWidth: 240 }}
               />
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-                style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2", opacity: generating ? 0.5 : 1 }}
-              >
-                {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} strokeWidth={1.8} />}
-                Generate reply
-              </button>
+              <GhostLink disabled={generating} onClick={handleGenerate}>
+                {generating && <Loader2 size={13} className="animate-spin" />}
+                Generate reply →
+              </GhostLink>
             </div>
-            {genError && (
-              <p className="text-[12px] mb-3" style={{ color: "rgba(224,140,140,0.9)" }}>
-                {genError}
-              </p>
-            )}
+            <ErrorNote>{genError}</ErrorNote>
 
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Write your reply…"
               rows={7}
-              className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y mb-3"
-              style={inputStyle}
+              className="w-full resize-y"
+              style={{
+                marginTop: space[5] ?? 23,
+                padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
+                border: `1px solid ${cream(0.12)}`,
+                borderRadius: 4,
+                background: "rgba(15,12,10,0.35)",
+                color: cream(1),
+                fontSize: 16,
+                lineHeight: 1.85,
+                outline: "none",
+              }}
             />
 
-            {sendError && (
-              <p className="text-[12px] mb-3" style={{ color: "rgba(224,140,140,0.9)" }}>
-                {sendError}
-              </p>
-            )}
+            <ErrorNote>{sendError}</ErrorNote>
 
-            <button
-              onClick={handleSend}
-              disabled={sending || !replyText.trim()}
-              className="w-full py-3 rounded-full text-[13px] tracking-[0.02em] border-none cursor-pointer transition-opacity duration-200"
-              style={{
-                background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                color: "#2c1c16",
-                opacity: sending || !replyText.trim() ? 0.4 : 1,
-                cursor: sending || !replyText.trim() ? "not-allowed" : "pointer",
-              }}
-            >
-              {sending ? "Sending…" : "Send reply"}
-            </button>
+            <div style={{ marginTop: space[5] ?? 23 }}>
+              <OutlineButton onClick={handleSend} disabled={sending || !replyText.trim()}>
+                {sending ? "Sending…" : "Send reply"}
+              </OutlineButton>
+            </div>
           </div>
         </>
       )}

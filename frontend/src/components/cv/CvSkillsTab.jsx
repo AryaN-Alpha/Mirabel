@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
-import { inputStyle, buttonStyle } from "../CvPage";
+import { Plus, Trash2 } from "lucide-react";
+import { space } from "../homeTheme";
+import { GhostLink, IconButton, Tag, entryCardStyle, underlineInputStyle } from "../homeWidgets";
 
 function emptyGroup() {
   return { id: crypto.randomUUID(), category: "", skills: [] };
@@ -28,60 +29,35 @@ function SkillGroup({ group, onChange, onRemove }) {
   }
 
   return (
-    <div
-      className="rounded-2xl p-4 flex flex-col gap-2.5"
-      style={{ background: "rgba(243,233,226,0.04)", border: "1px solid rgba(243,233,226,0.08)" }}
-    >
-      <div className="flex gap-2">
+    <div style={entryCardStyle}>
+      <div className="flex items-start justify-between gap-3">
         <input
           value={group.category}
           onChange={(e) => onChange({ category: e.target.value })}
           placeholder="Category (e.g. Front-End)"
-          className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
+          style={{ ...underlineInputStyle, flex: 1 }}
         />
-        <button
-          onClick={onRemove}
-          className="p-2 rounded-full border-none cursor-pointer"
-          style={{ background: "transparent", color: "rgba(224,140,140,0.85)" }}
-        >
+        <IconButton onClick={onRemove} title="Remove category" danger>
           <Trash2 size={15} />
-        </button>
+        </IconButton>
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center" style={{ gap: space[3], marginTop: space[3] }}>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add a skill and press Enter…"
-          className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
+          style={{ ...underlineInputStyle, flex: 1 }}
         />
-        <button
-          onClick={addSkill}
-          disabled={!draft.trim()}
-          className="px-4 py-2.5 rounded-full text-[12.5px] border-none cursor-pointer"
-          style={{ ...buttonStyle, opacity: draft.trim() ? 1 : 0.5 }}
-        >
+        <GhostLink disabled={!draft.trim()} onClick={addSkill}>
           Add
-        </button>
+        </GhostLink>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap" style={{ gap: space[2], marginTop: space[3] }}>
         {group.skills.map((skill, i) => (
-          <span
-            key={i}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px]"
-            style={{ background: "rgba(243,233,226,0.08)", color: "#f3e9e2" }}
-          >
+          <Tag key={i} onRemove={() => removeSkill(i)}>
             {skill}
-            <button
-              onClick={() => removeSkill(i)}
-              className="border-none bg-transparent cursor-pointer p-0 flex items-center"
-              style={{ color: "rgba(243,233,226,0.5)" }}
-            >
-              <X size={12} />
-            </button>
-          </span>
+          </Tag>
         ))}
       </div>
     </div>
@@ -106,7 +82,7 @@ export default function CvSkillsTab({ sections, updateSections }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col" style={{ gap: space[5] ?? 23 }}>
       {sections.skill_groups.map((group) => (
         <SkillGroup
           key={group.id}
@@ -115,13 +91,9 @@ export default function CvSkillsTab({ sections, updateSections }) {
           onRemove={() => removeGroup(group.id)}
         />
       ))}
-      <button
-        onClick={addGroup}
-        className="self-start flex items-center gap-1.5 text-[12.5px] px-4 py-2 rounded-full border-none cursor-pointer"
-        style={buttonStyle}
-      >
+      <GhostLink onClick={addGroup} muted style={{ alignSelf: "flex-start" }}>
         <Plus size={13} /> Add category
-      </button>
+      </GhostLink>
     </div>
   );
 }

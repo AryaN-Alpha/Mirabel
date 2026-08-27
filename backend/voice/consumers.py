@@ -47,7 +47,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data: str | None = None, bytes_data: bytes | None = None) -> None:
         # Binary frames = audio. We accumulate until the client signals end-of-utterance.
         if bytes_data is not None:
-            await self._cancel_inflight()  # barge-in
             self._audio_buffer.extend(bytes_data)
             return
 
@@ -66,6 +65,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self._audio_buffer.clear()
             self._inflight_task = asyncio.create_task(self._handle_utterance(audio))
         elif kind == "cancel":
+            self._audio_buffer.clear()
             await self._cancel_inflight()
         elif kind == "text_message":
             # Optional: text input over the same socket (skip STT).

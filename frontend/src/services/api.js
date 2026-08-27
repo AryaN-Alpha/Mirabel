@@ -312,38 +312,52 @@ export async function processBraindump(projectId, transcript) {
   return data;
 }
 
-export async function getCv() {
+export async function listCvs() {
   const { data } = await client.get("/api/cv/");
   return data;
 }
 
-export async function updateCv(sections) {
-  const { data } = await client.put("/api/cv/", { sections });
+export async function createCv(name) {
+  const { data } = await client.post("/api/cv/", { name });
   return data;
 }
 
-export async function uploadCv(file) {
+export async function getCv(id) {
+  const { data } = await client.get(`/api/cv/${id}/`);
+  return data;
+}
+
+export async function updateCv(id, patch) {
+  const { data } = await client.put(`/api/cv/${id}/`, patch);
+  return data;
+}
+
+export async function deleteCv(id) {
+  await client.delete(`/api/cv/${id}/`);
+}
+
+export async function uploadCv(id, file) {
   const form = new FormData();
   form.append("file", file);
-  const { data } = await client.post("/api/cv/upload/", form, {
+  const { data } = await client.post(`/api/cv/${id}/upload/`, form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
 }
 
-export async function generateCvSection(sectionType, payload) {
-  const { data } = await client.post(`/api/cv/sections/${sectionType}/generate/`, payload);
+export async function generateCvSection(id, sectionType, payload) {
+  const { data } = await client.post(`/api/cv/${id}/sections/${sectionType}/generate/`, payload);
   return data;
 }
 
-export async function regenerateCvSection(sectionType, currentText, instructions) {
-  const { data } = await client.post(`/api/cv/sections/${sectionType}/regenerate/`, {
+export async function regenerateCvSection(id, sectionType, currentText, instructions) {
+  const { data } = await client.post(`/api/cv/${id}/sections/${sectionType}/regenerate/`, {
     current_text: currentText,
     instructions,
   });
   return data;
 }
 
-export function cvExportUrl() {
-  return `${client.defaults.baseURL}/api/cv/export/`;
+export function cvExportUrl(id) {
+  return `${client.defaults.baseURL}/api/cv/${id}/export/`;
 }

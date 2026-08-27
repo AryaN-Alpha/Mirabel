@@ -3,17 +3,14 @@ import Sidebar from "./Sidebar";
 import HomeNavbar from "./HomeNavbar";
 import { bg, accent, accent2700 } from "./homeTheme";
 
-const PAGE_HEADERS = {
-  "/home/ai-model": { title: "AI Model", subtitle: "Choose the provider and model Mirabel uses, and manage API keys." },
-  "/home/outlook": { title: "Outlook", subtitle: "Read and reply to email from dgtdata.com, right from Mirabel." },
-  "/home/linkedin": { title: "LinkedIn", subtitle: "Draft, generate, and publish LinkedIn posts, right from Mirabel." },
-  "/home/classroom": {
-    title: "Classroom",
-    subtitle: "Fetch assignments, draft AI solutions, and turn them in — right from Mirabel.",
-  },
-  "/home/cv": { title: "CV", subtitle: "Upload, edit, and tailor your CV — with live preview and AI-assisted sections." },
-  "/home/agent": { title: "Agent", subtitle: "Browse Mirabel's emotional memory — what she's remembered, and why." },
-  "/home/tasks": { title: "Tasks", subtitle: "Organize your workflow and projects on a Kanban board." },
+const PAGE_TITLES = {
+  "/home/ai-model": "AI Model",
+  "/home/outlook": "Outlook",
+  "/home/linkedin": "LinkedIn",
+  "/home/classroom": "Classroom",
+  "/home/cv": "CV",
+  "/home/agent": "Agent",
+  "/home/tasks": "Tasks",
 };
 
 const EMBERS = [
@@ -29,7 +26,7 @@ const EMBERS = [
 
 export default function HomeLayout() {
   const { pathname } = useLocation();
-  const header = PAGE_HEADERS[pathname];
+  const title = PAGE_TITLES[pathname];
 
   return (
     <div className="relative flex-1 min-h-0 w-full flex items-stretch overflow-hidden" style={{ background: bg }}>
@@ -75,8 +72,8 @@ export default function HomeLayout() {
       <Sidebar />
 
       <div className="relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col">
-        {header && <HomeNavbar title={header.title} subtitle={header.subtitle} />}
-        <div className={header ? "px-6 md:px-8 pb-10 pt-4 flex-1 w-full" : "flex-1 w-full"}>
+        {title && <HomeNavbar title={title} />}
+        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full" : "flex-1 w-full"}>
           <Outlet />
         </div>
       </div>

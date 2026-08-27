@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle } from "../KanbanPage";
+import { fontHeading, text, space } from "../homeTheme";
+import { GhostLink, OutlineButton, ErrorNote, ModalShell, underlineInputStyle } from "../homeWidgets";
 
 export default function ProjectModal({ project, onClose, onSave }) {
   const isEdit = Boolean(project?.id);
@@ -24,66 +25,41 @@ export default function ProjectModal({ project, onClose, onSave }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(20,12,10,0.6)" }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[420px] rounded-3xl p-6 flex flex-col gap-3.5"
-        style={{
-          background: "linear-gradient(165deg, rgba(46,30,26,0.98), rgba(30,19,17,0.98))",
-          border: "1px solid rgba(243,233,226,0.12)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-[15px]" style={{ color: "#f7ece4" }}>
-            {isEdit ? "Rename project" : "New project"}
-          </p>
-          <button onClick={onClose} className="border-none bg-transparent cursor-pointer" style={{ color: "rgba(243,233,226,0.5)" }}>
-            <X size={18} />
-          </button>
-        </div>
+    <ModalShell onClose={onClose} busy={saving}>
+      <div className="flex items-center justify-between">
+        <span style={{ fontFamily: fontHeading, fontSize: 22, color: text.bright }}>
+          {isEdit ? "Rename project" : "New project"}
+        </span>
+        <GhostLink onClick={onClose} muted style={{ fontSize: 14 }}>
+          ✕
+        </GhostLink>
+      </div>
 
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Project name"
-          maxLength={200}
-          autoFocus
-          className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
-        />
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Description (optional)"
-          rows={3}
-          className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-          style={inputStyle}
-        />
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Project name"
+        maxLength={200}
+        autoFocus
+        style={underlineInputStyle}
+      />
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description (optional)"
+        rows={3}
+        className="w-full resize-y"
+        style={underlineInputStyle}
+      />
 
-        {error && (
-          <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-            {error}
-          </p>
-        )}
+      <ErrorNote>{error}</ErrorNote>
 
-        <button
-          onClick={handleSave}
-          disabled={!name.trim() || saving}
-          className="w-full py-3 rounded-full text-[13px] tracking-[0.02em] border-none cursor-pointer transition-opacity duration-200 flex items-center justify-center gap-2"
-          style={{
-            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-            color: "#2c1c16",
-            opacity: !name.trim() || saving ? 0.5 : 1,
-          }}
-        >
+      <div style={{ marginTop: space[2] }}>
+        <OutlineButton onClick={handleSave} disabled={!name.trim() || saving}>
           {saving && <Loader2 size={13} className="animate-spin" />}
           {isEdit ? "Save changes" : "Create project"}
-        </button>
+        </OutlineButton>
       </div>
-    </div>
+    </ModalShell>
   );
 }

@@ -1,63 +1,64 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import KanbanCard from "./KanbanCard";
-import { cardStyle } from "../KanbanPage";
+import { fontHeading, accent, space, cream } from "../homeTheme";
+import { GhostLink } from "../homeWidgets";
 
-export default function KanbanColumn({ status, label, tasks, onReorder, onAddCard, onEdit, onDelete }) {
-  const [dragOverIndex, setDragOverIndex] = useState(null);
+const EMPTY_LABEL = {
+  todo: "Nothing to do yet.",
+  in_progress: "Nothing in hand.",
+  done: "Nothing finished yet.",
+};
 
-  function handleDropAt(index, e) {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverIndex(null);
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    if (!draggedId) return;
-    const ids = tasks.map((t) => t.id).filter((id) => id !== draggedId);
-    const insertAt = Math.min(index, ids.length);
-    ids.splice(insertAt, 0, draggedId);
-    onReorder(ids);
-  }
+export default function KanbanColumn({ status, label, tasks, first, last, onAddCard, onEdit, onDelete }) {
+  const { setNodeRef } = useDroppable({
+    id: status,
+    data: {
+      type: "Column",
+      status,
+    },
+  });
 
   return (
-    <div className="rounded-3xl p-4 flex flex-col gap-3 min-h-[200px]" style={cardStyle}>
-      <div className="flex items-center justify-between px-1">
-        <p className="text-[12px] uppercase tracking-[0.08em]" style={{ color: "rgba(243,233,226,0.55)" }}>
-          {label} <span style={{ color: "rgba(243,233,226,0.3)" }}>· {tasks.length}</span>
-        </p>
-        <button
-          onClick={onAddCard}
-          className="w-6 h-6 grid place-items-center rounded-full border-none cursor-pointer"
-          style={{ background: "rgba(243,233,226,0.08)", color: "rgba(243,233,226,0.6)" }}
-        >
-          <Plus size={13} strokeWidth={2} />
-        </button>
+    <div
+      style={{
+        paddingRight: last ? 0 : space[8] * 0.9,
+        paddingLeft: first ? 0 : space[8] * 0.9,
+        borderRight: last ? "none" : `1px solid ${cream(0.1)}`,
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      <div
+        className="flex items-baseline justify-between"
+        style={{ paddingBottom: space[3], borderBottom: `1px solid ${tasks.length ? `${accent[400]}66` : cream(0.18)}` }}
+      >
+        <span style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.55) }}>
+          {label}
+        </span>
+        <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, color: tasks.length ? accent[300] : cream(0.4) }}>
+          {tasks.length}
+        </span>
       </div>
 
-      <div
-        className="flex flex-col gap-2.5 flex-1"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => handleDropAt(tasks.length, e)}
-        data-status={status}
-      >
-        {tasks.map((task, index) => (
-          <div
-            key={task.id}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setDragOverIndex(index);
-            }}
-            onDrop={(e) => handleDropAt(index, e)}
-            style={{ borderTop: dragOverIndex === index ? "2px solid rgba(240,168,120,0.6)" : "2px solid transparent" }}
-          >
-            <KanbanCard task={task} onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
-          </div>
-        ))}
+      <div ref={setNodeRef} style={{ flexGrow: 1, paddingTop: space[4], minHeight: 150 }}>
+        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <KanbanCard key={task.id} task={task} onEdit={() => onEdit(task)} onDelete={() => onDelete(task.id)} />
+          ))}
+        </SortableContext>
         {tasks.length === 0 && (
-          <p className="text-[12px] text-center py-6" style={{ color: "rgba(243,233,226,0.3)" }}>
-            No cards yet.
+          <p style={{ margin: `${space[6]}px 0 0`, fontFamily: fontHeading, fontSize: 19, fontStyle: "italic", color: cream(0.38) }}>
+            {EMPTY_LABEL[status] || "Nothing here yet."}
           </p>
         )}
+      </div>
+
+      <div style={{ marginTop: space[4] }}>
+        <GhostLink onClick={onAddCard} muted style={{ fontSize: 14, fontFamily: "inherit" }}>
+          + Add a card
+        </GhostLink>
       </div>
     </div>
   );

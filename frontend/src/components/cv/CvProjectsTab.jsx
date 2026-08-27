@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { generateCvSection, regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle, buttonStyle, primaryButtonStyle } from "../CvPage";
+import { space, cream } from "../homeTheme";
+import { labelStyle, GhostLink, OutlineButton, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
 
-function AddProjectForm({ onAdd }) {
+function AddProjectForm({ cvId, onAdd }) {
   const [title, setTitle] = useState("");
   const [tech, setTech] = useState("");
   const [link, setLink] = useState("");
@@ -18,7 +19,7 @@ function AddProjectForm({ onAdd }) {
     setBusy(true);
     setError("");
     try {
-      const result = await generateCvSection("projects", { title, tech, one_liner: oneLiner });
+      const result = await generateCvSection(cvId, "projects", { title, tech, one_liner: oneLiner });
       if (result.error) {
         setError(
           result.reason === "provider"
@@ -45,78 +46,40 @@ function AddProjectForm({ onAdd }) {
   }
 
   return (
-    <div
-      className="rounded-2xl p-4 flex flex-col gap-2.5"
-      style={{ background: "rgba(243,233,226,0.05)", border: "1px dashed rgba(243,233,226,0.16)" }}
-    >
-      <p className="text-[11px] uppercase tracking-[0.08em] px-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-        + Add project
-      </p>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Project title"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
-      <input
-        value={tech}
-        onChange={(e) => setTech(e.target.value)}
-        placeholder="Tech stack"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
-      <input
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-        placeholder="Link (optional)"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
-      <input
-        value={oneLiner}
-        onChange={(e) => setOneLiner(e.target.value)}
-        placeholder="What does it do?"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
-      />
-      <button
-        onClick={handleGenerate}
-        disabled={busy || !title.trim()}
-        className="self-start flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-        style={{ ...buttonStyle, opacity: busy || !title.trim() ? 0.5 : 1 }}
-      >
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-        Generate with AI
-      </button>
-      {error && (
-        <p className="text-[12px] px-1" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-      )}
+    <div style={{ ...entryCardStyle, border: `1px dashed ${cream(0.16)}`, background: "transparent" }}>
+      <div style={labelStyle}>+ Add project</div>
+      <div className="flex flex-col" style={{ marginTop: space[3], gap: space[3] }}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project title" style={underlineInputStyle} />
+        <input value={tech} onChange={(e) => setTech(e.target.value)} placeholder="Tech stack" style={underlineInputStyle} />
+        <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Link (optional)" style={underlineInputStyle} />
+        <input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="What does it do?" style={underlineInputStyle} />
+      </div>
+      <div style={{ marginTop: space[3] }}>
+        <GhostLink onClick={handleGenerate} disabled={busy || !title.trim()}>
+          {busy && <Loader2 size={13} className="animate-spin" />}
+          Generate with AI →
+        </GhostLink>
+      </div>
+      <ErrorNote>{error}</ErrorNote>
       {draft && (
         <>
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={4}
-            className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-            style={inputStyle}
+            className="w-full resize-y"
+            style={{ ...underlineInputStyle, marginTop: space[3] }}
           />
-          <button
-            onClick={handleAccept}
-            className="self-start px-4 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-            style={primaryButtonStyle}
-          >
-            Add to CV
-          </button>
+          <div style={{ marginTop: space[3] }}>
+            <OutlineButton onClick={handleAccept}>Add to CV</OutlineButton>
+          </div>
         </>
       )}
     </div>
   );
 }
 
-function ProjectEntry({ entry, onChange, onRemove }) {
+function ProjectEntry({ cvId, entry, onChange, onRemove }) {
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -126,7 +89,7 @@ function ProjectEntry({ entry, onChange, onRemove }) {
     setBusy(true);
     setError("");
     try {
-      const result = await regenerateCvSection("projects", entry.description, instructions);
+      const result = await regenerateCvSection(cvId, "projects", entry.description, instructions);
       if (result.error) {
         setError(
           result.reason === "provider"
@@ -144,75 +107,57 @@ function ProjectEntry({ entry, onChange, onRemove }) {
   }
 
   return (
-    <div
-      className="rounded-2xl p-4 flex flex-col gap-2.5"
-      style={{ background: "rgba(243,233,226,0.04)", border: "1px solid rgba(243,233,226,0.08)" }}
-    >
-      <div className="flex gap-2">
-        <input
-          value={entry.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Project title"
-          className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
-        />
-        <input
-          value={entry.tech}
-          onChange={(e) => onChange({ tech: e.target.value })}
-          placeholder="Tech stack"
-          className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
-        />
+    <div style={entryCardStyle}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 flex" style={{ gap: space[4] }}>
+          <input
+            value={entry.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="Project title"
+            style={{ ...underlineInputStyle, flex: 1 }}
+          />
+          <input
+            value={entry.tech}
+            onChange={(e) => onChange({ tech: e.target.value })}
+            placeholder="Tech stack"
+            style={{ ...underlineInputStyle, flex: 1 }}
+          />
+        </div>
+        <IconButton onClick={onRemove} title="Remove project" danger>
+          <Trash2 size={15} />
+        </IconButton>
       </div>
       <input
         value={entry.link}
         onChange={(e) => onChange({ link: e.target.value })}
         placeholder="Link (optional)"
-        className="w-full px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-        style={inputStyle}
+        style={{ ...underlineInputStyle, marginTop: space[3] }}
       />
       <textarea
         value={entry.description}
         onChange={(e) => onChange({ description: e.target.value })}
         rows={4}
-        className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-        style={inputStyle}
+        className="w-full resize-y"
+        style={{ ...underlineInputStyle, marginTop: space[3] }}
       />
       <input
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Optional instructions for the rewrite…"
-        className="w-full px-3.5 py-2 rounded-full text-[12.5px] outline-none"
-        style={inputStyle}
+        style={{ ...underlineInputStyle, marginTop: space[3] }}
       />
-      <div className="flex items-center justify-between">
-        <button
-          onClick={handleRewrite}
-          disabled={busy || !entry.description.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-          style={{ ...buttonStyle, opacity: busy || !entry.description.trim() ? 0.5 : 1 }}
-        >
-          {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-          Regenerate
-        </button>
-        <button
-          onClick={onRemove}
-          className="p-2 rounded-full border-none cursor-pointer"
-          style={{ background: "transparent", color: "rgba(224,140,140,0.85)" }}
-        >
-          <Trash2 size={15} />
-        </button>
+      <div style={{ marginTop: space[3] }}>
+        <GhostLink onClick={handleRewrite} disabled={busy || !entry.description.trim()}>
+          {busy && <Loader2 size={13} className="animate-spin" />}
+          Regenerate →
+        </GhostLink>
       </div>
-      {error && (
-        <p className="text-[12px] px-1" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-      )}
+      <ErrorNote>{error}</ErrorNote>
     </div>
   );
 }
 
-export default function CvProjectsTab({ sections, updateSections }) {
+export default function CvProjectsTab({ cvId, sections, updateSections }) {
   function setEntries(fn) {
     updateSections((s) => ({ ...s, projects: fn(s.projects) }));
   }
@@ -230,11 +175,12 @@ export default function CvProjectsTab({ sections, updateSections }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <AddProjectForm onAdd={addEntry} />
+    <div className="flex flex-col" style={{ gap: space[5] ?? 23 }}>
+      <AddProjectForm cvId={cvId} onAdd={addEntry} />
       {sections.projects.map((entry) => (
         <ProjectEntry
           key={entry.id}
+          cvId={cvId}
           entry={entry}
           onChange={(patch) => updateEntry(entry.id, patch)}
           onRemove={() => removeEntry(entry.id)}

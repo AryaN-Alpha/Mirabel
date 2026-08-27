@@ -17,19 +17,7 @@ export default function CozyHeader({ mode, onModeChange }) {
   return (
     <header className="w-full max-w-[880px] mx-auto flex items-center justify-between gap-5 px-6 pt-7">
       <div className="flex items-center gap-3">
-        <div className="relative w-[30px] h-[30px] grid place-items-center">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: "radial-gradient(circle at 40% 35%, rgba(247,207,174,0.9), rgba(198,132,152,0.45) 60%, transparent 72%)",
-              animation: "cz-breathe 5.5s ease-in-out infinite",
-            }}
-          />
-          <div
-            className="w-[9px] h-[9px] rounded-full"
-            style={{ background: "#ffe6d2", boxShadow: "0 0 14px rgba(255,214,180,0.9)" }}
-          />
-        </div>
+        <img src="/logo.png" alt="Mirabel Logo" className="w-[50px] h-[50px] object-contain" />
         <div className="font-serif text-[23px] tracking-[0.01em]" style={{ color: "#f7ece4" }}>
           Mirabel
         </div>

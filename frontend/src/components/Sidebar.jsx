@@ -38,10 +38,7 @@ export default function Sidebar() {
       }}
     >
       <NavLink to="/home" end className="flex items-center gap-3 no-underline mb-8">
-        <span
-          className="w-[11px] h-[11px] rounded-full"
-          style={{ background: accent[400], animation: "home-breathe 6s ease-in-out infinite" }}
-        />
+        <img src="/logo.png" alt="Mirabel Logo" className="w-16 h-16 object-contain" />
         <span style={{ fontFamily: fontHeading, fontSize: 23, fontStyle: "italic", color: text.bright }}>
           Mirabel
         </span>

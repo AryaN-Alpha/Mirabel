@@ -1,5 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
-import { inputStyle, buttonStyle } from "../CvPage";
+import { space, cream } from "../homeTheme";
+import { GhostLink, IconButton, underlineInputStyle } from "../homeWidgets";
 
 function emptyCertification() {
   return { id: crypto.randomUUID(), name: "", issuer: "", date: "" };
@@ -23,46 +24,39 @@ export default function CvCertificationsTab({ sections, updateSections }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col" style={{ gap: space[4] }}>
       {sections.certifications.map((entry) => (
-        <div key={entry.id} className="flex gap-2 items-center">
+        <div
+          key={entry.id}
+          className="flex items-center"
+          style={{ gap: space[3], paddingBottom: space[3], borderBottom: `1px solid ${cream(0.08)}` }}
+        >
           <input
             value={entry.name}
             onChange={(e) => updateEntry(entry.id, { name: e.target.value })}
             placeholder="Certification"
-            className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-            style={inputStyle}
+            style={{ ...underlineInputStyle, flex: 1 }}
           />
           <input
             value={entry.issuer}
             onChange={(e) => updateEntry(entry.id, { issuer: e.target.value })}
             placeholder="Issuer"
-            className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-            style={inputStyle}
+            style={{ ...underlineInputStyle, flex: 1 }}
           />
           <input
             value={entry.date}
             onChange={(e) => updateEntry(entry.id, { date: e.target.value })}
             placeholder="Date"
-            className="w-28 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-            style={inputStyle}
+            style={{ ...underlineInputStyle, width: 100, flex: "0 0 auto" }}
           />
-          <button
-            onClick={() => removeEntry(entry.id)}
-            className="p-2 rounded-full border-none cursor-pointer"
-            style={{ background: "transparent", color: "rgba(224,140,140,0.85)" }}
-          >
+          <IconButton onClick={() => removeEntry(entry.id)} title="Remove certification" danger>
             <Trash2 size={15} />
-          </button>
+          </IconButton>
         </div>
       ))}
-      <button
-        onClick={addEntry}
-        className="self-start flex items-center gap-1.5 text-[12.5px] px-4 py-2 rounded-full border-none cursor-pointer"
-        style={buttonStyle}
-      >
+      <GhostLink onClick={addEntry} muted style={{ alignSelf: "flex-start" }}>
         <Plus size={13} /> Add certification
-      </button>
+      </GhostLink>
     </div>
   );
 }

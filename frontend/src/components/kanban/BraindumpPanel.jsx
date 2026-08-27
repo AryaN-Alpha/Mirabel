@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Check, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { processBraindump } from "../../services/api";
 import { chatDegradedMessage, getErrorMessage } from "../../utils/errors";
-import { cardStyle, inputStyle } from "../KanbanPage";
+import { fontHeading, text, space, cream } from "../homeTheme";
+import { labelStyle, GhostLink, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
 
 export default function BraindumpPanel({ projectId, onAccept }) {
   const [transcript, setTranscript] = useState("");
@@ -51,82 +52,50 @@ export default function BraindumpPanel({ projectId, onAccept }) {
   }
 
   return (
-    <div className="rounded-3xl p-5 flex flex-col gap-3" style={cardStyle}>
-      <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: "rgba(243,233,226,0.4)" }}>
-        Brain dump → tasks
-      </p>
+    <div style={{ paddingBottom: space[6], borderBottom: `1px solid ${cream(0.1)}` }}>
+      <div style={labelStyle}>Brain dump → tasks</div>
       <textarea
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
         placeholder="Ramble about everything you need to do — this'll pull out the actual tasks."
         rows={4}
         maxLength={4000}
-        className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-        style={inputStyle}
+        className="w-full resize-y"
+        style={{ ...underlineInputStyle, marginTop: space[3] }}
       />
-      <button
-        onClick={handleProcess}
-        disabled={processing || !transcript.trim()}
-        className="self-start flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-        style={{
-          background: "rgba(243,233,226,0.1)",
-          color: "#f3e9e2",
-          opacity: processing || !transcript.trim() ? 0.5 : 1,
-        }}
-      >
-        {processing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} strokeWidth={1.8} />}
-        Process
-      </button>
+      <div style={{ marginTop: space[3] }}>
+        <GhostLink onClick={handleProcess} disabled={processing || !transcript.trim()}>
+          {processing && <Loader2 size={13} className="animate-spin" />}
+          Process →
+        </GhostLink>
+      </div>
 
-      {error && (
-        <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-      )}
+      <ErrorNote>{error}</ErrorNote>
 
       {suggestions && suggestions.length > 0 && (
-        <div className="flex flex-col gap-2 mt-1">
+        <div className="flex flex-col" style={{ gap: space[3], marginTop: space[5] ?? 23 }}>
           {suggestions.map((task, index) => (
-            <div
-              key={index}
-              className="rounded-2xl p-3 flex items-start justify-between gap-3"
-              style={{ background: "rgba(243,233,226,0.04)", border: "1px solid rgba(243,233,226,0.08)" }}
-            >
-              <div className="flex flex-col gap-1">
-                <p className="text-[13px]" style={{ color: "#f3e9e2" }}>
-                  {task.title}
-                </p>
+            <div key={index} className="flex items-start justify-between gap-4" style={entryCardStyle}>
+              <div className="flex flex-col" style={{ gap: 4 }}>
+                <span style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.title}</span>
                 {task.description_markdown && (
-                  <p className="text-[11.5px]" style={{ color: "rgba(243,233,226,0.5)" }}>
-                    {task.description_markdown}
-                  </p>
+                  <span style={{ fontSize: 13, color: cream(0.55) }}>{task.description_markdown}</span>
                 )}
-                <p className="text-[10.5px]" style={{ color: "rgba(243,233,226,0.35)" }}>
+                <span style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: cream(0.4) }}>
                   {task.priority} priority · {task.effort} effort
                   {task.due_date ? ` · due ${task.due_date}` : ""}
-                </p>
+                </span>
               </div>
               {addedIndexes.has(index) ? (
-                <span className="text-[11px] shrink-0" style={{ color: "#8fd6a8" }}>
-                  Added
-                </span>
+                <span style={{ fontSize: 12, color: "#8fd6a8", flexShrink: 0 }}>Added</span>
               ) : (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => handleAccept(task, index)}
-                    disabled={addingIndex === index}
-                    className="w-7 h-7 grid place-items-center rounded-full border-none cursor-pointer"
-                    style={{ background: "rgba(140,190,160,0.16)", color: "#8fd6a8" }}
-                  >
-                    {addingIndex === index ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
-                  </button>
-                  <button
-                    onClick={() => handleDiscard(index)}
-                    className="w-7 h-7 grid place-items-center rounded-full border-none cursor-pointer"
-                    style={{ background: "rgba(224,140,140,0.14)", color: "rgba(224,140,140,0.8)" }}
-                  >
-                    <X size={13} />
-                  </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <IconButton onClick={() => handleAccept(task, index)} disabled={addingIndex === index} title="Add card">
+                    {addingIndex === index ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                  </IconButton>
+                  <IconButton onClick={() => handleDiscard(index)} title="Discard" danger>
+                    <X size={14} />
+                  </IconButton>
                 </div>
               )}
             </div>

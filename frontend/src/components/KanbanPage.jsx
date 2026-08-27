@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, NotebookPen, Plus } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   listKanbanProjects,
   createKanbanProject,
@@ -12,28 +12,30 @@ import {
   deleteKanbanTask,
   reorderKanbanColumn,
 } from "../services/api";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { getErrorMessage } from "../utils/errors";
+import { fontHeading, text, accent, space, cream } from "./homeTheme";
+import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import KanbanColumn from "./kanban/KanbanColumn";
+import { KanbanCardUI } from "./kanban/KanbanCard";
 import TaskModal from "./kanban/TaskModal";
 import BraindumpPanel from "./kanban/BraindumpPanel";
 import ProjectTabs from "./kanban/ProjectTabs";
 import ProjectModal from "./kanban/ProjectModal";
 import ConfirmDialog from "./kanban/ConfirmDialog";
 
-export const cardStyle = {
-  background: "linear-gradient(165deg, rgba(46,30,26,0.9), rgba(30,19,17,0.94))",
-  border: "1px solid rgba(243,233,226,0.1)",
-};
-
-export const inputStyle = {
-  background: "rgba(243,233,226,0.05)",
-  border: "1px solid rgba(243,233,226,0.14)",
-  color: "#f3e9e2",
-};
-
 const COLUMNS = [
-  { id: "todo", label: "To Do" },
-  { id: "in_progress", label: "In Progress" },
+  { id: "todo", label: "To do" },
+  { id: "in_progress", label: "In progress" },
   { id: "done", label: "Done" },
 ];
 
@@ -54,6 +56,104 @@ export default function KanbanPage() {
 
   const [projectModal, setProjectModal] = useState(null); // null = closed, {} = new, {...} = rename
   const [deletingProject, setDeletingProject] = useState(null);
+
+  const [activeTask, setActiveTask] = useState(null);
+  const [activeWidth, setActiveWidth] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function handleDragStart(event) {
+    const { active } = event;
+    if (active.data.current?.type === "Task") {
+      setActiveTask(active.data.current.task);
+      const measuredWidth =
+        active.rect.current?.initial?.width ||
+        (typeof document !== "undefined" &&
+          document.querySelector(`[data-task-id="${active.id}"]`)?.getBoundingClientRect().width) ||
+        null;
+      if (measuredWidth) setActiveWidth(measuredWidth);
+    }
+  }
+
+  function handleDragOver(event) {
+    const { active, over } = event;
+    if (!over) return;
+    
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    const isActiveTask = active.data.current?.type === "Task";
+    const isOverTask = over.data.current?.type === "Task";
+    const isOverColumn = over.data.current?.type === "Column";
+
+    if (!isActiveTask) return;
+
+    setTasks((tasks) => {
+      const activeIndex = tasks.findIndex((t) => t.id === activeId);
+      const overIndex = tasks.findIndex((t) => t.id === overId);
+
+      if (activeIndex === -1) return tasks;
+
+      if (isOverColumn && tasks[activeIndex].status !== overId) {
+        const newTasks = [...tasks];
+        newTasks[activeIndex] = { ...newTasks[activeIndex], status: overId };
+        return newTasks;
+      }
+
+      if (isOverTask && overIndex !== -1 && tasks[activeIndex].status !== tasks[overIndex].status) {
+        const newTasks = [...tasks];
+        newTasks[activeIndex] = { ...newTasks[activeIndex], status: tasks[overIndex].status };
+        // We'll insert it at the correct index for smooth layout animation before DragEnd
+        return arrayMove(newTasks, activeIndex, overIndex);
+      }
+
+      return tasks;
+    });
+  }
+
+  function handleDragEnd(event) {
+    setActiveTask(null);
+    setActiveWidth(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId !== overId) {
+      setTasks((tasks) => {
+        const activeIndex = tasks.findIndex((t) => t.id === activeId);
+        const overIndex = tasks.findIndex((t) => t.id === overId);
+        
+        let newTasks = tasks;
+        if (activeIndex !== -1 && overIndex !== -1 && tasks[activeIndex].status === tasks[overIndex].status) {
+           newTasks = arrayMove(tasks, activeIndex, overIndex);
+        }
+        
+        // Find ordered IDs for the column we dropped into
+        const droppedStatus = newTasks.find(t => t.id === activeId)?.status;
+        if (droppedStatus) {
+           const orderedIds = newTasks.filter(t => t.status === droppedStatus).map(t => t.id);
+           handleReorder(droppedStatus, orderedIds);
+        }
+
+        return newTasks;
+      });
+    } else {
+      // Even if activeId === overId, the status might have changed during DragOver.
+      // So we should re-save the column it ended up in.
+      const status = tasks.find(t => t.id === activeId)?.status;
+      if (status) {
+        const orderedIds = tasks.filter(t => t.status === status).map(t => t.id);
+        handleReorder(status, orderedIds);
+      }
+    }
+  }
 
   function selectProject(id) {
     setSelectedProjectId(id);
@@ -193,99 +293,106 @@ export default function KanbanPage() {
 
   if (projectsLoading) {
     return (
-      <div className="w-full flex items-center justify-center py-24" style={{ color: "rgba(243,233,226,0.5)" }}>
-        <Loader2 size={22} className="animate-spin" />
+      <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 2.5}px 0`, color: cream(0.4) }}>
+        <Loader2 size={20} className="animate-spin" />
       </div>
     );
   }
 
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+
   return (
-    <div className="w-full flex flex-col gap-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
+      <div
+        className="flex items-baseline justify-between flex-wrap"
+        style={{
+          gap: space[6],
+          marginTop: space[8] * 1.5,
+          paddingBottom: space[5] ?? 23,
+          borderBottom: `1px solid ${accent[400]}73`,
+        }}
+      >
         <div>
-          <p className="text-[11px] uppercase tracking-[0.08em] mb-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-            Task Board
-          </p>
-          <p className="text-[15px]" style={{ color: "#f7ece4" }}>
+          <div style={labelStyle}>Task board · {selectedProject?.name || "—"}</div>
+          <div style={{ fontFamily: fontHeading, fontSize: "clamp(28px,3.2vw,42px)", color: text.bright, marginTop: space[2] }}>
             Kanban
-          </p>
+          </div>
         </div>
         {selectedProjectId && (
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setShowBraindump((v) => !v)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-              style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2" }}
-            >
-              <NotebookPen size={14} strokeWidth={1.8} />
-              Brain dump
-            </button>
-            <button
-              onClick={() => openNewCard("todo")}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-              style={{
-                background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                color: "#2c1c16",
-              }}
-            >
-              <Plus size={14} strokeWidth={1.8} />
-              New card
-            </button>
+          <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
+            <GhostLink onClick={() => setProjectModal({})} muted>
+              New project
+            </GhostLink>
+            <GhostLink onClick={() => setShowBraindump((v) => !v)}>Brain dump</GhostLink>
+            <OutlineButton onClick={() => openNewCard("todo")}>New card</OutlineButton>
           </div>
         )}
       </div>
 
-      <ProjectTabs
-        projects={projects}
-        selectedId={selectedProjectId}
-        onSelect={selectProject}
-        onNew={() => setProjectModal({})}
-        onEdit={(project) => setProjectModal(project)}
-        onDelete={(project) => setDeletingProject(project)}
-      />
+      <div style={{ marginTop: space[6] }}>
+        <ProjectTabs
+          projects={projects}
+          selectedId={selectedProjectId}
+          onSelect={selectProject}
+          onNew={() => setProjectModal({})}
+          onEdit={(project) => setProjectModal(project)}
+          onDelete={(project) => setDeletingProject(project)}
+        />
+      </div>
 
-      {error && (
-        <p className="text-[12px] px-1" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-      )}
+      {error && <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 
       {!selectedProjectId ? (
-        <div className="rounded-3xl p-8 flex flex-col items-center gap-2 text-center" style={cardStyle}>
-          <p className="text-[13px]" style={{ color: "rgba(243,233,226,0.5)" }}>
-            Create a project to start its board.
-          </p>
-        </div>
+        <p style={{ marginTop: space[8], fontSize: 15, color: cream(0.5) }}>Create a project to start its board.</p>
       ) : tasksLoading ? (
-        <div className="flex items-center justify-center py-16" style={{ color: "rgba(243,233,226,0.5)" }}>
-          <Loader2 size={20} className="animate-spin" />
+        <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 1.5}px 0`, color: cream(0.4) }}>
+          <Loader2 size={18} className="animate-spin" />
         </div>
       ) : (
         <>
           {showBraindump && (
-            <BraindumpPanel
-              projectId={selectedProjectId}
-              onAccept={(suggestion) => handleCreate({ ...suggestion, status: "todo", source: "ai" })}
-            />
+            <div style={{ marginTop: space[6] }}>
+              <BraindumpPanel
+                projectId={selectedProjectId}
+                onAccept={(suggestion) => handleCreate({ ...suggestion, status: "todo", source: "ai" })}
+              />
+            </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {COLUMNS.map((col) => (
-              <KanbanColumn
-                key={col.id}
-                status={col.id}
-                label={col.label}
-                tasks={columns[col.id]}
-                onReorder={(orderedIds) => handleReorder(col.id, orderedIds)}
-                onAddCard={() => openNewCard(col.id)}
-                onEdit={(task) => {
-                  setModalStatus(task.status);
-                  setModalTask(task);
-                }}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3" style={{ marginTop: space[8] * 1.1 }}>
+              {COLUMNS.map((col, i) => (
+                <KanbanColumn
+                  key={col.id}
+                  status={col.id}
+                  label={col.label}
+                  tasks={columns[col.id]}
+                  first={i === 0}
+                  last={i === COLUMNS.length - 1}
+                  onAddCard={() => openNewCard(col.id)}
+                  onEdit={(task) => {
+                    setModalStatus(task.status);
+                    setModalTask(task);
+                  }}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+            
+            <DragOverlay dropAnimation={null}>
+              {activeTask ? (
+                <div style={{ width: activeWidth ? `${activeWidth}px` : "100%", pointerEvents: "none" }}>
+                  <KanbanCardUI task={activeTask} isOverlay />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </>
       )}
 

@@ -77,6 +77,7 @@ export default function VoiceChatScreen() {
           <AnimatePresence>
             {transcript && (
               <motion.div
+                key="transcript"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-1.5 items-end"
@@ -100,6 +101,7 @@ export default function VoiceChatScreen() {
             )}
             {streamingText && (
               <motion.div
+                key="streaming"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-1.5 items-start"

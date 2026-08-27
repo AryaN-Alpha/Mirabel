@@ -1,3 +1,6 @@
+import { fontHeading, text, space, cream } from "../homeTheme";
+import { labelStyle } from "../homeWidgets";
+
 function formatDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleString(undefined, {
@@ -11,37 +14,42 @@ function formatDate(iso) {
 
 export default function LinkedInProfileTab({ status }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: "rgba(243,233,226,0.03)" }}>
-        <div className="w-16 h-16 shrink-0 rounded-full overflow-hidden grid place-items-center" style={{ background: "rgba(243,233,226,0.07)" }}>
+    <div style={{ maxWidth: 560 }}>
+      <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
+        <div
+          className="shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+          style={{ width: 64, height: 64, background: cream(0.07) }}
+        >
           {status?.picture_url ? (
             <img src={status.picture_url} alt="" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-[20px]" style={{ color: "rgba(243,233,226,0.4)" }}>
+            <span style={{ fontFamily: fontHeading, fontSize: 24, color: cream(0.4) }}>
               {status?.name?.[0]?.toUpperCase() || "?"}
             </span>
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-[16px] truncate" style={{ color: "#f7ece4" }}>
+          <p className="truncate" style={{ fontFamily: fontHeading, fontSize: 24, color: text.bright }}>
             {status?.name || "—"}
           </p>
-          <p className="text-[13px] truncate" style={{ color: "rgba(243,233,226,0.55)" }}>
+          <p className="truncate" style={{ fontSize: 14, marginTop: 2, color: cream(0.55) }}>
             {status?.email || "—"}
           </p>
         </div>
       </div>
 
-      <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: "rgba(243,233,226,0.03)" }}>
-        <Row label="Member URN" value={status?.member_urn || "—"} mono />
-        <Row label="Scopes granted" value={status?.scope || "—"} />
-        <Row label="Token expires" value={formatDate(status?.token_expires_at) || "—"} />
+      <div style={{ marginTop: space[8] * 0.9 }}>
+        <div style={{ ...labelStyle, paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>Details</div>
+        <div className="flex flex-col" style={{ marginTop: space[3], gap: space[3] }}>
+          <Row label="Member URN" value={status?.member_urn || "—"} mono />
+          <Row label="Scopes granted" value={status?.scope || "—"} />
+          <Row label="Token expires" value={formatDate(status?.token_expires_at) || "—"} />
+        </div>
       </div>
 
-      <p className="text-[11px] px-1" style={{ color: "rgba(243,233,226,0.35)" }}>
-        Headline isn't shown here — LinkedIn's Sign In with OpenID Connect scopes
-        (openid, profile, email) don't expose it; that requires a separate
-        partner-approved product.
+      <p style={{ fontSize: 12, marginTop: space[6], lineHeight: 1.7, color: cream(0.35) }}>
+        Headline isn't shown here — LinkedIn's Sign In with OpenID Connect scopes (openid, profile, email) don't
+        expose it; that requires a separate partner-approved product.
       </p>
     </div>
   );
@@ -50,12 +58,10 @@ export default function LinkedInProfileTab({ status }) {
 function Row({ label, value, mono }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-[12px]" style={{ color: "rgba(243,233,226,0.45)" }}>
-        {label}
-      </span>
+      <span style={{ fontSize: 13, color: cream(0.5) }}>{label}</span>
       <span
-        className={`text-[12.5px] truncate max-w-[60%] ${mono ? "font-mono" : ""}`}
-        style={{ color: "#f3e9e2" }}
+        className={`truncate ${mono ? "font-mono" : ""}`}
+        style={{ fontSize: 13.5, maxWidth: "60%", color: text.cream }}
       >
         {value}
       </span>

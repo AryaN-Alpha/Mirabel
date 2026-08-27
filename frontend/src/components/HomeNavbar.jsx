@@ -1,30 +1,48 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
+import { fontHeading, text, accent } from "./homeTheme";
 
-export default function HomeNavbar({ title, subtitle }) {
+function greetingLine() {
+  const h = new Date().getHours();
+  const part = h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return `${part} — welcome back`;
+}
+
+export default function HomeNavbar({ title }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <header className="w-full flex items-center justify-between gap-5 px-6 md:px-8 pt-7 pb-2">
+    <header
+      className="w-full flex items-start justify-between gap-6 px-6 md:px-8 pt-8"
+      style={{ animation: "home-rise 1.1s cubic-bezier(.2,.7,.2,1) both" }}
+    >
       <div>
-        <h1 className="font-serif text-[26px] leading-none" style={{ color: "#f7ece4" }}>
+        <div className="text-[11px] uppercase" style={{ letterSpacing: "0.2em", color: text.faint }}>
+          {greetingLine()}
+        </div>
+        <div style={{ fontFamily: fontHeading, fontSize: 26, fontStyle: "italic", color: text.base, marginTop: 9 }}>
           {title}
-        </h1>
-        {subtitle && (
-          <p className="text-[13px] mt-1.5" style={{ color: "rgba(243,233,226,0.5)" }}>
-            {subtitle}
-          </p>
-        )}
+        </div>
       </div>
-
       <Link
         to="/"
-        className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] tracking-[0.01em] no-underline transition-all duration-200"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="no-underline inline-flex items-center gap-2 shrink-0"
         style={{
-          background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-          color: "#2c1c16",
-          boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+          padding: "9px 18px",
+          border: `1px solid ${accent[400]}8c`,
+          borderRadius: 4,
+          fontFamily: fontHeading,
+          fontSize: 15,
+          color: accent[200],
+          background: hovered ? `${accent[400]}1f` : "transparent",
+          borderColor: hovered ? accent[400] : `${accent[400]}8c`,
+          transition: "background 0.5s ease, border-color 0.5s ease",
         }}
       >
-        <MessageCircle size={14} strokeWidth={1.7} />
+        <MessageCircle size={15} strokeWidth={1.4} />
         Open chat
       </Link>
     </header>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, Mail, X } from "lucide-react";
+import { Mail } from "lucide-react";
 import { getOutlookInbox } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle } from "../OutlookPage";
-import CustomSelect from "../common/CustomSelect";
+import { fontHeading, text, accent, space, cream } from "../homeTheme";
+import { GhostLink, EmptyState, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
 import OutlookMessageView from "./OutlookMessageView";
 
 function formatDate(iso) {
@@ -21,7 +21,7 @@ export default function OutlookInboxTab({ defaultDomain }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  const [filterType, setFilterType] = useState("all");
+  const [filterType, setFilterType] = useState("domain");
   const [filterInput, setFilterInput] = useState("");
   const [appliedFilter, setAppliedFilter] = useState({ type: "all", value: "" });
 
@@ -54,7 +54,7 @@ export default function OutlookInboxTab({ defaultDomain }) {
   }, [reloadToken, appliedFilter, page]);
 
   function applyFilter(type, value) {
-    setFilterType(type);
+    setFilterType(type === "all" ? filterType : type);
     setFilterInput(value);
     setAppliedFilter({ type, value });
     setPage(1);
@@ -71,60 +71,46 @@ export default function OutlookInboxTab({ defaultDomain }) {
   }
 
   const filterBar = (
-    <div className="flex flex-col gap-2 mb-4">
-      <form onSubmit={handleFilterSubmit} className="flex gap-2">
-        <CustomSelect
-          options={[
-            { value: "domain", label: "Domain" },
-            { value: "sender", label: "Sender address" },
-          ]}
-          value={filterType === "all" ? "domain" : filterType}
-          onChange={(val) => setFilterType(val)}
-          variant="pill"
-          size="md"
-          className="min-w-[145px]"
-        />
+    <div style={{ marginBottom: space[6] }}>
+      <form onSubmit={handleFilterSubmit} className="flex items-center flex-wrap" style={{ gap: space[4] }}>
+        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={underlineSelectStyle}>
+          <option value="domain">Domain</option>
+          <option value="sender">Sender address</option>
+        </select>
         <input
           value={filterInput}
           onChange={(e) => setFilterInput(e.target.value)}
           placeholder={filterType === "sender" ? "someone@example.com" : "example.com"}
-          className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-          style={inputStyle}
+          style={{ ...underlineInputStyle, width: 260, flex: "0 0 auto" }}
         />
-        <button
-          type="submit"
-          disabled={!filterInput.trim()}
-          className="shrink-0 px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-          style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2", opacity: filterInput.trim() ? 1 : 0.5 }}
-        >
+        <GhostLink disabled={!filterInput.trim()} onClick={handleFilterSubmit} style={{ fontSize: 16 }}>
           Filter
-        </button>
-      </form>
-      <div className="flex items-center gap-2 flex-wrap">
+        </GhostLink>
         {defaultDomain && (
-          <button
+          <GhostLink
+            muted={!(appliedFilter.type === "domain" && appliedFilter.value === defaultDomain)}
             onClick={() => applyFilter("domain", defaultDomain)}
-            className="px-3 py-1.5 rounded-full text-[12px] border-none cursor-pointer"
-            style={
-              appliedFilter.type === "domain" && appliedFilter.value === defaultDomain
-                ? { background: "rgba(240,168,120,0.22)", color: "#f0c9a2" }
-                : { background: "rgba(243,233,226,0.06)", color: "rgba(243,233,226,0.6)" }
-            }
+            style={{ fontSize: 13, fontFamily: "inherit" }}
           >
-            {defaultDomain}
-          </button>
+            <span
+              style={{
+                padding: "2px 13px",
+                border: `1px solid ${accent[400]}66`,
+                borderRadius: 4,
+                letterSpacing: "0.06em",
+                color: accent[200],
+              }}
+            >
+              {defaultDomain}
+            </span>
+          </GhostLink>
         )}
         {appliedFilter.type !== "all" && (
-          <button
-            onClick={clearFilter}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] border-none cursor-pointer"
-            style={{ background: "rgba(243,233,226,0.06)", color: "rgba(243,233,226,0.6)" }}
-          >
-            <X size={11} strokeWidth={2} />
-            Clear filter
-          </button>
+          <GhostLink onClick={clearFilter} muted style={{ fontSize: 13, fontFamily: "inherit" }}>
+            ✕ Clear filter
+          </GhostLink>
         )}
-      </div>
+      </form>
     </div>
   );
 
@@ -136,9 +122,7 @@ export default function OutlookInboxTab({ defaultDomain }) {
     return (
       <div>
         {filterBar}
-        <div className="flex items-center justify-center py-16" style={{ color: "rgba(243,233,226,0.5)" }}>
-          <Loader2 size={20} className="animate-spin" />
-        </div>
+        <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>
       </div>
     );
   }
@@ -147,45 +131,36 @@ export default function OutlookInboxTab({ defaultDomain }) {
     return (
       <div>
         {filterBar}
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
-          <p className="text-[13px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-            {error}
-          </p>
-          <button
-            onClick={() => setReloadToken((n) => n + 1)}
-            className="px-4 py-2 rounded-full text-[13px] border-none cursor-pointer"
-            style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2" }}
-          >
-            Retry
-          </button>
-        </div>
+        <EmptyState>
+          {error}
+          <br />
+          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+        </EmptyState>
       </div>
     );
   }
 
   const paginationBar = (
-    <div className="flex items-center justify-between gap-3 mt-4 pt-4" style={{ borderTop: "1px solid rgba(243,233,226,0.08)" }}>
-      <button
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-        disabled={page === 1}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] border-none cursor-pointer"
-        style={{ background: "rgba(243,233,226,0.06)", color: "#f3e9e2", opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? "not-allowed" : "pointer" }}
+    <div
+      className="flex items-center justify-between"
+      style={{ marginTop: space[6], fontSize: 14, color: cream(0.5) }}
+    >
+      <GhostLink disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} muted={page === 1}>
+        ← Previous
+      </GhostLink>
+      <span
+        style={{
+          fontVariantNumeric: "tabular-nums",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          fontSize: 11,
+        }}
       >
-        <ChevronLeft size={14} strokeWidth={1.8} />
-        Previous
-      </button>
-      <span className="text-[12px]" style={{ color: "rgba(243,233,226,0.45)" }}>
         Page {page}
       </span>
-      <button
-        onClick={() => setPage((p) => p + 1)}
-        disabled={!hasMore}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] border-none cursor-pointer"
-        style={{ background: "rgba(243,233,226,0.06)", color: "#f3e9e2", opacity: hasMore ? 1 : 0.4, cursor: hasMore ? "pointer" : "not-allowed" }}
-      >
-        Next
-        <ChevronRight size={14} strokeWidth={1.8} />
-      </button>
+      <GhostLink disabled={!hasMore} onClick={() => setPage((p) => p + 1)} muted={!hasMore}>
+        Next →
+      </GhostLink>
     </div>
   );
 
@@ -193,16 +168,14 @@ export default function OutlookInboxTab({ defaultDomain }) {
     return (
       <div>
         {filterBar}
-        <div className="flex flex-col items-center gap-2 py-14 text-center">
-          <Mail size={22} strokeWidth={1.6} style={{ color: "rgba(243,233,226,0.3)" }} />
-          <p className="text-[13px]" style={{ color: "rgba(243,233,226,0.45)" }}>
-            {page > 1
-              ? "No more emails."
-              : appliedFilter.type === "all"
-                ? "No emails in your inbox yet."
-                : "No emails match this filter."}
-          </p>
-        </div>
+        <EmptyState>
+          <Mail size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+          {page > 1
+            ? "No more emails."
+            : appliedFilter.type === "all"
+              ? "No emails in your inbox yet."
+              : "No emails match this filter."}
+        </EmptyState>
         {page > 1 && paginationBar}
       </div>
     );
@@ -211,48 +184,75 @@ export default function OutlookInboxTab({ defaultDomain }) {
   return (
     <div>
       {filterBar}
-      <div className="flex flex-col gap-1.5">
-      {messages.map((m) => {
-        const senderName = m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown sender";
-        return (
-          <button
-            key={m.id}
-            onClick={() => setSelectedId(m.id)}
-            className="w-full text-left flex items-start gap-3 px-4 py-3.5 rounded-2xl border-none cursor-pointer transition-colors duration-150"
-            style={{ background: "rgba(243,233,226,0.03)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(243,233,226,0.07)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(243,233,226,0.03)")}
-          >
-            {!m.isRead && (
-              <span
-                className="w-[7px] h-[7px] rounded-full mt-2 shrink-0"
-                style={{ background: "#f0c9a2" }}
-              />
-            )}
-            <div className={`flex-1 min-w-0 ${m.isRead ? "ml-[15px]" : ""}`}>
-              <div className="flex items-center justify-between gap-3 mb-0.5">
-                <p
-                  className="text-[13.5px] truncate"
-                  style={{ color: "#f3e9e2", fontWeight: m.isRead ? 400 : 600 }}
-                >
-                  {senderName}
-                </p>
-                <span className="text-[11px] shrink-0" style={{ color: "rgba(243,233,226,0.4)" }}>
-                  {formatDate(m.receivedDateTime)}
-                </span>
-              </div>
-              <p className="text-[13px] truncate mb-0.5" style={{ color: "rgba(243,233,226,0.75)" }}>
-                {m.subject || "(no subject)"}
-              </p>
-              <p className="text-[12px] truncate" style={{ color: "rgba(243,233,226,0.45)" }}>
-                {m.bodyPreview}
-              </p>
-            </div>
-          </button>
-        );
-      })}
+      <div className="flex flex-col">
+        {messages.map((m) => {
+          const senderName = m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown sender";
+          return (
+            <MailRow key={m.id} message={m} senderName={senderName} onOpen={() => setSelectedId(m.id)} />
+          );
+        })}
       </div>
       {paginationBar}
     </div>
+  );
+}
+
+function MailRow({ message: m, senderName, onOpen }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href="#"
+      onClick={(e) => {
+        e.preventDefault();
+        onOpen();
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="no-underline grid items-baseline"
+      style={{
+        gridTemplateColumns: "10px minmax(200px,1fr) 2.2fr auto",
+        gap: space[5] ?? 23,
+        padding: `${space[5] ?? 23}px ${space[3]}px`,
+        paddingLeft: hovered ? space[3] + 10 : space[3],
+        borderBottom: `1px solid ${cream(0.09)}`,
+        color: "inherit",
+        background: hovered ? `${accent[400]}12` : "transparent",
+        transition: "background 0.5s ease, padding-left 0.5s ease",
+      }}
+    >
+      <span
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: m.isRead ? "transparent" : accent[400],
+          marginTop: 8,
+        }}
+      />
+      <span>
+        <span style={{ display: "block", fontFamily: fontHeading, fontSize: 20, color: text.base, lineHeight: 1.3 }}>
+          {m.subject || "(no subject)"}
+        </span>
+        <span style={{ display: "block", marginTop: 4, fontSize: 13, letterSpacing: "0.04em", color: cream(0.5) }}>
+          {senderName}
+        </span>
+      </span>
+      <span
+        style={{
+          fontSize: 14,
+          lineHeight: 1.7,
+          color: cream(0.58),
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+        }}
+      >
+        {m.bodyPreview}
+      </span>
+      <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, color: cream(0.45), whiteSpace: "nowrap" }}>
+        {formatDate(m.receivedDateTime)}
+      </span>
+    </a>
   );
 }

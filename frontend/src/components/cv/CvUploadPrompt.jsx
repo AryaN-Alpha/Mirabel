@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
-import { uploadCv } from "../../services/api";
+import { createCv, uploadCv } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { primaryButtonStyle } from "../CvPage";
+import { space, radius, cream } from "../homeTheme";
+import { OutlineButton, ErrorNote } from "../homeWidgets";
 
-export default function CvUploadPrompt({ onUploaded }) {
+export default function CvUploadPrompt({ cvId, onUploaded }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -18,7 +19,12 @@ export default function CvUploadPrompt({ onUploaded }) {
     setBusy(true);
     setError("");
     try {
-      const data = await uploadCv(file);
+      // No cvId means there isn't a CV version to upload into yet (the
+      // very-first-upload empty state) — create one first, named "Main" to
+      // match what a pre-existing single CV was auto-named as during the
+      // multi-version migration, then upload into it.
+      const targetId = cvId ?? (await createCv("Main")).id;
+      const data = await uploadCv(targetId, file);
       onUploaded(data);
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't process that PDF."));
@@ -32,35 +38,33 @@ export default function CvUploadPrompt({ onUploaded }) {
 
   return (
     <div
-      className="rounded-3xl p-10 flex flex-col items-center gap-4 text-center"
+      className="flex flex-col items-center text-center"
       style={{
-        background: "linear-gradient(165deg, rgba(46,30,26,0.9), rgba(30,19,17,0.94))",
-        border: "1px dashed rgba(243,233,226,0.18)",
+        padding: space[8] * 1.1,
+        border: `1px dashed ${cream(0.18)}`,
+        borderRadius: radius.md,
       }}
     >
       {busy ? (
         <>
-          <Loader2 size={26} className="animate-spin" style={{ color: "rgba(243,233,226,0.6)" }} />
-          <p className="text-[13px]" style={{ color: "rgba(243,233,226,0.6)" }}>
+          <Loader2 size={24} className="animate-spin" style={{ color: cream(0.55) }} />
+          <p style={{ fontSize: 14, marginTop: space[4], color: cream(0.6) }}>
             Reading your CV and structuring it — this can take a few seconds…
           </p>
         </>
       ) : (
         <>
-          <FileUp size={26} style={{ color: "rgba(243,233,226,0.5)" }} />
-          <p className="text-[14px]" style={{ color: "#f7ece4" }}>
+          <FileUp size={24} strokeWidth={1.6} style={{ color: cream(0.45) }} />
+          <p style={{ fontSize: 17, marginTop: space[4], fontFamily: "inherit", color: cream(0.9) }}>
             Upload your CV to get started
           </p>
-          <p className="text-[12.5px] max-w-[360px]" style={{ color: "rgba(243,233,226,0.5)" }}>
-            Upload a PDF and Mirabel will read it and break it into editable sections you can tweak by hand or with AI.
+          <p style={{ fontSize: 13, marginTop: space[2], maxWidth: 360, lineHeight: 1.7, color: cream(0.5) }}>
+            Upload a PDF and Mirabel will read it and break it into editable sections you can tweak by hand or with
+            AI.
           </p>
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="px-5 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-            style={primaryButtonStyle}
-          >
-            Choose PDF
-          </button>
+          <div style={{ marginTop: space[5] ?? 23 }}>
+            <OutlineButton onClick={() => inputRef.current?.click()}>Choose PDF</OutlineButton>
+          </div>
           <input
             ref={inputRef}
             type="file"
@@ -70,11 +74,7 @@ export default function CvUploadPrompt({ onUploaded }) {
           />
         </>
       )}
-      {error && (
-        <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-      )}
+      <ErrorNote>{error}</ErrorNote>
     </div>
   );
 }

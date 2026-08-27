@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { CircleCheck, Loader2 } from "lucide-react";
-import CustomSelect from "./common/CustomSelect";
+import { Loader2 } from "lucide-react";
 import {
   clearProviderCredential,
   getModelPreference,
@@ -9,6 +8,7 @@ import {
   setProviderCredential,
 } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
+import { fontHeading, text, accent, space, radius, cream } from "./homeTheme";
 
 const PROVIDER_LABELS = {
   anthropic: "Anthropic",
@@ -18,29 +18,122 @@ const PROVIDER_LABELS = {
 };
 
 const CRED_STATUS_LABEL = {
-  database: "Saved from this screen",
-  env: "Configured via server .env",
+  database: "saved from this screen",
+  env: "configured via server .env",
 };
 
-const cardStyle = {
-  background: "linear-gradient(165deg, rgba(46,30,26,0.9), rgba(30,19,17,0.94))",
-  border: "1px solid rgba(243,233,226,0.1)",
+const labelStyle = {
+  fontSize: 11,
+  letterSpacing: "0.2em",
+  textTransform: "uppercase",
+  color: cream(0.42),
 };
 
-const inputStyle = {
-  background: "rgba(243,233,226,0.05)",
-  border: "1px solid rgba(243,233,226,0.14)",
-  color: "#f3e9e2",
+const underlineInputStyle = {
+  width: "100%",
+  padding: `${space[2]}px 0`,
+  background: "transparent",
+  border: 0,
+  borderBottom: `1px solid ${cream(0.16)}`,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
 };
 
-function tabStyle(active) {
-  return active
-    ? {
-        background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-        color: "#2c1c16",
-        boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
-      }
-    : { background: "transparent", color: "rgba(243,233,226,0.58)", boxShadow: "none" };
+function ProviderRow({ label, active, isSaved, onSelect }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href="#"
+      onClick={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="no-underline flex items-center justify-between"
+      style={{
+        padding: `${space[3]}px 0`,
+        borderBottom: `1px solid ${active ? `${accent[400]}8c` : cream(0.1)}`,
+        fontFamily: fontHeading,
+        fontSize: 19,
+        color: active || hovered ? text.base : cream(0.66),
+        transition: "color 0.4s ease",
+      }}
+    >
+      {label}
+      {isSaved && (
+        <span
+          style={{
+            fontFamily: "inherit",
+            fontSize: 9,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: accent[300],
+          }}
+        >
+          active
+        </span>
+      )}
+    </a>
+  );
+}
+
+function GhostLink({ children, onClick, disabled, muted, ...rest }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href="#"
+      onClick={(e) => {
+        e.preventDefault();
+        if (!disabled) onClick?.();
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="no-underline inline-flex items-center gap-1.5"
+      style={{
+        fontFamily: fontHeading,
+        fontSize: 16,
+        color: muted ? cream(0.55) : hovered ? accent[200] : accent[300],
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "color 0.4s ease",
+      }}
+      {...rest}
+    >
+      {children}
+    </a>
+  );
+}
+
+function OutlineButton({ children, onClick, disabled }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href="#"
+      onClick={(e) => {
+        e.preventDefault();
+        if (!disabled) onClick?.();
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="no-underline inline-flex items-center"
+      style={{
+        padding: `${space[2]}px ${space[5] ?? 23}px`,
+        border: `1px solid ${accent[400]}8c`,
+        borderRadius: radius.md,
+        fontFamily: fontHeading,
+        fontSize: 16,
+        color: accent[200],
+        background: hovered && !disabled ? `${accent[400]}1f` : "transparent",
+        opacity: disabled ? 0.45 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "background 0.5s ease",
+      }}
+    >
+      {children}
+    </a>
+  );
 }
 
 export default function AIModelPage() {
@@ -211,271 +304,259 @@ export default function AIModelPage() {
 
   if (loading) {
     return (
-      <div className="w-full flex items-center justify-center py-24" style={{ color: "rgba(243,233,226,0.5)" }}>
-        <Loader2 size={22} className="animate-spin" />
+      <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 2.5}px 0`, color: cream(0.4) }}>
+        <Loader2 size={20} className="animate-spin" />
       </div>
     );
   }
 
   if (!available) {
     return (
-      <div className="w-full rounded-3xl p-8 flex flex-col items-center gap-4 text-center" style={cardStyle}>
-        <p className="text-[13px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error || "Couldn't load model settings."}
-        </p>
-        <button
-          onClick={() => setReloadToken((n) => n + 1)}
-          className="px-4 py-2 rounded-full text-[13px] border-none cursor-pointer"
-          style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2" }}
-        >
-          Retry
-        </button>
+      <div
+        className="flex flex-col items-center gap-4 text-center"
+        style={{ marginTop: space[8] * 1.5, padding: `${space[8]}px 0`, borderTop: `1px solid ${cream(0.09)}` }}
+      >
+        <p style={{ fontSize: 15, color: "rgba(224,140,140,0.9)" }}>{error || "Couldn't load model settings."}</p>
+        <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
       </div>
     );
   }
 
+  const providerLabel = PROVIDER_LABELS[saved.provider] ?? saved.provider;
+  const rawModelLabel = available?.[saved.provider]?.find((m) => m.id === saved.model)?.label ?? saved.model;
+  // The provider's own model labels usually repeat the provider name
+  // ("Gemini 3.6 Flash — balanced") — strip that so the heading doesn't
+  // read "Gemini Gemini 3.6 Flash".
+  const savedModelLabel = rawModelLabel.toLowerCase().startsWith(providerLabel.toLowerCase())
+    ? rawModelLabel.slice(providerLabel.length).replace(/^[\s\-–—]+/, "") || rawModelLabel
+    : rawModelLabel;
+
   return (
-    <div className="w-full flex flex-col gap-6">
-      <div className="rounded-3xl p-6 flex items-center gap-4" style={cardStyle}>
-        <div
-          className="w-11 h-11 shrink-0 grid place-items-center rounded-2xl"
-          style={{ background: "rgba(120,200,150,0.14)", color: "#8fd6a8" }}
-        >
-          <CircleCheck size={20} strokeWidth={1.8} />
-        </div>
+    <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
+      <div
+        className="flex items-baseline justify-between flex-wrap"
+        style={{
+          gap: space[6],
+          marginTop: space[8] * 1.5,
+          paddingBottom: space[5] ?? 23,
+          borderBottom: `1px solid ${accent[400]}73`,
+        }}
+      >
         <div>
-          <p className="text-[11px] uppercase tracking-[0.08em] mb-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-            Currently active
-          </p>
-          <p className="text-[15px]" style={{ color: "#f7ece4" }}>
-            {PROVIDER_LABELS[saved.provider] ?? saved.provider}
-            <span style={{ color: "rgba(243,233,226,0.45)" }}> · </span>
-            {saved.model}
-          </p>
+          <div style={labelStyle}>Currently active</div>
+          <div
+            style={{
+              fontFamily: fontHeading,
+              fontSize: "clamp(34px,3.6vw,48px)",
+              lineHeight: 1.1,
+              color: "#fbf5ec",
+              marginTop: space[2],
+            }}
+          >
+            {providerLabel} <em style={{ fontStyle: "italic", color: accent[300] }}>{savedModelLabel}</em>
+          </div>
         </div>
+        <div style={{ fontVariantNumeric: "tabular-nums", fontSize: 14, color: cream(0.55) }}>{saved.model}</div>
       </div>
 
-      <div className="rounded-3xl p-6 md:p-7" style={cardStyle}>
-        <div
-          className="flex items-center gap-1.5 p-[5px] rounded-full mb-6 flex-wrap"
-          style={{ background: "rgba(243,233,226,0.06)", border: "1px solid rgba(243,233,226,0.09)" }}
-        >
-          {providers.map((p) => (
-            <button
-              key={p}
-              onClick={() => selectTab(p)}
-              className="flex-1 min-w-[110px] flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-[13px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
-              style={tabStyle(provider === p)}
-            >
-              {PROVIDER_LABELS[p] ?? p}
-              {saved.provider === p && (
-                <span
-                  className="text-[9px] uppercase tracking-[0.06em] px-1.5 py-[2px] rounded-full"
-                  style={{
-                    background: provider === p ? "rgba(44,28,22,0.25)" : "rgba(120,200,150,0.16)",
-                    color: provider === p ? "#2c1c16" : "#8fd6a8",
-                  }}
-                >
-                  Active
-                </span>
-              )}
-            </button>
-          ))}
+      <div className="flex flex-wrap" style={{ gap: space[8] * 1.2, marginTop: space[8] * 1.2 }}>
+        <div style={{ flex: "0 0 200px" }}>
+          <div style={{ ...labelStyle, marginBottom: space[4] }}>Provider</div>
+          <div className="flex flex-col">
+            {providers.map((p) => (
+              <ProviderRow
+                key={p}
+                label={PROVIDER_LABELS[p] ?? p}
+                active={provider === p}
+                isSaved={saved.provider === p}
+                onSelect={() => selectTab(p)}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="mb-6">
-          {modelsForProvider.length === 0 ? (
-            <p className="text-[13px] px-1" style={{ color: "rgba(243,233,226,0.45)" }}>
-              {PROVIDER_LABELS[provider] ?? provider} isn't wired up yet — coming soon.
-            </p>
-          ) : (
-            <>
-              <div className="mb-2.5">
-                <CustomSelect
-                  options={mergedModels.map((m) => {
+        <div className="flex flex-col" style={{ flex: 1, minWidth: 380, maxWidth: 720, gap: space[8] * 0.9 }}>
+          <div>
+            <div style={{ ...labelStyle, marginBottom: space[3] }}>Model</div>
+            {modelsForProvider.length === 0 ? (
+              <p style={{ fontSize: 15, color: cream(0.5) }}>
+                {PROVIDER_LABELS[provider] ?? provider} isn't wired up yet — coming soon.
+              </p>
+            ) : (
+              <>
+                <select
+                  value={model ?? ""}
+                  onChange={(e) => setModel(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: `${space[3]}px 0`,
+                    background: "transparent",
+                    color: text.base,
+                    fontFamily: fontHeading,
+                    fontSize: 22,
+                    border: 0,
+                    borderBottom: `1px solid ${cream(0.22)}`,
+                    outline: "none",
+                  }}
+                >
+                  {mergedModels.map((m) => {
                     const isLive = liveModels[provider]?.some((lm) => lm.id === m.id);
                     const isCustom = m.id === model && !modelsForProvider.some((pm) => pm.id === m.id) && !isLive;
-                    let badge = undefined;
-                    let badgeColor = undefined;
-                    if (saved.provider === provider && saved.model === m.id) {
-                      badge = "Active";
-                      badgeColor = { bg: "rgba(120,200,150,0.2)", fg: "#8fd6a8" };
-                    } else if (isLive) {
-                      badge = "Live";
-                      badgeColor = { bg: "rgba(140,190,240,0.2)", fg: "#a0c8f0" };
-                    } else if (isCustom) {
-                      badge = "Custom";
-                      badgeColor = { bg: "rgba(240,180,120,0.2)", fg: "#f0c090" };
-                    }
-                    return {
-                      value: m.id,
-                      label: m.label,
-                      subtitle: m.id !== m.label ? m.id : undefined,
-                      badge,
-                      badgeColor,
-                    };
+                    const isActive = saved.provider === provider && saved.model === m.id;
+                    const suffix = isActive ? " — active" : isLive ? " — live" : isCustom ? " — custom" : "";
+                    return (
+                      <option key={m.id} value={m.id} style={{ color: "#000" }}>
+                        {m.label}
+                        {suffix}
+                      </option>
+                    );
                   })}
-                  value={model ?? ""}
-                  onChange={(val) => setModel(val)}
-                  placeholder="Select an AI model…"
-                  variant="card"
-                  searchable={mergedModels.length > 5}
-                />
-              </div>
+                </select>
 
-              <div className="flex gap-2 mb-2.5">
-                <input
-                  value={customModelInput}
-                  onChange={(e) => setCustomModelInput(e.target.value)}
-                  placeholder="Custom model ID…"
-                  className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-                  style={inputStyle}
-                />
-                <button
-                  onClick={() => customModelInput.trim() && setModel(customModelInput.trim())}
-                  disabled={!customModelInput.trim()}
-                  className="px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-                  style={{
-                    background: "rgba(243,233,226,0.1)",
-                    color: "#f3e9e2",
-                    opacity: customModelInput.trim() ? 1 : 0.4,
-                  }}
-                >
-                  Use
-                </button>
-              </div>
+                <div className="flex items-center" style={{ gap: space[4], marginTop: space[4] }}>
+                  <input
+                    value={customModelInput}
+                    onChange={(e) => setCustomModelInput(e.target.value)}
+                    placeholder="Custom model ID…"
+                    style={{ ...underlineInputStyle, flex: 1, padding: `${space[2]}px 0` }}
+                  />
+                  <GhostLink
+                    disabled={!customModelInput.trim()}
+                    onClick={() => customModelInput.trim() && setModel(customModelInput.trim())}
+                  >
+                    Use
+                  </GhostLink>
+                </div>
 
-              <button
-                onClick={handleBrowseModels}
-                disabled={liveLoading}
-                className="flex items-center gap-1.5 text-[12px] px-1 border-none bg-transparent cursor-pointer"
-                style={{ color: "rgba(243,233,226,0.5)" }}
-              >
-                {liveLoading && <Loader2 size={12} className="animate-spin" />}
-                {liveModels[provider] ? "Refresh full model list from account" : "Load all models from your account →"}
-              </button>
-              {liveError && (
-                <p className="text-[12px] mt-1.5 px-1" style={{ color: "rgba(224,140,140,0.9)" }}>
-                  {liveError}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="mb-6">
-          <p className="text-[11px] uppercase tracking-[0.08em] mb-2.5 px-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-            API Key — {PROVIDER_LABELS[provider] ?? provider}
-          </p>
-          <p className="text-[12px] px-1 mb-2.5" style={{ color: "rgba(243,233,226,0.5)" }}>
-            {cred?.configured
-              ? `Configured (${CRED_STATUS_LABEL[cred.source] ?? cred.source}${cred.masked ? ` · ${cred.masked}` : ""})`
-              : "Not configured"}
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder={cred?.configured ? "Replace key…" : "Paste API key…"}
-              className="flex-1 px-3.5 py-2.5 rounded-full text-[13px] outline-none"
-              style={inputStyle}
-            />
-            <button
-              onClick={handleSaveKey}
-              disabled={credBusy || !apiKeyInput.trim()}
-              className="px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-              style={{
-                background: "rgba(243,233,226,0.1)",
-                color: "#f3e9e2",
-                opacity: credBusy || !apiKeyInput.trim() ? 0.4 : 1,
-              }}
-            >
-              Save
-            </button>
-            {cred?.source === "database" && (
-              <button
-                onClick={handleClearKey}
-                disabled={credBusy}
-                className="px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-                style={{ background: "transparent", color: "rgba(224,140,140,0.85)" }}
-              >
-                Clear
-              </button>
+                <div style={{ marginTop: space[4] }}>
+                  <GhostLink disabled={liveLoading} onClick={handleBrowseModels}>
+                    {liveLoading && <Loader2 size={13} className="animate-spin" />}
+                    {liveModels[provider] ? "Refresh full model list from account" : "Load all models from your account →"}
+                  </GhostLink>
+                </div>
+                {liveError && (
+                  <p style={{ fontSize: 12, marginTop: space[2], color: "rgba(224,140,140,0.9)" }}>{liveError}</p>
+                )}
+              </>
             )}
           </div>
-          {credError && (
-            <p className="text-[12px] mt-2 px-1" style={{ color: "rgba(224,140,140,0.9)" }}>
-              {credError}
+
+          <div>
+            <div style={{ ...labelStyle, marginBottom: space[3] }}>API key — {PROVIDER_LABELS[provider] ?? provider}</div>
+            <p style={{ margin: `0 0 ${space[4]}px`, fontSize: 15, lineHeight: 1.8, color: cream(0.66) }}>
+              {cred?.configured
+                ? (
+                  <>
+                    Configured, {CRED_STATUS_LABEL[cred.source] ?? cred.source}
+                    {cred.masked && (
+                      <>
+                        {" · "}
+                        <span style={{ fontVariantNumeric: "tabular-nums" }}>{cred.masked}</span>
+                      </>
+                    )}
+                  </>
+                )
+                : "Not configured"}
             </p>
-          )}
+            <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder={cred?.configured ? "Replace key…" : "Paste API key…"}
+                style={{ ...underlineInputStyle, flex: 1 }}
+              />
+              <GhostLink disabled={credBusy || !apiKeyInput.trim()} onClick={handleSaveKey}>
+                Save
+              </GhostLink>
+              {cred?.source === "database" && (
+                <GhostLink disabled={credBusy} onClick={handleClearKey} muted>
+                  Clear
+                </GhostLink>
+              )}
+            </div>
+            {credError && <p style={{ fontSize: 12, marginTop: space[2], color: "rgba(224,140,140,0.9)" }}>{credError}</p>}
+          </div>
+
+          <div>
+            <div style={{ ...labelStyle, marginBottom: space[2] }}>Generation</div>
+
+            <label
+              className="flex items-baseline justify-between"
+              style={{ gap: space[6], padding: `${space[4]}px 0`, borderBottom: `1px solid ${cream(0.1)}` }}
+            >
+              <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>Max output tokens</span>
+              <input
+                type="number"
+                min={1}
+                max={8192}
+                value={maxTokens}
+                onChange={(e) => setMaxTokens(e.target.value)}
+                style={{
+                  width: 90,
+                  textAlign: "right",
+                  background: "transparent",
+                  border: 0,
+                  outline: "none",
+                  fontVariantNumeric: "tabular-nums",
+                  fontSize: 20,
+                  color: accent[300],
+                }}
+              />
+            </label>
+            {!maxTokensValid && (
+              <p style={{ fontSize: 11, marginTop: space[2], color: "rgba(224,140,140,0.9)" }}>
+                Max output tokens must be between 1 and 8192.
+              </p>
+            )}
+
+            <label
+              className="flex items-baseline justify-between"
+              style={{ gap: space[6], padding: `${space[4]}px 0`, borderBottom: `1px solid ${cream(0.1)}` }}
+            >
+              <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>Temperature</span>
+              <input
+                type="number"
+                min={0}
+                max={2}
+                step={0.1}
+                value={temperature}
+                onChange={(e) => setTemperature(e.target.value)}
+                style={{
+                  width: 90,
+                  textAlign: "right",
+                  background: "transparent",
+                  border: 0,
+                  outline: "none",
+                  fontVariantNumeric: "tabular-nums",
+                  fontSize: 20,
+                  color: accent[300],
+                }}
+              />
+            </label>
+            {!temperatureValid && (
+              <p style={{ fontSize: 11, marginTop: space[2], color: "rgba(224,140,140,0.9)" }}>
+                Temperature must be between 0 and 2.
+              </p>
+            )}
+            {provider === "anthropic" && (
+              <p style={{ fontSize: 11, marginTop: space[2], color: cream(0.35) }}>
+                Anthropic caps temperature at 1.0 — higher values are clamped automatically.
+              </p>
+            )}
+
+            {error && <p style={{ fontSize: 12, margin: `${space[4]}px 0 0`, color: "rgba(224,140,140,0.9)" }}>{error}</p>}
+
+            <div className="flex items-center" style={{ gap: space[4], marginTop: space[6] }}>
+              <OutlineButton onClick={handleSave} disabled={!canSave}>
+                {saving ? "Saving…" : dirty ? (provider === saved.provider ? "Save changes" : `Switch to ${PROVIDER_LABELS[provider] ?? provider}`) : "Save changes"}
+              </OutlineButton>
+              <span style={{ fontSize: 13, letterSpacing: "0.1em", textTransform: "uppercase", color: cream(0.38) }}>
+                {dirty ? "Unsaved changes" : "Saved"}
+              </span>
+            </div>
+          </div>
         </div>
-
-        <div className="mb-6 flex flex-col gap-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] px-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-            Generation
-          </p>
-          <label className="flex items-center justify-between gap-4 px-1 text-[13px]" style={{ color: "#f3e9e2" }}>
-            Max output tokens
-            <input
-              type="number"
-              min={1}
-              max={8192}
-              value={maxTokens}
-              onChange={(e) => setMaxTokens(e.target.value)}
-              className="w-24 px-3 py-1.5 rounded-full text-[13px] text-right outline-none"
-              style={inputStyle}
-            />
-          </label>
-          {!maxTokensValid && (
-            <p className="text-[11px] px-1 -mt-2" style={{ color: "rgba(224,140,140,0.9)" }}>
-              Max output tokens must be between 1 and 8192.
-            </p>
-          )}
-          <label className="flex items-center justify-between gap-4 px-1 text-[13px]" style={{ color: "#f3e9e2" }}>
-            Temperature
-            <input
-              type="number"
-              min={0}
-              max={2}
-              step={0.1}
-              value={temperature}
-              onChange={(e) => setTemperature(e.target.value)}
-              className="w-24 px-3 py-1.5 rounded-full text-[13px] text-right outline-none"
-              style={inputStyle}
-            />
-          </label>
-          {!temperatureValid && (
-            <p className="text-[11px] px-1 -mt-2" style={{ color: "rgba(224,140,140,0.9)" }}>
-              Temperature must be between 0 and 2.
-            </p>
-          )}
-          {provider === "anthropic" && (
-            <p className="text-[11px] px-1 -mt-2" style={{ color: "rgba(243,233,226,0.35)" }}>
-              Anthropic caps temperature at 1.0 — higher values are clamped automatically.
-            </p>
-          )}
-        </div>
-
-        {error && (
-          <p className="text-[12px] mb-4" style={{ color: "rgba(224,140,140,0.9)" }}>
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          className="w-full py-3 rounded-full text-[13px] tracking-[0.02em] border-none cursor-pointer transition-opacity duration-200"
-          style={{
-            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-            color: "#2c1c16",
-            opacity: canSave ? 1 : 0.4,
-            cursor: canSave ? "pointer" : "not-allowed",
-          }}
-        >
-          {saving ? "Saving…" : dirty ? (provider === saved.provider ? "Save" : `Switch active model to ${PROVIDER_LABELS[provider] ?? provider}`) : "Saved"}
-        </button>
       </div>
     </div>
   );

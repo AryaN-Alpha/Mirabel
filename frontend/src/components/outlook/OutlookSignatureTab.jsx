@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { getOutlookSignature, setOutlookSignature } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle } from "../OutlookPage";
+import { space, cream } from "../homeTheme";
+import { labelStyle, OutlineButton, ErrorNote } from "../homeWidgets";
 
 export default function OutlookSignatureTab() {
   const [loading, setLoading] = useState(true);
@@ -50,52 +50,38 @@ export default function OutlookSignatureTab() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16" style={{ color: "rgba(243,233,226,0.5)" }}>
-        <Loader2 size={20} className="animate-spin" />
-      </div>
-    );
+    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
   }
 
   return (
-    <div>
-      <p className="text-[11px] uppercase tracking-[0.08em] mb-2.5 px-1" style={{ color: "rgba(243,233,226,0.4)" }}>
-        Signature
-      </p>
-      <p className="text-[12px] px-1 mb-2.5" style={{ color: "rgba(243,233,226,0.5)" }}>
+    <div style={{ maxWidth: 640 }}>
+      <div style={labelStyle}>Signature</div>
+      <p style={{ fontSize: 14, lineHeight: 1.7, marginTop: space[2], color: cream(0.6) }}>
         Used to sign off AI-generated replies and new emails. Not fetched automatically — paste it once here.
       </p>
-      {loadError && (
-        <p className="text-[12px] px-1 mb-2.5" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {loadError}
-        </p>
-      )}
+      <ErrorNote>{loadError}</ErrorNote>
       <textarea
         value={signatureInput}
         onChange={(e) => setSignatureInput(e.target.value)}
         placeholder={"Best,\nYour Name"}
         rows={4}
-        className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y mb-2.5"
-        style={inputStyle}
+        className="w-full resize-y"
+        style={{
+          marginTop: space[4],
+          padding: `${space[3]}px 0`,
+          background: "transparent",
+          border: 0,
+          borderBottom: `1px solid ${cream(0.16)}`,
+          color: cream(1),
+          fontSize: 15,
+          outline: "none",
+        }}
       />
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSaveSignature}
-          disabled={sigBusy || !signatureDirty}
-          className="px-4 py-2.5 rounded-full text-[13px] border-none cursor-pointer"
-          style={{
-            background: "rgba(243,233,226,0.1)",
-            color: "#f3e9e2",
-            opacity: sigBusy || !signatureDirty ? 0.4 : 1,
-          }}
-        >
+      <div className="flex items-center" style={{ gap: space[4], marginTop: space[4] }}>
+        <OutlineButton onClick={handleSaveSignature} disabled={sigBusy || !signatureDirty}>
           {sigBusy ? "Saving…" : "Save signature"}
-        </button>
-        {sigError && (
-          <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-            {sigError}
-          </p>
-        )}
+        </OutlineButton>
+        <ErrorNote>{sigError}</ErrorNote>
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { deleteClassroomDraft, listClassroomDrafts, turnInClassroomDraft, updateClassroomDraft } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { inputStyle } from "../ClassroomPage";
+import { fontHeading, text, space, cream } from "../homeTheme";
+import { GhostLink, OutlineButton, EmptyState, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
 const CONFIRM_WINDOW_MS = 4000;
 
@@ -38,43 +39,30 @@ export default function ClassroomDraftsTab({ disabled, onChanged }) {
   }, [reloadToken]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16" style={{ color: "rgba(243,233,226,0.5)" }}>
-        <Loader2 size={20} className="animate-spin" />
-      </div>
-    );
+    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center gap-3 py-10 text-center">
-        <p className="text-[13px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-          {error}
-        </p>
-        <button
-          onClick={() => setReloadToken((n) => n + 1)}
-          className="px-4 py-2 rounded-full text-[13px] border-none cursor-pointer"
-          style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2" }}
-        >
-          Retry
-        </button>
-      </div>
+      <EmptyState>
+        {error}
+        <br />
+        <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+      </EmptyState>
     );
   }
 
   if (!drafts || drafts.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 py-14 text-center">
-        <FileText size={22} strokeWidth={1.6} style={{ color: "rgba(243,233,226,0.3)" }} />
-        <p className="text-[13px]" style={{ color: "rgba(243,233,226,0.45)" }}>
-          No drafts yet — solve an assignment from the Assignments tab.
-        </p>
-      </div>
+      <EmptyState>
+        <FileText size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+        No drafts yet — solve an assignment from the Assignments tab.
+      </EmptyState>
     );
   }
 
   return (
-    <fieldset disabled={disabled} className="flex flex-col gap-1.5 border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
+    <fieldset disabled={disabled} className="flex flex-col border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
       {drafts.map((draft) => (
         <DraftRow
           key={draft.id}
@@ -155,25 +143,30 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
   }
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(243,233,226,0.03)" }}>
-      <button
-        onClick={onToggle}
-        className="w-full text-left flex items-start justify-between gap-3 px-4 py-3.5 border-none bg-transparent cursor-pointer"
+    <div style={{ borderBottom: `1px solid ${cream(0.09)}` }}>
+      <a
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          onToggle();
+        }}
+        className="no-underline flex items-start justify-between gap-4"
+        style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, color: "inherit" }}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] truncate mb-0.5" style={{ color: "#f3e9e2" }}>
+          <p className="truncate" style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>
             {draft.coursework_title || "(untitled)"}
           </p>
-          <p className="text-[11px]" style={{ color: "rgba(243,233,226,0.4)" }}>
+          <p style={{ fontSize: 12, marginTop: 4, color: cream(0.45) }}>
             {draft.course_name} · {isTurnedIn ? "Turned in" : "Draft"} · {formatDate(draft.updated_at)}
           </p>
         </div>
-      </button>
+      </a>
 
       {expanded && (
-        <div className="px-4 pb-4 flex flex-col gap-2.5">
+        <div style={{ padding: `0 ${space[3]}px ${space[5]}px` }}>
           {isTurnedIn ? (
-            <p className="text-[12px]" style={{ color: "rgba(243,233,226,0.5)" }}>
+            <p style={{ fontSize: 13, color: cream(0.5) }}>
               Turned in {formatDate(draft.google_turned_in_at)}.
               {draft.solution_doc_url && (
                 <>
@@ -190,45 +183,20 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                 value={answerText}
                 onChange={(e) => setAnswerText(e.target.value)}
                 rows={6}
-                className="w-full px-3.5 py-3 rounded-2xl text-[13px] outline-none resize-y"
-                style={inputStyle}
+                className="w-full resize-y"
+                style={underlineInputStyle}
               />
-              {error && (
-                <p className="text-[12px]" style={{ color: "rgba(224,140,140,0.9)" }}>
-                  {error}
-                </p>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={busy}
-                  className="px-3.5 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-                  style={{ background: "rgba(243,233,226,0.1)", color: "#f3e9e2", opacity: busy ? 0.5 : 1 }}
-                >
+              <ErrorNote>{error}</ErrorNote>
+              <div className="flex items-center" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>
+                <GhostLink onClick={handleSave} disabled={busy} muted>
                   Save
-                </button>
-                <button
-                  onClick={handleTurnInClick}
-                  disabled={busy || !answerText.trim()}
-                  className="px-3.5 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-                  style={{
-                    background: confirming
-                      ? "rgba(224,140,140,0.85)"
-                      : "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                    color: confirming ? "#2c1613" : "#2c1c16",
-                    opacity: busy || !answerText.trim() ? 0.5 : 1,
-                  }}
-                >
-                  {confirming ? "Confirm turn-in?" : "Turn In"}
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={busy}
-                  className="px-3.5 py-2 rounded-full text-[12.5px] border-none cursor-pointer"
-                  style={{ background: "transparent", color: "rgba(224,140,140,0.85)", opacity: busy ? 0.5 : 1 }}
-                >
+                </GhostLink>
+                <OutlineButton onClick={handleTurnInClick} disabled={busy || !answerText.trim()} danger={confirming}>
+                  {confirming ? "Confirm turn-in?" : "Turn in"}
+                </OutlineButton>
+                <GhostLink onClick={handleDelete} disabled={busy} danger>
                   Delete
-                </button>
+                </GhostLink>
               </div>
             </>
           )}

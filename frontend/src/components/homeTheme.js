@@ -21,3 +21,14 @@ export const accent = {
   800: "#5a3b0a",
 };
 export const accent2700 = "#79561f";
+
+// Design-system spacing/radius scale (matches _ds styles.css exactly).
+export const space = { 1: 4.6, 2: 9.2, 3: 13.8, 4: 18.4, 6: 27.6, 8: 36.8 };
+export const radius = { sm: 2, md: 4, lg: 7 };
+
+// `#efe6da` (the body text color) at an arbitrary alpha — mirrors the design's
+// `color-mix(in srgb, #efe6da N%, transparent)` used at many different
+// percentages depending on context.
+export function cream(alpha) {
+  return `rgba(239,230,218,${alpha})`;
+}

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, ErrorNote, ModalShell } from "../homeWidgets";
+import { getErrorMessage } from "../utils/errors";
+import { space, cream } from "./homeTheme";
+import { ModalShell, OutlineButton, GhostLink, ErrorNote } from "./homeWidgets";
 
+// Generic confirm/delete dialog for the "hearth" redesign — built on the
+// shared ModalShell so it matches every other redesigned page's dialogs
+// instead of the old rounded-3xl gradient card style.
 export default function ConfirmDialog({ title, message, confirmLabel = "Delete", onCancel, onConfirm }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -20,13 +23,15 @@ export default function ConfirmDialog({ title, message, confirmLabel = "Delete",
   }
 
   return (
-    <ModalShell onClose={onCancel} busy={busy} maxWidth={400}>
-      <span style={{ fontFamily: fontHeading, fontSize: 22, color: text.bright }}>{title}</span>
-      <p style={{ fontSize: 14, lineHeight: 1.7, color: cream(0.6) }}>{message}</p>
+    <ModalShell onClose={onCancel} maxWidth={380} busy={busy}>
+      <div className="flex flex-col" style={{ gap: space[2] }}>
+        <p style={{ fontSize: 17, fontFamily: "inherit", color: "#f7ece4" }}>{title}</p>
+        <p style={{ fontSize: 13, lineHeight: 1.6, color: cream(0.55) }}>{message}</p>
+      </div>
 
       <ErrorNote>{error}</ErrorNote>
 
-      <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
+      <div className="flex items-center justify-end" style={{ gap: space[5] ?? 23, marginTop: space[2] }}>
         <GhostLink onClick={onCancel} disabled={busy} muted>
           Cancel
         </GhostLink>
