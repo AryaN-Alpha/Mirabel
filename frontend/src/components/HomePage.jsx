@@ -112,6 +112,8 @@ export default function HomePage() {
   const accumulatedDelta = useRef(0);
   const playheadRef = useRef(0);
   const animationFrameRef = useRef(null);
+  const scrollTimeout = useRef(null);
+  const isAtEnd = useRef(false);
 
   /* ── Preload Images ── */
   useEffect(() => {
@@ -185,15 +187,32 @@ export default function HomePage() {
       if (images.length < FRAME_COUNT || prefersReducedMotion) return;
 
       e.preventDefault();
-      accumulatedDelta.current += e.deltaY;
       
-      // Loop the scroll endlessly in both directions
-      accumulatedDelta.current = (accumulatedDelta.current % SCROLL_SENSITIVITY + SCROLL_SENSITIVITY) % SCROLL_SENSITIVITY;
+      clearTimeout(scrollTimeout.current);
+      scrollTimeout.current = setTimeout(() => {
+        if (accumulatedDelta.current >= SCROLL_SENSITIVITY) {
+          isAtEnd.current = true;
+        } else {
+          isAtEnd.current = false;
+        }
+      }, 150);
+
+      if (isAtEnd.current && e.deltaY > 0) {
+        // User initiated a new scroll down after pausing at the end
+        accumulatedDelta.current = 0;
+        isAtEnd.current = false;
+      } else {
+        accumulatedDelta.current += e.deltaY;
+        accumulatedDelta.current = Math.max(
+          0,
+          Math.min(SCROLL_SENSITIVITY, accumulatedDelta.current)
+        );
+      }
 
       const newProgress = accumulatedDelta.current / SCROLL_SENSITIVITY;
       setProgress(newProgress);
     },
-    [images.length, prefersReducedMotion]
+    [images.length, prefersReducedMotion, FRAME_COUNT]
   );
 
   /* ── Attach wheel listener ── */
