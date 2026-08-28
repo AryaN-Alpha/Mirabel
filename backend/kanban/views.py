@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time
 
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
@@ -32,6 +32,7 @@ def _serialize(task: KanbanTask) -> dict:
         "priority": task.priority,
         "effort": task.effort,
         "due_date": task.due_date,
+        "due_time": task.due_time,
         "source": task.source,
         "original_transcript_snippet": task.original_transcript_snippet,
         "position": task.position,
@@ -45,6 +46,15 @@ def _parse_due_date(raw) -> date | None:
         return None
     try:
         return date.fromisoformat(str(raw))
+    except ValueError:
+        return None
+
+
+def _parse_due_time(raw) -> time | None:
+    if not raw:
+        return None
+    try:
+        return time.fromisoformat(str(raw))
     except ValueError:
         return None
 
@@ -136,6 +146,10 @@ def task_list(request: Request, project_id: int) -> Response:
     if due_date_raw and _parse_due_date(due_date_raw) is None:
         return Response({"error": "due_date must be a valid ISO date (YYYY-MM-DD)"}, status=400)
 
+    due_time_raw = request.data.get("due_time")
+    if due_time_raw and _parse_due_time(due_time_raw) is None:
+        return Response({"error": "due_time must be a valid ISO time (HH:MM)"}, status=400)
+
     next_position = KanbanTask.objects.filter(project=project, status=status_value).count()
     task = KanbanTask.objects.create(
         project=project,
@@ -145,6 +159,7 @@ def task_list(request: Request, project_id: int) -> Response:
         priority=priority,
         effort=effort,
         due_date=_parse_due_date(due_date_raw),
+        due_time=_parse_due_time(due_time_raw),
         source=source,
         original_transcript_snippet=request.data.get("original_transcript_snippet") or "",
         position=next_position,
@@ -198,6 +213,12 @@ def task_detail(request: Request, project_id: int, task_id: int) -> Response:
         if due_date_raw and _parse_due_date(due_date_raw) is None:
             return Response({"error": "due_date must be a valid ISO date (YYYY-MM-DD)"}, status=400)
         task.due_date = _parse_due_date(due_date_raw)
+
+    if "due_time" in request.data:
+        due_time_raw = request.data.get("due_time")
+        if due_time_raw and _parse_due_time(due_time_raw) is None:
+            return Response({"error": "due_time must be a valid ISO time (HH:MM)"}, status=400)
+        task.due_time = _parse_due_time(due_time_raw)
 
     if "status" in request.data:
         new_status = request.data.get("status")

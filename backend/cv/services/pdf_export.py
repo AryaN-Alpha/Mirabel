@@ -102,7 +102,46 @@ def _with_hrefs(links: list[dict]) -> list[dict]:
     return [{**link, "href": _as_href(link.get("url", ""))} for link in links]
 
 
-def render_cv_pdf(sections: dict) -> bytes:
+def _ordered_blocks(sections: dict, section_order: dict) -> tuple[list[dict], list[dict]]:
+    """Builds the two columns' block lists in the order `section_order`
+    specifies, one dict per section keyed by `kind` so the template can
+    dispatch on it with an if/elif chain — see resume.html/resume_minimal.html.
+    Mirrors CvPreview.jsx's sidebarSections/mainSections lookup-by-key
+    approach on the frontend. Unknown keys in section_order are silently
+    skipped rather than erroring — the view already validates section_order
+    against exactly this key-set before it's ever saved (cv/views.py), so
+    this is just defense in depth, not the primary guard."""
+    main_data = {
+        "summary": sections.get("summary"),
+        "experience": sections.get("experience", []),
+        "projects": sections.get("projects", []),
+        "certifications": sections.get("certifications", []),
+    }
+    sidebar_data = {
+        "skills": sections.get("skill_groups", []),
+        "education": sections.get("education", []),
+        "strengths": sections.get("strengths", []),
+    }
+    main_blocks = [{"kind": k, "data": main_data[k]} for k in section_order.get("main", []) if k in main_data]
+    sidebar_blocks = [
+        {"kind": k, "data": sidebar_data[k]} for k in section_order.get("sidebar", []) if k in sidebar_data
+    ]
+    return main_blocks, sidebar_blocks
+
+
+_DEFAULT_SECTION_ORDER = {
+    "main": ["summary", "experience", "projects", "certifications"],
+    "sidebar": ["skills", "education", "strengths"],
+}
+_DEFAULT_THEME = {"sidebar_bg": "#262626", "sidebar_text": "#e8e8e8", "accent": "#e0a878"}
+
+_TEMPLATE_FILES = {
+    "two-column": "cv/resume.html",
+    "minimal-single-column": "cv/resume_minimal.html",
+}
+
+
+def render_cv_pdf(sections: dict, style: dict | None = None) -> bytes:
     # Imported lazily so a machine without xhtml2pdf's (pure-Python, no
     # system deps) dependencies installed doesn't break every manage.py
     # command via Django's eager urls.py import chain — same reasoning as
@@ -110,22 +149,90 @@ def render_cv_pdf(sections: dict) -> bytes:
     from xhtml2pdf import pisa
 
     _register_fonts()
+    style = style or {}
+    theme = style.get("theme") or _DEFAULT_THEME
+    section_order = style.get("section_order") or _DEFAULT_SECTION_ORDER
+    template_name = _TEMPLATE_FILES.get(style.get("template_choice"), _TEMPLATE_FILES["two-column"])
+
     personal_info = sections.get("personal_info", {})
+    resolved_sections = {
+        **sections,
+        "personal_info": {
+            **personal_info,
+            "links": _with_hrefs(personal_info.get("links", [])),
+        },
+        "projects": _with_description_lines(sections.get("projects", [])),
+    }
+    main_blocks, sidebar_blocks = _ordered_blocks(resolved_sections, section_order)
     context = {
         "font_family": FONT_FAMILY,
-        "sections": {
-            **sections,
-            "personal_info": {
-                **personal_info,
-                "links": _with_hrefs(personal_info.get("links", [])),
-            },
-            "projects": _with_description_lines(sections.get("projects", [])),
-        },
+        "sections": resolved_sections,
+        "main_blocks": main_blocks,
+        "sidebar_blocks": sidebar_blocks,
+        "sidebar_bg": theme["sidebar_bg"],
+        "sidebar_text": theme["sidebar_text"],
+        "accent": theme["accent"],
     }
-    html = render_to_string("cv/resume.html", context)
+    html = render_to_string(template_name, context)
 
     buffer = io.BytesIO()
     result = pisa.CreatePDF(html, dest=buffer)
     if result.err:
         raise RuntimeError(f"xhtml2pdf failed to render the CV ({result.err} error(s))")
+    return buffer.getvalue()
+
+
+def render_cover_letter_pdf(cover_letter, personal_info: dict, style: dict | None = None) -> bytes:
+    """Reuses `_register_fonts()`/FONT_FAMILY — same embedded-font-consistency
+    reasoning as render_cv_pdf, no separate font registration for this
+    document type. Accepts optional style to apply the active CV theme accent."""
+    from xhtml2pdf import pisa
+
+    _register_fonts()
+    style = style or {}
+    theme = style.get("theme") or _DEFAULT_THEME
+    accent = theme.get("accent") or _DEFAULT_THEME["accent"]
+
+    resolved_personal_info = {
+        **personal_info,
+        "links": _with_hrefs(personal_info.get("links", [])),
+    }
+
+    paragraphs = [p.strip() for p in (cover_letter.generated_text or "").split("\n") if p.strip()]
+    has_salutation = bool(
+        paragraphs and re.match(r"^(dear|to whom|hello|greetings)\b", paragraphs[0], re.IGNORECASE)
+    )
+    has_signoff = bool(
+        paragraphs
+        and re.search(
+            r"\b(sincerely|regards|best regards|warm regards|respectfully|thank you)\b",
+            paragraphs[-1],
+            re.IGNORECASE,
+        )
+    )
+
+    context = {
+        "font_family": FONT_FAMILY,
+        "accent": accent,
+        "personal_info": resolved_personal_info,
+        "job_title": cover_letter.job_title,
+        "company_name": cover_letter.company_name,
+        # "%-d" (no leading zero) is Linux-only — %#d is the Windows
+        # equivalent and neither works on the other OS, so the day is
+        # formatted separately as a plain int instead of relying on either.
+        "date": (
+            f"{cover_letter.updated_at:%B} {cover_letter.updated_at.day}, {cover_letter.updated_at:%Y}"
+            if cover_letter.updated_at
+            else ""
+        ),
+        "has_salutation": has_salutation,
+        "has_signoff": has_signoff,
+        "paragraphs": paragraphs,
+    }
+    html = render_to_string("cv/cover_letter.html", context)
+
+    buffer = io.BytesIO()
+    result = pisa.CreatePDF(html, dest=buffer)
+    if result.err:
+        raise RuntimeError(f"xhtml2pdf failed to render the cover letter ({result.err} error(s))")
     return buffer.getvalue()

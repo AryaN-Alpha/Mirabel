@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Bot } from "lucide-react";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import ErrorBoundary from "./ErrorBoundary";
-import { sendMessage } from "../services/api";
+import { sendMessage, startAgentTask, approveAgentTask, rejectAgentTask, answerAgentTask } from "../services/api";
+import { pollAgentTask } from "../services/agentTaskPolling";
 import { getGreeting } from "../utils/greeting";
 import { getErrorMessage, chatDegradedMessage } from "../utils/errors";
 
@@ -19,11 +21,82 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [agentMode, setAgentMode] = useState(false);
+  const [busyAgentTaskId, setBusyAgentTaskId] = useState(null);
+  const stopPollers = useRef(new Set());
+
+  useEffect(() => () => stopPollers.current.forEach((stop) => stop()), []);
+
+  function appendMessage(role, text, mood) {
+    setMessages((prev) => [...prev, { id: nextId(), role, text, mood }]);
+  }
+
+  function updateAgentTaskMessage(msgId, task) {
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, agentTask: task } : m)));
+  }
+
+  function trackAgentTask(task) {
+    const msgId = nextId();
+    setMessages((prev) => [...prev, { id: msgId, role: "assistant", agentTask: task }]);
+    const stop = pollAgentTask(task.id, {
+      onUpdate: (updated) => updateAgentTaskMessage(msgId, updated),
+      onSettled: (updated) => updateAgentTaskMessage(msgId, updated),
+    });
+    stopPollers.current.add(stop);
+  }
+
+  async function handleAgentDecision(task, action, editedArgs) {
+    setBusyAgentTaskId(task.id);
+    try {
+      const updated = action === "approve" ? await approveAgentTask(task.id, editedArgs) : await rejectAgentTask(task.id);
+      setMessages((prev) => prev.map((m) => (m.agentTask?.id === task.id ? { ...m, agentTask: updated } : m)));
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.agentTask?.id === task.id
+            ? { ...m, agentTask: { ...m.agentTask, error_message: getErrorMessage(err, "Couldn't update that.") } }
+            : m
+        )
+      );
+    } finally {
+      setBusyAgentTaskId(null);
+    }
+  }
+
+  async function handleAgentAnswer(task, answer) {
+    setBusyAgentTaskId(task.id);
+    try {
+      const updated = await answerAgentTask(task.id, answer);
+      setMessages((prev) => prev.map((m) => (m.agentTask?.id === task.id ? { ...m, agentTask: updated } : m)));
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.agentTask?.id === task.id
+            ? { ...m, agentTask: { ...m.agentTask, error_message: getErrorMessage(err, "Couldn't send that answer.") } }
+            : m
+        )
+      );
+    } finally {
+      setBusyAgentTaskId(null);
+    }
+  }
 
   async function handleSend(text) {
     const userMsg = { id: nextId(), role: "user", text };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+
+    if (agentMode) {
+      try {
+        const task = await startAgentTask(text, conversationId);
+        trackAgentTask(task);
+      } catch (err) {
+        appendMessage("assistant", getErrorMessage(err, "…couldn't start that. don't make it weird."), "annoyed");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       const data = await sendMessage(conversationId, text);
@@ -66,9 +139,39 @@ export default function ChatScreen() {
         </div>
 
         <div className="w-full max-w-[720px] flex-1 min-h-0 flex flex-col gap-4 mt-8 pb-8">
-          <MessageList messages={messages} loading={loading} />
+          <MessageList
+            messages={messages}
+            loading={loading}
+            busyAgentTaskId={busyAgentTaskId}
+            onApproveAgentTask={(task, editedArgs) => handleAgentDecision(task, "approve", editedArgs)}
+            onRejectAgentTask={(task) => handleAgentDecision(task, "reject")}
+            onAnswerAgentTask={(task, answer) => handleAgentAnswer(task, answer)}
+          />
 
           <div className="flex flex-col gap-3.5 flex-shrink-0">
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setAgentMode((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
+                style={
+                  agentMode
+                    ? {
+                        background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
+                        color: "#2c1c16",
+                        boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+                      }
+                    : {
+                        background: "rgba(243,233,226,0.06)",
+                        border: "1px solid rgba(243,233,226,0.11)",
+                        color: "rgba(243,233,226,0.58)",
+                      }
+                }
+                title="When on, what you send becomes a task Mirabel actually goes and does, instead of a reply."
+              >
+                <Bot size={13} strokeWidth={1.8} />
+                {agentMode ? "Agent Mode: on" : "Agent Mode"}
+              </button>
+            </div>
             <ChatInput onSend={handleSend} disabled={loading} />
             <div className="flex flex-wrap gap-2.5 justify-center">
               {PROMPTS.map((label) => (

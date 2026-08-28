@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MicVAD } from "@ricky0123/vad-web";
 import { AudioQueue } from "../services/audioQueue";
+import { answerAgentTask, approveAgentTask, rejectAgentTask } from "../services/api";
+import { pollAgentTask } from "../services/agentTaskPolling";
 
 const WS_URL =
   (import.meta.env.VITE_WS_URL || "ws://localhost:8000") + "/ws/chat/";
+
+const TERMINAL_AGENT_STATUSES = new Set(["done", "failed", "cancelled"]);
 
 export function useVoiceSession() {
   const [connected, setConnected] = useState(false);
@@ -12,6 +16,7 @@ export function useVoiceSession() {
   const [mood, setMood] = useState("neutral");
   const [thinking, setThinking] = useState(false);
   const [wsError, setWsError] = useState("");
+  const [agentTask, setAgentTask] = useState(null);
 
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
@@ -20,11 +25,57 @@ export function useVoiceSession() {
   const micCtxRef = useRef(null);
   const micAnalyserRef = useRef(null);
   const playbackAnalyserRef = useRef(null);
+  const stopAgentPollRef = useRef(null);
+  const spokenApprovalRef = useRef(null);
+  const spokenClarificationRef = useRef(null);
+
+  // Voice mode can't rely on visual attention the way chat/Agent-tab UIs
+  // can, so the moment a task needs a decision, speak it aloud once (via
+  // the browser's own TTS — separate from Mirabel's edge-tts voice, which
+  // only exists server-side for turn replies) instead of relying on the
+  // on-screen card alone.
+  const maybeSpeakApproval = useCallback((task) => {
+    if (task.status !== "awaiting_confirmation" || !task.pending_action) return;
+    const key = `${task.id}:${task.pending_action.summary}`;
+    if (spokenApprovalRef.current === key) return;
+    spokenApprovalRef.current = key;
+    try {
+      window.speechSynthesis?.speak(
+        new SpeechSynthesisUtterance(`${task.pending_action.summary}. Approve or reject?`)
+      );
+    } catch {
+      // speechSynthesis unavailable in this browser — the on-screen card still works.
+    }
+  }, []);
+
+  // Same reasoning as maybeSpeakApproval, for a clarifying question instead
+  // of an approval — the on-screen card still takes typed answers either way.
+  const maybeSpeakClarification = useCallback((task) => {
+    if (task.status !== "awaiting_clarification" || !task.pending_action) return;
+    const key = `${task.id}:${task.pending_action.question}`;
+    if (spokenClarificationRef.current === key) return;
+    spokenClarificationRef.current = key;
+    try {
+      window.speechSynthesis?.speak(new SpeechSynthesisUtterance(task.pending_action.question));
+    } catch {
+      // speechSynthesis unavailable in this browser — the on-screen card still works.
+    }
+  }, []);
 
   const sendJSON = useCallback((obj) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }, []);
+
+  // Toggled from the UI — while on, a finished utterance is queued as a
+  // background agent task (see backend voice/consumers.py::_handle_agent_task)
+  // instead of driving a normal streaming reply. No live result push over
+  // this socket; results show up in the chat history / Agent tab once the
+  // task finishes.
+  const setAgentMode = useCallback(
+    (enabled) => sendJSON({ type: "set_agent_mode", enabled }),
+    [sendJSON]
+  );
 
   // ---- WebSocket ------------------------------------------------------
   useEffect(() => {
@@ -48,11 +99,29 @@ export function useVoiceSession() {
             setThinking(true);
             setStreamingText("");
             setMood("thinking"); // sprite handles "thinking" as a special transitional state
+            // Clear a finished agent task's card once a new utterance starts;
+            // leave a still-active one visible — that's the whole point.
+            setAgentTask((prev) => (prev && TERMINAL_AGENT_STATUSES.has(prev.status) ? null : prev));
           }
           break;
         case "text_delta":
           setStreamingText((prev) => prev + msg.text);
           break;
+        case "agent_task_started": {
+          stopAgentPollRef.current?.();
+          spokenApprovalRef.current = null;
+          spokenClarificationRef.current = null;
+          setAgentTask({ id: msg.task_id, status: "queued", current_step: "" });
+          stopAgentPollRef.current = pollAgentTask(msg.task_id, {
+            onUpdate: (task) => {
+              setAgentTask(task);
+              maybeSpeakApproval(task);
+              maybeSpeakClarification(task);
+            },
+            onSettled: (task) => setAgentTask(task),
+          });
+          break;
+        }
         case "audio_chunk": {
           const bin = atob(msg.data);
           const bytes = new Uint8Array(bin.length);
@@ -89,8 +158,9 @@ export function useVoiceSession() {
       } else {
         ws.close();
       }
+      stopAgentPollRef.current?.();
     };
-  }, []);
+  }, [maybeSpeakApproval, maybeSpeakClarification]);
 
   // ---- Mic + VAD ------------------------------------------------------
   const startMic = useCallback(async () => {
@@ -112,9 +182,10 @@ export function useVoiceSession() {
 
     // MediaRecorder streams chunks during recording; we forward them as binary frames.
     const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-    recorder.ondataavailable = async (ev) => {
+    recorder.ondataavailable = (ev) => {
+      // Send the Blob directly (no arrayBuffer() await) so a barge-in's cancel+restart can't race a trailing chunk past the new session's WebM header.
       if (ev.data && ev.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(await ev.data.arrayBuffer());
+        wsRef.current.send(ev.data);
       }
     };
     // Critical: send utterance_end from onstop, NOT from onSpeechEnd.
@@ -188,6 +259,24 @@ export function useVoiceSession() {
     micCtxRef.current = null;
   }, []);
 
+  const approveCurrentAgentTask = useCallback(async (editedArgs) => {
+    if (!agentTask) return;
+    const updated = await approveAgentTask(agentTask.id, editedArgs);
+    setAgentTask(updated);
+  }, [agentTask]);
+
+  const rejectCurrentAgentTask = useCallback(async () => {
+    if (!agentTask) return;
+    const updated = await rejectAgentTask(agentTask.id);
+    setAgentTask(updated);
+  }, [agentTask]);
+
+  const answerCurrentAgentTask = useCallback(async (answer) => {
+    if (!agentTask) return;
+    const updated = await answerAgentTask(agentTask.id, answer);
+    setAgentTask(updated);
+  }, [agentTask]);
+
   return {
     connected,
     transcript,
@@ -197,8 +286,13 @@ export function useVoiceSession() {
     wsError,
     startMic,
     stopMic,
+    setAgentMode,
     micAnalyserRef,
     playbackAnalyserRef,
+    agentTask,
+    approveCurrentAgentTask,
+    rejectCurrentAgentTask,
+    answerCurrentAgentTask,
   };
 }
 

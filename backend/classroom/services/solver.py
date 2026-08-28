@@ -32,7 +32,11 @@ def _generate(*, system: str, user_content: str) -> dict[str, Any]:
 
 
 def solve_coursework(
-    *, coursework: dict, course_name: str, attachment_text: str
+    *,
+    coursework: dict,
+    course_name: str,
+    attachment_text: str,
+    extra_instructions: str = "",
 ) -> dict[str, Any]:
     """Pure generation, no DB/HTTP side effects — the caller (views.solve_view)
     is responsible for creating the ClassroomSubmissionDraft row."""
@@ -45,6 +49,8 @@ def solve_coursework(
         parts.append(f"Description:\n{description}")
     if attachment_text:
         parts.append(f"Attached document text:\n{attachment_text}")
+    if extra_instructions:
+        parts.append(f"Additional instructions from the student:\n{extra_instructions}")
     user_content = "\n\n".join(parts)
 
     system = solver_system_prompt(work_type=work_type, course_name=course_name)

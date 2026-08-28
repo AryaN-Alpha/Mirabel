@@ -7,7 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from linkedin.models import LinkedInCredential, LinkedInDraft
-from linkedin.services import client, oauth
+from linkedin.services import client, oauth, publishing
 from linkedin.services.generation import generate_comment_reply, generate_post
 from linkedin.services.oauth import LinkedInError
 
@@ -123,13 +123,10 @@ def publish_draft(_request: Request, draft_id: int) -> Response:
         return Response({"error": "draft not found"}, status=404)
 
     try:
-        urn = _publish(body=draft.body, visibility=draft.visibility, link_url=draft.link_url, image_field=draft.image)
+        publishing.publish_draft(draft)
     except LinkedInError as exc:
         return Response({"error": str(exc), "reason": exc.reason}, status=_status_for(exc))
 
-    draft.status = LinkedInDraft.Status.PUBLISHED
-    draft.linkedin_post_urn = urn
-    draft.save()
     return Response(_serialize_draft(draft))
 
 
@@ -144,32 +141,10 @@ def publish_post(request: Request) -> Response:
     link_url = (request.data.get("link_url") or "").strip()
 
     try:
-        urn = _publish(body=body, visibility=visibility, link_url=link_url, image_field=None)
+        urn = publishing.publish(body=body, visibility=visibility, link_url=link_url, image_field=None)
     except LinkedInError as exc:
         return Response({"error": str(exc), "reason": exc.reason}, status=_status_for(exc))
     return Response({"published": True, "post_urn": urn})
-
-
-def _publish(*, body: str, visibility: str, link_url: str, image_field) -> str:
-    token = oauth.get_active_access_token()
-    cred = LinkedInCredential.current()
-    image_urn = None
-    if image_field:
-        upload = client.initialize_image_upload(token, cred.member_urn)
-        image_field.open("rb")
-        try:
-            client.upload_image_binary(upload["uploadUrl"], token, image_field.read())
-        finally:
-            image_field.close()
-        image_urn = upload["image"]
-    return client.create_post(
-        token,
-        author_urn=cred.member_urn,
-        commentary=body,
-        visibility=visibility,
-        image_urn=image_urn,
-        link_url=link_url or None,
-    )
 
 
 @api_view(["POST"])

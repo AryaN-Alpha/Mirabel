@@ -1,0 +1,194 @@
+"""Celery entry points for running/resuming an autonomous agent task on the
+dedicated 'agent' queue (single worker for now — see mirabel/celery.py, and
+`celery -A mirabel worker -Q agent --concurrency=1`). Both tasks share the
+same three-outcome handling: the compiled graph either pauses on
+interrupt() (agent/tools/_common.py — an irreversible action awaiting human
+approval), completes, or raises.
+
+Per-task time_limit/soft_time_limit/queue are set on the decorator rather
+than in the global CELERY_TASK_TIME_LIMIT/SOFT_TIME_LIMIT settings, which
+stay correct (60s/45s) for the existing short-lived memory/outlook tasks —
+a multi-tool-call agent run needs minutes, not seconds.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from celery import shared_task
+from django.conf import settings
+from django.utils import timezone
+from langgraph.types import Command
+
+from agent.graph import build_agent, run_config
+from agent.models import AgentTask
+from core.models import Message
+from voice.services.protocol import ProtocolParser
+
+logger = logging.getLogger("agent.tasks")
+
+_TIME_LIMIT = settings.AGENT_TASK_TIME_LIMIT
+_SOFT_TIME_LIMIT = settings.AGENT_TASK_SOFT_TIME_LIMIT
+
+
+@shared_task(
+    name="agent.tasks.run_agent_task",
+    queue="agent",
+    time_limit=_TIME_LIMIT,
+    soft_time_limit=_SOFT_TIME_LIMIT,
+)
+def run_agent_task(agent_task_id: int) -> None:
+    task = AgentTask.objects.get(pk=agent_task_id)
+    task.status = AgentTask.Status.RUNNING
+    task.started_at = timezone.now()
+    task.current_step = ""
+    task.save(update_fields=["status", "started_at", "current_step"])
+
+    try:
+        _run_graph(task, {"messages": [("user", task.instruction)]})
+    except Exception:
+        _fail(task, "Something went wrong running that.")
+
+
+@shared_task(
+    name="agent.tasks.resume_agent_task",
+    queue="agent",
+    time_limit=_TIME_LIMIT,
+    soft_time_limit=_SOFT_TIME_LIMIT,
+)
+def resume_agent_task(agent_task_id: int, resume_value: dict) -> None:
+    """`resume_value` is handed straight to Command(resume=...) — its shape
+    depends on what kind of pause is being resumed (see agent/views.py):
+    {"approved": bool, "args": dict | None} for a confirmation, or
+    {"answer": str} for a clarifying question."""
+    task = AgentTask.objects.get(pk=agent_task_id)
+    task.status = AgentTask.Status.RUNNING
+    task.pending_action = None
+    task.current_step = ""
+    task.save(update_fields=["status", "pending_action", "current_step"])
+
+    try:
+        _run_graph(task, Command(resume=resume_value))
+    except Exception:
+        _fail(task, "Something went wrong resuming that.")
+
+
+def _run_graph(task: AgentTask, graph_input) -> None:
+    """Drives the graph with .stream() instead of .invoke() so each tool
+    call updates AgentTask.current_step/steps as it happens, rather than
+    the whole run being an opaque black box until it finishes or pauses —
+    see _record_step. stream_mode="updates" yields one {node_name: update}
+    dict per super-step, or a final {"__interrupt__": (Interrupt,...)} dict
+    if the run pauses for approval (verified against the installed
+    langgraph 1.2.11 source: langgraph/types.py's interrupt() docstring
+    example shows this exact shape)."""
+    agent = build_agent()
+    config = run_config(task.thread_id)
+    all_messages: list = []
+    interrupt_value = None
+
+    for chunk in agent.stream(graph_input, config, stream_mode="updates"):
+        if "__interrupt__" in chunk:
+            interrupt_value = chunk["__interrupt__"][0].value
+            break
+        for node_name, update in chunk.items():
+            for message in update.get("messages", []):
+                all_messages.append(message)
+                _record_step(task, node_name, message)
+
+    if interrupt_value is not None:
+        task.status = (
+            AgentTask.Status.AWAITING_CLARIFICATION
+            if interrupt_value.get("kind") == "clarify"
+            else AgentTask.Status.AWAITING_CONFIRMATION
+        )
+        task.pending_action = interrupt_value
+        task.current_step = ""
+        task.save(update_fields=["status", "pending_action", "current_step"])
+        return
+
+    final_text = _message_text(all_messages[-1]) if all_messages else ""
+    parser = ProtocolParser()
+    parser.feed(final_text)
+    text, mood = parser.finalize()
+
+    task.status = AgentTask.Status.DONE
+    task.result_text = text
+    task.result_mood = mood
+    task.current_step = ""
+    task.finished_at = timezone.now()
+    task.save(update_fields=["status", "result_text", "result_mood", "current_step", "finished_at"])
+
+    if task.conversation_id:
+        Message.objects.create(conversation_id=task.conversation_id, role="assistant", text=text, mood=mood)
+
+
+def _record_step(task: AgentTask, node_name: str, message) -> None:
+    """Persists progress immediately (not batched) so a client polling
+    AgentTask mid-run sees it — this is the whole point of streaming
+    instead of invoke()."""
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    if node_name == "tools" and isinstance(message, ToolMessage):
+        task.steps.append({"tool": message.name, "result_summary": _message_text(message)[:300]})
+        task.current_step = ""
+        task.save(update_fields=["steps", "current_step"])
+    elif node_name == "agent" and isinstance(message, AIMessage) and message.tool_calls:
+        # Only the first parallel tool call gets a status line — showing
+        # all of them at once is noisier than useful for one status line.
+        task.current_step = _describe_tool_call(message.tool_calls[0]["name"])
+        task.save(update_fields=["current_step"])
+
+
+_STEP_DESCRIPTIONS = {
+    "list_outlook_inbox": "Reading your Outlook inbox…",
+    "get_outlook_message": "Opening that email…",
+    "generate_outlook_reply": "Drafting a reply…",
+    "generate_outlook_compose": "Drafting an email…",
+    "send_outlook_email_now": "Getting that email ready to send…",
+    "reply_outlook_message_now": "Getting that reply ready to send…",
+    "schedule_outlook_email": "Scheduling that email…",
+    "publish_linkedin_draft": "Getting that LinkedIn post ready to publish…",
+    "post_linkedin_comment": "Getting that comment ready to post…",
+    "generate_linkedin_comment": "Drafting a comment…",
+    "turn_in_classroom_assignment": "Getting that assignment ready to turn in…",
+    "solve_classroom_coursework": "Working through the assignment…",
+    "ask_clarifying_question": "Thinking of what to ask…",
+}
+
+
+def _describe_tool_call(name: str) -> str:
+    return _STEP_DESCRIPTIONS.get(name, f"{name.replace('_', ' ').capitalize()}…")
+
+
+def _message_text(message) -> str:
+    """LangChain message .content is a plain str for Anthropic/OpenAI's simple
+    replies, but Gemini (langchain_google_genai) — and any provider's replies
+    that carry citations/thinking blocks — return a list of content-block
+    dicts instead (verified live against the installed langchain-google-genai:
+    a plain str(content) on that shape would dump raw Python repr, including
+    internal fields like signed 'extras', straight into what's shown to the
+    user). Extract just the text blocks in both cases."""
+    content = message.content
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+        return "".join(parts)
+    return str(content)
+
+
+def _fail(task: AgentTask, coarse_message: str) -> None:
+    # Full traceback goes to the log (backend/logs/mirabel.log); only the
+    # coarse message is ever persisted/exposed to the client — same
+    # never-leak-the-raw-exception convention as core/services/llm.py.
+    logger.exception("agent task %s failed", task.id)
+    task.status = AgentTask.Status.FAILED
+    task.error_message = coarse_message
+    task.finished_at = timezone.now()
+    task.save(update_fields=["status", "error_message", "finished_at"])

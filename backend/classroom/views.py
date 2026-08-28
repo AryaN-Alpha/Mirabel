@@ -3,17 +3,17 @@ from datetime import date
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
-from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from classroom.models import ClassroomCredential, ClassroomSubmissionDraft
-from classroom.services import client, drive_client, oauth
+from classroom.services import client, drive_client, oauth, submission
 from classroom.services.oauth import ClassroomError
 from classroom.services.solver import solve_coursework
 
 MAX_ANSWER_LENGTH = 20000
+MAX_INSTRUCTIONS_LENGTH = 2000
 SESSION_STATE_KEY = "classroom_oauth_state"
 _STATUS_FOR_REASON = {
     "rate_limited": 429,
@@ -162,8 +162,11 @@ def _serialize_draft(draft: ClassroomSubmissionDraft) -> dict:
         "course_name": draft.course_name,
         "coursework_id": draft.coursework_id,
         "coursework_title": draft.coursework_title,
+        "coursework_description": draft.coursework_description,
+        "attachment_text": draft.attachment_text,
         "work_type": draft.work_type,
         "due_date": draft.due_date,
+        "extra_instructions": draft.extra_instructions,
         "answer_text": draft.answer_text,
         "solution_doc_url": draft.solution_doc_url,
         "status": draft.status,
@@ -180,6 +183,15 @@ def solve_view(request: Request) -> Response:
     if not course_id or not coursework_id:
         return Response(
             {"error": "course_id and coursework_id are required"}, status=400
+        )
+
+    extra_instructions = (request.data.get("extra_instructions") or "").strip()
+    if len(extra_instructions) > MAX_INSTRUCTIONS_LENGTH:
+        return Response(
+            {
+                "error": f"extra_instructions must be under {MAX_INSTRUCTIONS_LENGTH} characters"
+            },
+            status=400,
         )
 
     try:
@@ -222,7 +234,10 @@ def solve_view(request: Request) -> Response:
 
     course_name = coursework.get("course_name", "")
     result = solve_coursework(
-        coursework=coursework, course_name=course_name, attachment_text=attachment_text
+        coursework=coursework,
+        course_name=course_name,
+        attachment_text=attachment_text,
+        extra_instructions=extra_instructions,
     )
     if result["error"]:
         return Response(
@@ -236,9 +251,12 @@ def solve_view(request: Request) -> Response:
         course_name=course_name,
         coursework_id=coursework_id,
         coursework_title=coursework.get("title", ""),
+        coursework_description=coursework.get("description", ""),
+        attachment_text=attachment_text,
         work_type=work_type,
         due_date=due,
         google_submission_id=submission_id,
+        extra_instructions=extra_instructions,
         answer_text=result["text"],
         status=ClassroomSubmissionDraft.Status.DRAFT,
     )
@@ -296,40 +314,10 @@ def turn_in_view(_request: Request, draft_id: int) -> Response:
         return Response({"error": "Can't turn in an empty answer."}, status=400)
 
     try:
-        token = oauth.get_active_access_token()
-        if draft.work_type == ClassroomSubmissionDraft.WorkType.SHORT_ANSWER_QUESTION:
-            client.patch_short_answer(
-                token,
-                draft.course_id,
-                draft.coursework_id,
-                draft.google_submission_id,
-                draft.answer_text,
-            )
-        else:
-            file_id, web_view_link = drive_client.create_solution_doc(
-                token,
-                title=draft.coursework_title or "Solution",
-                body_text=draft.answer_text,
-            )
-            client.patch_assignment_attachments(
-                token,
-                draft.course_id,
-                draft.coursework_id,
-                draft.google_submission_id,
-                file_id,
-            )
-            draft.solution_doc_id = file_id
-            draft.solution_doc_url = web_view_link
-
-        client.turn_in(
-            token, draft.course_id, draft.coursework_id, draft.google_submission_id
-        )
+        submission.turn_in_submission(draft)
     except ClassroomError as exc:
         return Response(
             {"error": str(exc), "reason": exc.reason}, status=_status_for(exc)
         )
 
-    draft.status = ClassroomSubmissionDraft.Status.TURNED_IN
-    draft.google_turned_in_at = timezone.now()
-    draft.save()
     return Response(_serialize_draft(draft))

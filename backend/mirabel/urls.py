@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/classroom/", include("classroom.urls")),
     path("api/cv/", include("cv.urls")),
     path("api/memory/", include("memory.urls")),
+    path("api/agent/", include("agent.urls")),
     path("api/", include("kanban.urls")),
 ]
 

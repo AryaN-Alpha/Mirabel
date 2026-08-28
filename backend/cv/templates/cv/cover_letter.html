@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  div, p, h1, h2, h3, table, td, tr, span, a { margin: 0; padding: 0; }
+  @page {
+    size: A4;
+    margin: 28pt 36pt 24pt 36pt;
+  }
+  body {
+    font-family: "{{ font_family }}";
+    font-size: 9.5pt;
+    color: #262626;
+    line-height: 1.5;
+  }
+
+  /* Top accent rule */
+  table.accent-bar {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16pt;
+  }
+  td.accent-bar-cell {
+    background-color: {{ accent }};
+    height: 3.5pt;
+    font-size: 2pt;
+    line-height: 2pt;
+  }
+
+  /* Header table */
+  table.header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14pt;
+    border-bottom: 0.75pt solid #e5e7eb;
+    padding-bottom: 11pt;
+  }
+  td.header-left {
+    vertical-align: middle;
+    text-align: left;
+    width: 58%;
+  }
+  td.header-right {
+    vertical-align: middle;
+    text-align: right;
+    width: 42%;
+  }
+
+  h1.candidate-name {
+    font-size: 20pt;
+    font-weight: bold;
+    color: #111827;
+    letter-spacing: 0.2pt;
+    line-height: 1.15;
+    margin-bottom: 3pt;
+  }
+  p.candidate-title {
+    font-size: 8.5pt;
+    font-weight: bold;
+    color: {{ accent }};
+    letter-spacing: 1.2pt;
+    text-transform: uppercase;
+  }
+
+  .contact-item {
+    font-size: 8.5pt;
+    color: #4b5563;
+    line-height: 1.45;
+  }
+  .contact-item a {
+    color: #374151;
+    text-decoration: underline;
+  }
+
+  /* Recipient and Date Block */
+  table.meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12pt;
+  }
+  td.meta-left {
+    width: 60%;
+    vertical-align: top;
+  }
+  td.meta-right {
+    width: 40%;
+    vertical-align: top;
+    text-align: right;
+  }
+
+  .recipient-label {
+    font-size: 7.5pt;
+    font-weight: bold;
+    letter-spacing: 0.8pt;
+    text-transform: uppercase;
+    color: #888888;
+    margin-bottom: 1pt;
+  }
+  .recipient-name {
+    font-size: 9.5pt;
+    font-weight: bold;
+    color: #111827;
+  }
+  .recipient-company {
+    font-size: 9pt;
+    color: #374151;
+  }
+  .date-text {
+    font-size: 9pt;
+    color: #6b7280;
+  }
+
+  /* Subject Badge / Callout */
+  table.subject-bar {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #f8fafc;
+    border-left: 3pt solid {{ accent }};
+    margin-bottom: 14pt;
+  }
+  td.subject-cell {
+    padding: 5pt 9pt;
+    font-size: 8.5pt;
+    color: #1e293b;
+  }
+  .subject-prefix {
+    font-weight: bold;
+    color: #0f172a;
+    letter-spacing: 0.5pt;
+    text-transform: uppercase;
+  }
+  .subject-title {
+    font-weight: bold;
+    color: #0f172a;
+  }
+
+  /* Salutation & Body */
+  p.salutation {
+    font-size: 9.5pt;
+    font-weight: bold;
+    color: #111827;
+    margin-bottom: 9pt;
+  }
+  p.body-para {
+    font-size: 9.5pt;
+    line-height: 1.55;
+    color: #262626;
+    margin-bottom: 9pt;
+    text-align: justify;
+  }
+
+  /* Sign-off */
+  .signoff-block {
+    margin-top: 12pt;
+    page-break-inside: avoid;
+  }
+  p.signoff-closing {
+    font-size: 9.5pt;
+    color: #262626;
+    margin-bottom: 16pt;
+  }
+  p.signoff-name {
+    font-size: 10.5pt;
+    font-weight: bold;
+    color: #111827;
+    margin-bottom: 1.5pt;
+  }
+  p.signoff-title {
+    font-size: 8.5pt;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.8pt;
+  }
+
+  /* Subtle Footer */
+  table.footer-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20pt;
+    border-top: 0.5pt solid #e5e7eb;
+    padding-top: 5pt;
+  }
+  td.footer-left {
+    font-size: 7.5pt;
+    color: #9ca3af;
+    text-align: left;
+    letter-spacing: 0.3pt;
+  }
+  td.footer-right {
+    font-size: 7.5pt;
+    color: #9ca3af;
+    text-align: right;
+    letter-spacing: 0.3pt;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top Accent Bar -->
+  <table class="accent-bar">
+    <tr><td class="accent-bar-cell">&nbsp;</td></tr>
+  </table>
+
+  <!-- Header / Letterhead -->
+  <table class="header-table">
+    <tr>
+      <td class="header-left">
+        <h1 class="candidate-name">{{ personal_info.name|default:"" }}</h1>
+        {% if personal_info.title %}
+        <p class="candidate-title">{{ personal_info.title }}</p>
+        {% endif %}
+      </td>
+      <td class="header-right">
+        {% if personal_info.email %}
+        <div class="contact-item">{{ personal_info.email }}</div>
+        {% endif %}
+        {% if personal_info.phone %}
+        <div class="contact-item">{{ personal_info.phone }}</div>
+        {% endif %}
+        {% if personal_info.location %}
+        <div class="contact-item">{{ personal_info.location }}</div>
+        {% endif %}
+        {% for link in personal_info.links %}
+        <div class="contact-item">
+          {% if link.href %}
+          <a href="{{ link.href }}">{{ link.label|default:link.url }}</a>
+          {% else %}
+          {{ link.label|default:link.url }}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Recipient & Date -->
+  <table class="meta-table">
+    <tr>
+      <td class="meta-left">
+        {% if company_name or job_title %}
+        <div class="recipient-label">Application To</div>
+        <div class="recipient-name">{% if company_name %}{{ company_name }}{% else %}Hiring Team{% endif %}</div>
+        {% if job_title %}
+        <div class="recipient-company">{{ job_title }}</div>
+        {% endif %}
+        {% endif %}
+      </td>
+      <td class="meta-right">
+        {% if date %}
+        <div class="date-text">{{ date }}</div>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Subject Badge -->
+  {% if job_title or company_name %}
+  <table class="subject-bar">
+    <tr>
+      <td class="subject-cell">
+        <span class="subject-prefix">RE:</span>
+        <span class="subject-title">
+          {% if job_title %}Application for {{ job_title }}{% else %}Job Application{% endif %}
+          {% if company_name %} &mdash; {{ company_name }}{% endif %}
+        </span>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- Salutation -->
+  {% if not has_salutation %}
+  <p class="salutation">
+    {% if company_name %}Dear {{ company_name }} Hiring Team,{% else %}Dear Hiring Manager,{% endif %}
+  </p>
+  {% endif %}
+
+  <!-- Body Paragraphs -->
+  {% for para in paragraphs %}
+  <p class="body-para">{{ para }}</p>
+  {% endfor %}
+
+  <!-- Sign-off Block -->
+  {% if not has_signoff %}
+  <div class="signoff-block">
+    <p class="signoff-closing">Sincerely,</p>
+    <p class="signoff-name">{{ personal_info.name|default:"" }}</p>
+    {% if personal_info.title %}
+    <p class="signoff-title">{{ personal_info.title }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <table class="footer-table">
+    <tr>
+      <td class="footer-left">
+        {{ personal_info.name|default:"" }}{% if personal_info.title %} &middot; {{ personal_info.title }}{% endif %}
+      </td>
+      <td class="footer-right">
+        Cover Letter &middot; Confidential
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

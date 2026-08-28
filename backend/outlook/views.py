@@ -9,7 +9,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from outlook.models import OutlookCredential, ScheduledEmail
-from outlook.services import graph_client, oauth
+from outlook.services import graph_client, oauth, sending
 from outlook.services.email_ai import generate_compose_draft, generate_reply_draft
 from outlook.services.oauth import OutlookError
 
@@ -138,8 +138,7 @@ def reply_message(request: Request, message_id: str) -> Response:
         return Response({"error": f"comment must be under {MAX_REPLY_LENGTH} characters"}, status=400)
 
     try:
-        token = oauth.get_valid_access_token()
-        graph_client.reply_to_message(token, message_id, comment)
+        sending.reply_to_message_now(message_id=message_id, comment=comment)
     except OutlookError as exc:
         return Response({"error": str(exc)}, status=400)
     return Response({"sent": True})
@@ -184,8 +183,7 @@ def send_new_message(request: Request) -> Response:
         return Response({"error": f"body must be under {MAX_REPLY_LENGTH} characters"}, status=400)
 
     try:
-        token = oauth.get_valid_access_token()
-        graph_client.send_mail(token, subject=subject, body_html=body, to_recipients=to)
+        sending.send_email_now(to=to, subject=subject, body_html=body)
     except OutlookError as exc:
         return Response({"error": str(exc)}, status=400)
     return Response({"sent": True})

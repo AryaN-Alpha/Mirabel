@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Starts (or stops) Mirabel's Docker-based infra: Redis, Chroma, and the Celery
-  worker/beat containers defined in docker-compose.yml.
+  worker/beat/agent-worker containers defined in docker-compose.yml.
 
 .DESCRIPTION
   Postgres and the Django app itself run natively on this machine (see
@@ -39,7 +39,7 @@ if (-not (Test-DockerRunning)) {
 }
 
 if ($Down) {
-    Write-Host "Stopping Mirabel Docker services (redis, chroma, celery-worker, celery-beat)..." -ForegroundColor Cyan
+    Write-Host "Stopping Mirabel Docker services (redis, chroma, celery-worker, celery-beat, agent-worker)..." -ForegroundColor Cyan
     docker compose down
     exit $LASTEXITCODE
 }
@@ -61,7 +61,7 @@ if ($portInUse) {
     Write-Host "Check 'docker ps' for a conflicting container before continuing." -ForegroundColor Yellow
 }
 
-Write-Host "Starting Mirabel Docker services (redis, chroma, celery-worker, celery-beat)..." -ForegroundColor Cyan
+Write-Host "Starting Mirabel Docker services (redis, chroma, celery-worker, celery-beat, agent-worker)..." -ForegroundColor Cyan
 docker compose up -d --build
 
 if ($LASTEXITCODE -ne 0) {
@@ -77,6 +77,10 @@ Write-Host "Chroma: localhost:8001" -ForegroundColor Green
 Write-Host ""
 Write-Host "Postgres and the Django app run natively -- see README.md for:" -ForegroundColor DarkGray
 Write-Host "  cd backend; .venv\Scripts\activate; python manage.py migrate; python manage.py runserver" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "First time only, once migrate has run: create the agent's LangGraph" -ForegroundColor DarkGray
+Write-Host "checkpoint tables (agent-worker needs these to pause/resume tasks):" -ForegroundColor DarkGray
+Write-Host "  python manage.py setup_agent_checkpointer" -ForegroundColor DarkGray
 
 if ($Logs) {
     docker compose logs -f

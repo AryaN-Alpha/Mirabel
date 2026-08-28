@@ -5,12 +5,14 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from cv.models import CVProfile, CvStylePreference
+from cv.models import CoverLetter, CVProfile, CvStylePreference
 from cv.schema import MAX_FIELD_LENGTH, default_section_order, normalize_sections
-from cv.services.generation import generate_project_description, regenerate_section
+from cv.services.consistency import check_cv_consistency
+from cv.services.generation import generate_cover_letter, generate_project_description, regenerate_section
 from cv.services.parsing import MAX_EXTRACTED_CHARS, extract_hyperlinks, extract_text
-from cv.services.pdf_export import render_cv_pdf
+from cv.services.pdf_export import render_cover_letter_pdf, render_cv_pdf
 from cv.services.structuring import structure_cv
+from cv.services.tailoring import tailor_cv_to_job
 from cv.style_catalog import FONTS, TEMPLATES, THEMES
 
 logger = logging.getLogger("cv.views")
@@ -19,6 +21,7 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_INSTRUCTIONS_LENGTH = 1000
 MAX_CURRENT_TEXT_LENGTH = 5000
 MAX_CV_NAME_LENGTH = 200
+MAX_JOB_DESCRIPTION_LENGTH = 8000
 
 # Section types an "Ask AI" action can target. "projects" is the only one
 # that currently supports generating a brand-new entry from scratch (title +
@@ -197,7 +200,17 @@ def export_pdf(_request: Request, cv_id: int) -> HttpResponse:
     cv = _get_cv(cv_id)
     if cv is None:
         return Response({"error": "CV not found."}, status=404)
-    pdf_bytes = render_cv_pdf(cv.sections)
+    style_pref = CvStylePreference.current()
+    # Font is deliberately excluded — the PDF keeps its own hardcoded
+    # embedded font (pdf_export.FONT_FAMILY) to avoid the cross-viewer
+    # font-substitution bug documented there; only theme/section-order/
+    # template apply to the export.
+    style = {
+        "theme": THEMES.get(style_pref.theme_choice, THEMES[CvStylePreference.DEFAULT_THEME]),
+        "section_order": style_pref.section_order,
+        "template_choice": style_pref.template_choice,
+    }
+    pdf_bytes = render_cv_pdf(cv.sections, style)
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename="cv.pdf"'
     return response
@@ -257,3 +270,117 @@ def cv_style_preference(request: Request) -> Response:
             "available": {"fonts": FONTS, "themes": THEMES, "templates": TEMPLATES},
         }
     )
+
+
+@api_view(["POST"])
+def tailor_to_job(request: Request, cv_id: int) -> Response:
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+    job_description = (request.data.get("job_description") or "").strip()[:MAX_JOB_DESCRIPTION_LENGTH]
+    if not job_description:
+        return Response({"error": "job_description is required"}, status=400)
+    result = tailor_cv_to_job(cv.sections, job_description)
+    return Response(result)
+
+
+@api_view(["POST"])
+def consistency_check(_request: Request, cv_id: int) -> Response:
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+    result = check_cv_consistency(cv.sections)
+    return Response(result)
+
+
+def _serialize_cover_letter_meta(letter: CoverLetter) -> dict:
+    return {
+        "id": letter.id,
+        "job_title": letter.job_title,
+        "company_name": letter.company_name,
+        "created_at": letter.created_at,
+        "updated_at": letter.updated_at,
+    }
+
+
+def _serialize_cover_letter(letter: CoverLetter) -> dict:
+    return {
+        **_serialize_cover_letter_meta(letter),
+        "job_description": letter.job_description,
+        "generated_text": letter.generated_text,
+    }
+
+
+def _get_cover_letter(cv: CVProfile, letter_id: int) -> CoverLetter | None:
+    try:
+        return cv.cover_letters.get(pk=letter_id)
+    except CoverLetter.DoesNotExist:
+        return None
+
+
+@api_view(["GET", "POST"])
+def cover_letter_list(request: Request, cv_id: int) -> Response:
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+
+    if request.method == "GET":
+        return Response({"cover_letters": [_serialize_cover_letter_meta(letter) for letter in cv.cover_letters.all()]})
+
+    job_description = (request.data.get("job_description") or "").strip()[:MAX_JOB_DESCRIPTION_LENGTH]
+    if not job_description:
+        return Response({"error": "job_description is required"}, status=400)
+    job_title = (request.data.get("job_title") or "").strip()[:MAX_FIELD_LENGTH]
+    company_name = (request.data.get("company_name") or "").strip()[:MAX_FIELD_LENGTH]
+
+    letter = CoverLetter.objects.create(
+        cv=cv, job_title=job_title, company_name=company_name, job_description=job_description
+    )
+    result = generate_cover_letter(
+        job_description=job_description, company_name=company_name, job_title=job_title, sections=cv.sections
+    )
+    letter.generated_text = result["text"]
+    letter.save()
+    return Response({**_serialize_cover_letter(letter), "error": result["error"], "reason": result["reason"]}, status=201)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+def cover_letter_detail(request: Request, cv_id: int, letter_id: int) -> Response:
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+    letter = _get_cover_letter(cv, letter_id)
+    if letter is None:
+        return Response({"error": "Cover letter not found."}, status=404)
+
+    if request.method == "GET":
+        return Response(_serialize_cover_letter(letter))
+
+    if request.method == "DELETE":
+        letter.delete()
+        return Response(status=204)
+
+    if "generated_text" in request.data:
+        letter.generated_text = request.data.get("generated_text") or ""
+        letter.save()
+    return Response(_serialize_cover_letter(letter))
+
+
+@api_view(["GET"])
+def cover_letter_export(_request: Request, cv_id: int, letter_id: int) -> HttpResponse:
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+    letter = _get_cover_letter(cv, letter_id)
+    if letter is None:
+        return Response({"error": "Cover letter not found."}, status=404)
+    style_pref = CvStylePreference.current()
+    style = {
+        "theme": THEMES.get(style_pref.theme_choice, THEMES[CvStylePreference.DEFAULT_THEME]),
+        "section_order": style_pref.section_order,
+        "template_choice": style_pref.template_choice,
+    }
+    pdf_bytes = render_cover_letter_pdf(letter, cv.sections.get("personal_info", {}), style=style)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="cover-letter.pdf"'
+    return response

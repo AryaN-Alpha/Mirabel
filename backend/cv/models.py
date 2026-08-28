@@ -64,3 +64,28 @@ class CvStylePreference(models.Model):
             },
         )
         return obj
+
+
+class CoverLetter(models.Model):
+    """A generated cover letter tied to one CV version and one job
+    application. Persisted (unlike generate_project_description's
+    frontend-state-only pattern) because a cover letter is a full document
+    the user may revisit, hand-edit, or re-export across sessions — losing
+    it on a page refresh would lose real LLM-call value, not just a small
+    discardable suggestion. Every generation gets its own row (a lightweight
+    history), not a single slot overwritten each time.
+    """
+
+    cv = models.ForeignKey(CVProfile, on_delete=models.CASCADE, related_name="cover_letters")
+    job_title = models.CharField(max_length=200, blank=True, default="")
+    company_name = models.CharField(max_length=200, blank=True, default="")
+    job_description = models.TextField()
+    generated_text = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"CoverLetter({self.job_title!r} at {self.company_name!r}, cv={self.cv_id})"

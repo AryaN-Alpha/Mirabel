@@ -85,6 +85,46 @@ export async function getMemoryStats() {
   return data;
 }
 
+export async function listAgentTasks() {
+  const { data } = await client.get("/api/agent/tasks/");
+  return data;
+}
+
+export async function getAgentTask(id) {
+  const { data } = await client.get(`/api/agent/tasks/${id}/`);
+  return data;
+}
+
+export async function startAgentTask(instruction, conversationId) {
+  const { data } = await client.post("/api/agent/tasks/", {
+    instruction,
+    conversation_id: conversationId ?? undefined,
+  });
+  return data;
+}
+
+export async function approveAgentTask(id, editedArgs) {
+  const { data } = await client.post(`/api/agent/tasks/${id}/approve/`, {
+    args: editedArgs ?? undefined,
+  });
+  return data;
+}
+
+export async function rejectAgentTask(id) {
+  const { data } = await client.post(`/api/agent/tasks/${id}/reject/`);
+  return data;
+}
+
+export async function answerAgentTask(id, answer) {
+  const { data } = await client.post(`/api/agent/tasks/${id}/answer/`, { answer });
+  return data;
+}
+
+export async function cancelAgentTask(id) {
+  const { data } = await client.post(`/api/agent/tasks/${id}/cancel/`);
+  return data;
+}
+
 export async function getOutlookInbox({ domain, sender, page } = {}) {
   const params = {};
   if (domain) params.domain = domain;
@@ -236,8 +276,12 @@ export async function getClassroomCourseworkDetail(courseId, courseworkId) {
   return data;
 }
 
-export async function solveClassroomCoursework({ course_id, coursework_id }) {
-  const { data } = await client.post("/api/classroom/solve/", { course_id, coursework_id });
+export async function solveClassroomCoursework({ course_id, coursework_id, extra_instructions }) {
+  const { data } = await client.post("/api/classroom/solve/", {
+    course_id,
+    coursework_id,
+    extra_instructions: extra_instructions || undefined,
+  });
   return data;
 }
 
@@ -360,4 +404,52 @@ export async function regenerateCvSection(id, sectionType, currentText, instruct
 
 export function cvExportUrl(id) {
   return `${client.defaults.baseURL}/api/cv/${id}/export/`;
+}
+
+export async function getCvStylePreference() {
+  const { data } = await client.get("/api/cv/style/");
+  return data;
+}
+
+export async function updateCvStylePreference(patch) {
+  const { data } = await client.put("/api/cv/style/", patch);
+  return data;
+}
+
+export async function tailorCvToJob(id, jobDescription) {
+  const { data } = await client.post(`/api/cv/${id}/tailor/`, { job_description: jobDescription });
+  return data;
+}
+
+export async function checkCvConsistency(id) {
+  const { data } = await client.post(`/api/cv/${id}/consistency-check/`);
+  return data;
+}
+
+export async function listCoverLetters(cvId) {
+  const { data } = await client.get(`/api/cv/${cvId}/cover-letters/`);
+  return data;
+}
+
+export async function createCoverLetter(cvId, payload) {
+  const { data } = await client.post(`/api/cv/${cvId}/cover-letters/`, payload);
+  return data;
+}
+
+export async function getCoverLetter(cvId, id) {
+  const { data } = await client.get(`/api/cv/${cvId}/cover-letters/${id}/`);
+  return data;
+}
+
+export async function updateCoverLetter(cvId, id, patch) {
+  const { data } = await client.put(`/api/cv/${cvId}/cover-letters/${id}/`, patch);
+  return data;
+}
+
+export async function deleteCoverLetter(cvId, id) {
+  await client.delete(`/api/cv/${cvId}/cover-letters/${id}/`);
+}
+
+export function coverLetterExportUrl(cvId, id) {
+  return `${client.defaults.baseURL}/api/cv/${cvId}/cover-letters/${id}/export/`;
 }

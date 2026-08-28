@@ -84,7 +84,7 @@ function HomeLayoutInner({ title }) {
 
       <div ref={scrollRef} className={`relative flex-1 min-w-0 min-h-0 flex flex-col ${title ? "overflow-y-auto" : "overflow-hidden"}`}>
         {title && <HomeNavbar title={title} />}
-        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full" : "flex-1 w-full min-h-0"}>
+        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full min-w-0" : "flex-1 w-full min-h-0 min-w-0"}>
           <Outlet />
         </div>
       </div>

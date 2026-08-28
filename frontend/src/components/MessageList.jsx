@@ -1,5 +1,14 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import AgentTaskPanel from "./agent/AgentTaskPanel";
+
+const AGENT_PALETTE = {
+  text: "rgba(250,242,236,0.92)",
+  muted: "rgba(243,233,226,0.5)",
+  border: "rgba(243,233,226,0.16)",
+  accent: "#f0c9a2",
+  danger: "rgba(224,140,140,0.95)",
+};
 
 const BUBBLE = {
   user: {
@@ -18,7 +27,14 @@ const BUBBLE = {
   },
 };
 
-export default function MessageList({ messages, loading }) {
+export default function MessageList({
+  messages,
+  loading,
+  busyAgentTaskId,
+  onApproveAgentTask,
+  onRejectAgentTask,
+  onAnswerAgentTask,
+}) {
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -55,7 +71,18 @@ export default function MessageList({ messages, loading }) {
                   backdropFilter: "blur(8px)",
                 }}
               >
-                {msg.text}
+                {msg.agentTask ? (
+                  <AgentTaskPanel
+                    task={msg.agentTask}
+                    busy={busyAgentTaskId === msg.agentTask.id}
+                    palette={AGENT_PALETTE}
+                    onApprove={(editedArgs) => onApproveAgentTask?.(msg.agentTask, editedArgs)}
+                    onReject={() => onRejectAgentTask?.(msg.agentTask)}
+                    onAnswer={(answer) => onAnswerAgentTask?.(msg.agentTask, answer)}
+                  />
+                ) : (
+                  msg.text
+                )}
               </div>
             </motion.div>
           );

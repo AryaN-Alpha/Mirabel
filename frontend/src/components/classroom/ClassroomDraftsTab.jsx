@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { deleteClassroomDraft, listClassroomDrafts, turnInClassroomDraft, updateClassroomDraft } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
+import { downloadTextFile } from "../../utils/download";
 import { fontHeading, text, space, cream } from "../homeTheme";
 import { GhostLink, OutlineButton, EmptyState, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
@@ -84,9 +85,21 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [showAssignment, setShowAssignment] = useState(false);
   const confirmTimerRef = useRef(null);
 
   const isTurnedIn = draft.status === "turned_in";
+
+  function handleDownloadAnswer() {
+    downloadTextFile(`${draft.coursework_title || "answer"}.txt`, answerText);
+  }
+
+  function handleDownloadAssignment() {
+    const lines = [draft.coursework_title, draft.course_name, ""];
+    if (draft.coursework_description) lines.push(draft.coursework_description, "");
+    if (draft.attachment_text) lines.push("--- Attached document ---", draft.attachment_text);
+    downloadTextFile(`${draft.coursework_title || "assignment"}.txt`, lines.join("\n"));
+  }
 
   useEffect(() => {
     return () => clearTimeout(confirmTimerRef.current);
@@ -165,8 +178,54 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
 
       {expanded && (
         <div style={{ padding: `0 ${space[3]}px ${space[5]}px` }}>
+          <GhostLink muted onClick={() => setShowAssignment((v) => !v)}>
+            {showAssignment ? "Hide original assignment" : "View original assignment"}
+          </GhostLink>
+
+          {showAssignment && (
+            <div
+              style={{
+                fontSize: 13,
+                lineHeight: 1.6,
+                color: cream(0.7),
+                whiteSpace: "pre-wrap",
+                maxHeight: 220,
+                overflowY: "auto",
+                marginTop: space[3],
+                padding: space[3],
+                border: `1px solid ${cream(0.09)}`,
+                borderRadius: 6,
+              }}
+            >
+              {draft.coursework_description || "No description provided."}
+              {draft.attachment_text && (
+                <>
+                  <p style={{ marginTop: space[3], fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, color: cream(0.4) }}>
+                    Attached document
+                  </p>
+                  {draft.attachment_text}
+                </>
+              )}
+            </div>
+          )}
+
+          {draft.extra_instructions && (
+            <p style={{ fontSize: 12, marginTop: space[3], color: cream(0.45), fontStyle: "italic" }}>
+              Instructions given: {draft.extra_instructions}
+            </p>
+          )}
+
+          <div className="flex items-center flex-wrap" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>
+            <GhostLink muted onClick={handleDownloadAssignment}>
+              Download assignment
+            </GhostLink>
+            <GhostLink muted onClick={handleDownloadAnswer} disabled={!answerText.trim()}>
+              Download answer
+            </GhostLink>
+          </div>
+
           {isTurnedIn ? (
-            <p style={{ fontSize: 13, color: cream(0.5) }}>
+            <p style={{ fontSize: 13, marginTop: space[4], color: cream(0.5) }}>
               Turned in {formatDate(draft.google_turned_in_at)}.
               {draft.solution_doc_url && (
                 <>
@@ -184,7 +243,7 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                 onChange={(e) => setAnswerText(e.target.value)}
                 rows={6}
                 className="w-full resize-y"
-                style={underlineInputStyle}
+                style={{ ...underlineInputStyle, marginTop: space[4] }}
               />
               <ErrorNote>{error}</ErrorNote>
               <div className="flex items-center" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>

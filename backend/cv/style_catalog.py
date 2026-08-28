@@ -64,9 +64,7 @@ THEMES = {
     },
 }
 
-# Only the CV's current (only) layout exists so far — "minimal-single-column"
-# is added here once its renderer (CvPreviewMinimal.jsx) actually exists, not
-# before, so the catalog never advertises a template that does nothing yet.
 TEMPLATES = {
     "two-column": {"label": "Two-column"},
+    "minimal-single-column": {"label": "Minimal single-column"},
 }

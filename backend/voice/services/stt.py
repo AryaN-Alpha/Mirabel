@@ -55,5 +55,5 @@ def transcribe(audio_bytes: bytes, source_format: str = "webm") -> str:
         temperature=0.0,
     )
     text = (resp if isinstance(resp, str) else resp.text).strip()
-    logger.info("stt: %d bytes → %d chars", len(audio_bytes), len(text))
+    logger.info("stt: %d bytes -> %d chars", len(audio_bytes), len(text))
     return text

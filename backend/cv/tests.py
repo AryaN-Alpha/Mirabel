@@ -3,11 +3,12 @@ from unittest.mock import patch
 
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import render_to_string
 from django.urls import reverse
 from pypdf import PdfReader
 from rest_framework.test import APITestCase
 
-from cv.models import CVProfile, CvStylePreference
+from cv.models import CoverLetter, CVProfile, CvStylePreference
 from cv.schema import MAX_FIELD_LENGTH, MAX_URL_LENGTH, default_section_order, empty_sections
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -91,6 +92,9 @@ SAMPLE_SECTIONS = {
     "strengths": [],
     "certifications": [],
 }
+
+SAMPLE_PROJECTS = [{"id": "p1", "title": "iTags", "tech": "Django", "description": "Asset manager.", "link": ""}]
+SAMPLE_SKILL_GROUPS = [{"id": "g1", "category": "Backend", "skills": ["Django", "Postgres"]}]
 
 
 def _create_cv(name: str = "Main") -> CVProfile:
@@ -386,6 +390,73 @@ class CvExportPdfEndpointTests(CvAPITestCase):
         self.assertIn("Berlin, Germany", text)
         self.assertNotIn("• Berlin, Germany", text)
 
+    def test_export_honors_custom_section_order(self):
+        cv = _create_cv()
+        cv.sections = {**SAMPLE_SECTIONS, "projects": SAMPLE_PROJECTS}
+        cv.save()
+        self.client.put(
+            reverse("cv-style-preference"),
+            {
+                "section_order": {
+                    "main": ["certifications", "projects", "experience", "summary"],
+                    "sidebar": ["strengths", "education", "skills"],
+                }
+            },
+            format="json",
+        )
+
+        response = self.client.get(reverse("cv-export", args=[cv.id]))
+        self.assertEqual(response.status_code, 200)
+        text = reader_text(response.content)
+        # "WORK EXPERIENCE" (from experience) should now appear after
+        # "PROJECTS" in reading order, the reverse of the default order.
+        self.assertLess(text.index("PROJECTS"), text.index("WORK EXPERIENCE"))
+
+    def test_export_honors_custom_theme_accent_color(self):
+        from cv.services.pdf_export import _ordered_blocks
+        from cv.style_catalog import THEMES
+
+        cv = _create_cv()
+        cv.sections = SAMPLE_SECTIONS
+        cv.save()
+        self.client.put(reverse("cv-style-preference"), {"theme_choice": "midnight-blue"}, format="json")
+        pref = CvStylePreference.current()
+
+        main_blocks, sidebar_blocks = _ordered_blocks(cv.sections, pref.section_order)
+        theme = THEMES[pref.theme_choice]
+        html = render_to_string(
+            "cv/resume.html",
+            {
+                "font_family": "CVSans",
+                "sections": cv.sections,
+                "main_blocks": main_blocks,
+                "sidebar_blocks": sidebar_blocks,
+                "sidebar_bg": theme["sidebar_bg"],
+                "sidebar_text": theme["sidebar_text"],
+                "accent": theme["accent"],
+            },
+        )
+        self.assertIn(theme["sidebar_bg"], html)
+
+    def test_export_minimal_template_renders_one_page(self):
+        cv = _create_cv()
+        cv.sections = {**SAMPLE_SECTIONS, "skill_groups": SAMPLE_SKILL_GROUPS}
+        cv.save()
+        self.client.put(reverse("cv-style-preference"), {"template_choice": "minimal-single-column"}, format="json")
+
+        response = self.client.get(reverse("cv-export", args=[cv.id]))
+        self.assertEqual(response.status_code, 200)
+        reader = PdfReader(io.BytesIO(response.content))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        self.assertIn("WORK EXPERIENCE", text)
+        self.assertIn("SKILLS", text)
+
+
+def reader_text(pdf_bytes: bytes) -> str:
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return "".join(page.extract_text() for page in reader.pages)
+
 
 class CvStylePreferenceEndpointTests(CvAPITestCase):
     def test_get_creates_default_singleton(self):
@@ -455,3 +526,185 @@ class CvStylePreferenceEndpointTests(CvAPITestCase):
             reverse("cv-style-preference"), {"section_order": {"main": default_section_order()["main"]}}, format="json"
         )
         self.assertEqual(response.status_code, 400)
+
+
+class CvTailorEndpointTests(CvAPITestCase):
+    def test_unknown_cv_404(self):
+        response = self.client.post(reverse("cv-tailor", args=[999]), {"job_description": "x"}, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_missing_job_description_400(self):
+        cv = _create_cv()
+        response = self.client.post(reverse("cv-tailor", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_success(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = (
+            '{"match_score": 72, "missing_keywords": ["Kubernetes"], '
+            '"suggestions": [{"section_type": "summary", "note": "Mention cloud experience."}]}'
+        )
+        response = self.client.post(
+            reverse("cv-tailor", args=[cv.id]), {"job_description": "We need a backend engineer."}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["error"])
+        self.assertEqual(response.data["match_score"], 72)
+        self.assertEqual(response.data["missing_keywords"], ["Kubernetes"])
+        self.assertEqual(response.data["suggestions"][0]["section_type"], "summary")
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_falls_back_on_malformed_json(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = "not json at all"
+        response = self.client.post(
+            reverse("cv-tailor", args=[cv.id]), {"job_description": "We need a backend engineer."}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["match_score"])
+        self.assertEqual(response.data["suggestions"], [])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_drops_suggestion_with_invalid_section_type(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = (
+            '{"match_score": 50, "missing_keywords": [], '
+            '"suggestions": [{"section_type": "bogus", "note": "x"}, '
+            '{"section_type": "summary", "note": "valid one"}]}'
+        )
+        response = self.client.post(
+            reverse("cv-tailor", args=[cv.id]), {"job_description": "x"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["suggestions"]), 1)
+        self.assertEqual(response.data["suggestions"][0]["section_type"], "summary")
+
+
+class CvConsistencyCheckEndpointTests(CvAPITestCase):
+    def test_unknown_cv_404(self):
+        response = self.client.post(reverse("cv-consistency-check", args=[999]), {}, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    @patch("cv.services.consistency.get_provider")
+    def test_success(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = (
+            '{"issues": [{"section_type": "experience", "message": "Mixes past and present tense.", '
+            '"severity": "high"}]}'
+        )
+        response = self.client.post(reverse("cv-consistency-check", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["error"])
+        self.assertEqual(len(response.data["issues"]), 1)
+        self.assertEqual(response.data["issues"][0]["severity"], "high")
+
+    @patch("cv.services.consistency.get_provider")
+    def test_defaults_severity_when_invalid(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = (
+            '{"issues": [{"section_type": "summary", "message": "x", "severity": "extreme"}]}'
+        )
+        response = self.client.post(reverse("cv-consistency-check", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["issues"][0]["severity"], "medium")
+
+    @patch("cv.services.consistency.get_provider")
+    def test_falls_back_on_provider_error(self, mock_get_provider):
+        from core.services.providers import ProviderError
+
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.side_effect = ProviderError("no api key configured")
+        response = self.client.post(reverse("cv-consistency-check", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["error"])
+        self.assertEqual(response.data["issues"], [])
+
+
+class CvCoverLetterEndpointTests(CvAPITestCase):
+    def test_unknown_cv_404_on_list(self):
+        response = self.client.get(reverse("cv-cover-letter-list", args=[999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_create_requires_job_description(self):
+        cv = _create_cv()
+        response = self.client.post(reverse("cv-cover-letter-list", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    @patch("cv.services.generation.get_provider")
+    def test_create_and_list(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = "Dear Hiring Manager, I am excited to apply."
+        response = self.client.post(
+            reverse("cv-cover-letter-list", args=[cv.id]),
+            {"job_description": "Backend role.", "company_name": "Acme", "job_title": "Backend Engineer"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.data["error"])
+        self.assertIn("excited to apply", response.data["generated_text"])
+        self.assertEqual(response.data["company_name"], "Acme")
+
+        list_response = self.client.get(reverse("cv-cover-letter-list", args=[cv.id]))
+        self.assertEqual(len(list_response.data["cover_letters"]), 1)
+        # list shape is metadata-only
+        self.assertNotIn("generated_text", list_response.data["cover_letters"][0])
+
+    @patch("cv.services.generation.get_provider")
+    def test_detail_get_put_delete(self, mock_get_provider):
+        cv = _create_cv()
+        mock_get_provider.return_value.generate_text.return_value = "Body text."
+        create_response = self.client.post(
+            reverse("cv-cover-letter-list", args=[cv.id]), {"job_description": "x"}, format="json"
+        )
+        letter_id = create_response.data["id"]
+
+        get_response = self.client.get(reverse("cv-cover-letter-detail", args=[cv.id, letter_id]))
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(get_response.data["generated_text"], "Body text.")
+
+        put_response = self.client.put(
+            reverse("cv-cover-letter-detail", args=[cv.id, letter_id]),
+            {"generated_text": "Hand-edited text."},
+            format="json",
+        )
+        self.assertEqual(put_response.status_code, 200)
+        self.assertEqual(put_response.data["generated_text"], "Hand-edited text.")
+
+        delete_response = self.client.delete(reverse("cv-cover-letter-detail", args=[cv.id, letter_id]))
+        self.assertEqual(delete_response.status_code, 204)
+        self.assertFalse(CoverLetter.objects.filter(pk=letter_id).exists())
+
+    def test_detail_404_for_unknown_letter(self):
+        cv = _create_cv()
+        response = self.client.get(reverse("cv-cover-letter-detail", args=[cv.id, 999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_letter_from_another_cv_404s(self):
+        cv_a = _create_cv(name="A")
+        cv_b = _create_cv(name="B")
+        letter = CoverLetter.objects.create(cv=cv_a, job_description="x", generated_text="y")
+        response = self.client.get(reverse("cv-cover-letter-detail", args=[cv_b.id, letter.id]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_export_renders_one_page_pdf(self):
+        cv = _create_cv()
+        cv.sections = SAMPLE_SECTIONS
+        cv.save()
+        letter = CoverLetter.objects.create(
+            cv=cv, job_title="Backend Engineer", company_name="Acme", job_description="x",
+            generated_text="I am a strong candidate for this role.\nI look forward to hearing from you.",
+        )
+        response = self.client.get(reverse("cv-cover-letter-export", args=[cv.id, letter.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        reader = PdfReader(io.BytesIO(response.content))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        self.assertIn("Jane Doe", text)
+        self.assertIn("strong candidate", text)
+
+    def test_export_404_for_unknown_letter(self):
+        cv = _create_cv()
+        response = self.client.get(reverse("cv-cover-letter-export", args=[cv.id, 999]))
+        self.assertEqual(response.status_code, 404)

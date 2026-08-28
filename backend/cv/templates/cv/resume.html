@@ -14,7 +14,7 @@
   @page { size: A4; margin: 0; }
   body { font-family: "{{ font_family }}"; font-size: 9.5pt; color: #222222; margin: 0; }
   table.layout { width: 100%; border-collapse: collapse; }
-  td.sidebar { width: 34%; background-color: #262626; color: #e8e8e8; padding: 26pt 16pt; height: 820pt; }
+  td.sidebar { width: 34%; background-color: {{ sidebar_bg }}; color: {{ sidebar_text }}; padding: 26pt 16pt; height: 820pt; }
   td.main { width: 66%; padding: 26pt 24pt; }
 
   h1.name { font-size: 21pt; font-weight: bold; color: #111111; margin: 0 0 3pt 0; }
@@ -24,7 +24,7 @@
   .side-h { font-size: 10pt; font-weight: bold; color: #ffffff; letter-spacing: 1.5pt; margin: 0 0 8pt 0; border-bottom: 1pt solid #555555; padding-bottom: 4pt; }
   .side-block { margin-bottom: 16pt; }
   .side-item { font-size: 9pt; color: #dddddd; margin-bottom: 4pt; }
-  .side-item a, .entry-sub a { color: #e0a878; text-decoration: underline; }
+  .side-item a, .entry-sub a { color: {{ accent }}; text-decoration: underline; }
   .skill-cat { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 2pt 0; }
   .skill-item { font-size: 8.5pt; color: #cccccc; margin: 0 0 1pt 6pt; }
   .strength-title { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 1pt 0; }
@@ -51,20 +51,25 @@
     {% for link in sections.personal_info.links %}<div class="side-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
   </div>
 
-  {% if sections.skill_groups %}
+  {% for block in sidebar_blocks %}
+
+  {% if block.kind == "skills" %}
+  {% if block.data %}
   <div class="side-h">SKILLS</div>
   <div class="side-block">
-    {% for group in sections.skill_groups %}
+    {% for group in block.data %}
     {% if group.category %}<div class="skill-cat">{{ group.category }}</div>{% endif %}
     {% for skill in group.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
     {% endfor %}
   </div>
   {% endif %}
+  {% endif %}
 
-  {% if sections.education %}
+  {% if block.kind == "education" %}
+  {% if block.data %}
   <div class="side-h">EDUCATION</div>
   <div class="side-block">
-    {% for edu in sections.education %}
+    {% for edu in block.data %}
     {% if edu.degree or edu.school %}
     <div class="strength-title">{{ edu.school }}</div>
     {% if edu.location %}<div class="strength-desc">{{ edu.location }}</div>{% endif %}
@@ -74,11 +79,13 @@
     {% endfor %}
   </div>
   {% endif %}
+  {% endif %}
 
-  {% if sections.strengths %}
+  {% if block.kind == "strengths" %}
+  {% if block.data %}
   <div class="side-h">STRENGTHS</div>
   <div class="side-block">
-    {% for strength in sections.strengths %}
+    {% for strength in block.data %}
     {% if strength.title %}
     <div class="strength-title">{{ strength.title }}</div>
     {% if strength.description %}<div class="strength-desc">{{ strength.description }}</div>{% endif %}
@@ -86,6 +93,9 @@
     {% endfor %}
   </div>
   {% endif %}
+  {% endif %}
+
+  {% endfor %}
 </td>
 
 <td class="main">
@@ -93,11 +103,16 @@
   {% if sections.personal_info.title %}<p class="tagline">{{ sections.personal_info.title }}</p>{% endif %}
   <hr class="divider">
 
-  {% if sections.summary %}<p class="summary">{{ sections.summary }}</p>{% endif %}
+  {% for block in main_blocks %}
 
-  {% if sections.experience %}
+  {% if block.kind == "summary" %}
+  {% if block.data %}<p class="summary">{{ block.data }}</p>{% endif %}
+  {% endif %}
+
+  {% if block.kind == "experience" %}
+  {% if block.data %}
   <div class="main-h">WORK EXPERIENCE</div>
-  {% for exp in sections.experience %}
+  {% for exp in block.data %}
   {% if exp.title or exp.company or exp.bullets %}
   <div class="entry">
     <div class="entry-title">{{ exp.title }}{% if exp.company %} | {{ exp.company }}{% endif %}</div>
@@ -111,10 +126,12 @@
   {% endif %}
   {% endfor %}
   {% endif %}
+  {% endif %}
 
-  {% if sections.projects %}
+  {% if block.kind == "projects" %}
+  {% if block.data %}
   <div class="main-h">PROJECTS</div>
-  {% for proj in sections.projects %}
+  {% for proj in block.data %}
   {% if proj.title or proj.description_lines %}
   <div class="entry">
     <div class="entry-title">{{ proj.title }}</div>
@@ -127,10 +144,12 @@
   {% endif %}
   {% endfor %}
   {% endif %}
+  {% endif %}
 
-  {% if sections.certifications %}
+  {% if block.kind == "certifications" %}
+  {% if block.data %}
   <div class="main-h">CERTIFICATIONS</div>
-  {% for cert in sections.certifications %}
+  {% for cert in block.data %}
   {% if cert.name %}
   <div class="entry">
     <div class="entry-title">{{ cert.name }}{% if cert.issuer %} — {{ cert.issuer }}{% endif %}</div>
@@ -139,6 +158,9 @@
   {% endif %}
   {% endfor %}
   {% endif %}
+  {% endif %}
+
+  {% endfor %}
 </td>
 
 </tr></table>

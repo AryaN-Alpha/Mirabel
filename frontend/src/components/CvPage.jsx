@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { createCv, cvExportUrl, deleteCv, getCv, listCvs, updateCv } from "../services/api";
+import {
+  createCv,
+  cvExportUrl,
+  deleteCv,
+  getCv,
+  getCvStylePreference,
+  listCvs,
+  updateCv,
+  updateCvStylePreference,
+} from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, accent, space, cream } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import ConfirmDialog from "./ConfirmDialog";
 import CvUploadPrompt from "./cv/CvUploadPrompt";
 import CvPreview from "./cv/CvPreview";
+import CvPreviewMinimal from "./cv/CvPreviewMinimal";
 import CvVersionTabs from "./cv/CvVersionTabs";
 import CvVersionModal from "./cv/CvVersionModal";
 import CvPersonalInfoTab from "./cv/CvPersonalInfoTab";
@@ -18,6 +28,10 @@ import CvProjectsTab from "./cv/CvProjectsTab";
 import CvSkillsTab from "./cv/CvSkillsTab";
 import CvStrengthsTab from "./cv/CvStrengthsTab";
 import CvCertificationsTab from "./cv/CvCertificationsTab";
+import CvStyleTab from "./cv/CvStyleTab";
+import CvTailorTab from "./cv/CvTailorTab";
+import CvCoverLetterTab from "./cv/CvCoverLetterTab";
+import CvConsistencyTab from "./cv/CvConsistencyTab";
 
 const AUTOSAVE_DELAY_MS = 800;
 
@@ -30,6 +44,10 @@ const TABS = [
   { id: "skills", label: "Skills", Component: CvSkillsTab },
   { id: "strengths", label: "Strengths", Component: CvStrengthsTab },
   { id: "certifications", label: "Certifications", Component: CvCertificationsTab },
+  { id: "tailor", label: "Tailor to job", Component: CvTailorTab },
+  { id: "cover-letter", label: "Cover letter", Component: CvCoverLetterTab },
+  { id: "consistency", label: "Consistency check", Component: CvConsistencyTab },
+  { id: "style", label: "Style", Component: CvStyleTab },
 ];
 
 function hasContent(cv) {
@@ -108,6 +126,12 @@ export default function CvPage() {
   const [cvVersionModal, setCvVersionModal] = useState(null); // null = closed, {} = new, {...} = rename
   const [deletingCv, setDeletingCv] = useState(null);
 
+  // Style preference is global (not per-CV-version), fetched once here and
+  // shared between CvStyleTab (the controls) and whichever CvPreview* is
+  // rendered below (so a change in the tab updates the live preview
+  // immediately) — see CvStylePreference (backend/cv/models.py).
+  const [stylePref, setStylePref] = useState(null);
+
   // Autosave is serialized through these refs rather than firing a plain
   // setTimeout->fetch per keystroke: without this, a slow request from an
   // earlier edit could still be in flight when a newer debounce fires,
@@ -157,6 +181,27 @@ export default function CvPage() {
     // Intentionally run once — selectCv() handles subsequent URL syncs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    getCvStylePreference()
+      .then(setStylePref)
+      .catch(() => {}); // non-critical — the preview/PDF just fall back to defaults
+  }, []);
+
+  async function saveStylePref(patch) {
+    const previous = stylePref;
+    // Optimistic — a font/theme/order choice is a small, discrete pick (not
+    // free-text), so reflecting it immediately in the shared preview reads
+    // better than waiting on the round-trip; rolled back on failure.
+    setStylePref((prev) => ({ ...prev, ...patch }));
+    try {
+      const updated = await updateCvStylePreference(patch);
+      setStylePref(updated);
+    } catch (err) {
+      setStylePref(previous);
+      throw err;
+    }
+  }
 
   useEffect(() => {
     if (!selectedCvId) {
@@ -416,7 +461,23 @@ export default function CvPage() {
         className="grid items-start"
         style={{ gridTemplateColumns: "minmax(0,1.7fr) minmax(260px,.6fr)", gap: space[8] * 1.1, marginTop: space[8] * 1.1 }}
       >
-        <CvPreview sections={cv.sections} />
+        {stylePref?.template_choice === "minimal-single-column" ? (
+          <CvPreviewMinimal
+            sections={cv.sections}
+            fontFamily={stylePref.available.fonts[stylePref.font_choice]?.css}
+            accentColor={stylePref.available.themes[stylePref.theme_choice]?.accent}
+            sectionOrder={stylePref.section_order}
+          />
+        ) : (
+          <CvPreview
+            sections={cv.sections}
+            fontFamily={stylePref?.available.fonts[stylePref.font_choice]?.css}
+            sidebarBg={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_bg}
+            sidebarText={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_text}
+            accentColor={stylePref?.available.themes[stylePref.theme_choice]?.accent}
+            sectionOrder={stylePref?.section_order}
+          />
+        )}
 
         <div>
           <div className="flex items-center justify-between" style={{ paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>
@@ -434,7 +495,14 @@ export default function CvPage() {
           )}
 
           <div style={{ marginTop: space[6] }}>
-            <ActiveComponent cvId={selectedCvId} sections={cv.sections} updateSections={updateSections} />
+            <ActiveComponent
+              cvId={selectedCvId}
+              sections={cv.sections}
+              updateSections={updateSections}
+              stylePref={stylePref}
+              onSaveStylePref={saveStylePref}
+              onJumpToTab={setActiveTab}
+            />
           </div>
 
           <p style={{ marginTop: space[6], fontSize: 13, lineHeight: 1.8, color: cream(0.45) }}>

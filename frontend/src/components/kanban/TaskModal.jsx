@@ -20,6 +20,7 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
   const [priority, setPriority] = useState(task.priority || "Medium");
   const [effort, setEffort] = useState(task.effort || "Medium");
   const [dueDate, setDueDate] = useState(task.due_date || "");
+  const [dueTime, setDueTime] = useState(task.due_time || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,6 +36,7 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
         priority,
         effort,
         due_date: dueDate || null,
+        due_time: dueTime || null,
       });
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't save that card."));
@@ -79,15 +81,26 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
             ))}
           </select>
         </label>
-        <label className="flex flex-col" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Due date</span>
-          <input
-            type="date"
-            value={dueDate || ""}
-            onChange={(e) => setDueDate(e.target.value)}
-            style={{ ...underlineInputStyle, colorScheme: "dark" }}
-          />
-        </label>
+        <div className="grid grid-cols-2" style={{ gap: space[2] }}>
+          <label className="flex flex-col" style={{ gap: space[2] }}>
+            <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Due date</span>
+            <input
+              type="date"
+              value={dueDate || ""}
+              onChange={(e) => setDueDate(e.target.value)}
+              style={{ ...underlineInputStyle, colorScheme: "dark" }}
+            />
+          </label>
+          <label className="flex flex-col" style={{ gap: space[2] }}>
+            <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Due time</span>
+            <input
+              type="time"
+              value={dueTime || ""}
+              onChange={(e) => setDueTime(e.target.value)}
+              style={{ ...underlineInputStyle, colorScheme: "dark" }}
+            />
+          </label>
+        </div>
         <label className="flex flex-col" style={{ gap: space[2] }}>
           <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Priority</span>
           <select value={priority} onChange={(e) => setPriority(e.target.value)} style={underlineSelectStyle}>

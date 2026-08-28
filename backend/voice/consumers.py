@@ -14,6 +14,8 @@ from typing import Any
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from agent.models import AgentTask
+from agent.tasks import run_agent_task
 from core.models import Conversation, Message, ModelPreference
 from core.prompts.persona import MIRABEL_STREAMING_SYSTEM_PROMPT
 from core.services.providers import get_provider
@@ -35,6 +37,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self._audio_buffer = bytearray()
         self._inflight_task: asyncio.Task | None = None
         self._conversation_id: int | None = None
+        self._agent_mode = False
         await self.accept()
         await self._send_json({"type": "ready"})
 
@@ -70,9 +73,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         elif kind == "text_message":
             # Optional: text input over the same socket (skip STT).
             await self._cancel_inflight()
-            self._inflight_task = asyncio.create_task(
-                self._handle_turn(user_text=str(msg.get("text", "")).strip())
-            )
+            text = str(msg.get("text", "")).strip()
+            handler = self._handle_agent_task if self._agent_mode else self._handle_turn
+            self._inflight_task = asyncio.create_task(handler(user_text=text))
+        elif kind == "set_agent_mode":
+            # Toggled from the UI. While on, a finished utterance is queued
+            # as a background AgentTask (agent/tasks.py) instead of driving
+            # a normal streaming chat turn — see _handle_agent_task.
+            self._agent_mode = bool(msg.get("enabled"))
 
     # ------------------------------------------------------------------
     # The full turn pipeline
@@ -84,7 +92,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self._send_json({"type": "transcript", "text": "", "empty": True})
                 return
             await self._send_json({"type": "transcript", "text": transcript})
-            await self._handle_turn(user_text=transcript)
+            if self._agent_mode:
+                await self._handle_agent_task(user_text=transcript)
+            else:
+                await self._handle_turn(user_text=transcript)
         except asyncio.CancelledError:
             logger.info("utterance cancelled (barge-in)")
             raise
@@ -156,6 +167,49 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self._send_json({"type": "error", "message": "generation error"})
 
     # ------------------------------------------------------------------
+    # Agent Mode — queues a background AgentTask instead of a normal turn.
+    # No live result push over this socket (results show up in the chat
+    # history / Agent tab once the Celery task finishes) — this just
+    # acknowledges the request was heard and got queued.
+    # ------------------------------------------------------------------
+    async def _handle_agent_task(self, *, user_text: str) -> None:
+        if not user_text:
+            return
+
+        conv_id, _user_msg_id = await self._persist_user_message(user_text)
+        self._conversation_id = conv_id
+
+        ack_text = "On it — give me a bit to actually go do that."
+        ack_mood = "determined"
+
+        tts_queue: asyncio.Queue[str | None] = asyncio.Queue()
+        tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
+        try:
+            task_id = await self._start_agent_task(conv_id, user_text)
+            # Lets the client poll GET /api/agent/tasks/<id>/ for live
+            # progress/approval instead of the task vanishing into the
+            # Agent tab with no way back to this conversation.
+            await self._send_json({"type": "agent_task_started", "task_id": task_id})
+            # text_delta (not just final) so the client's existing streamingText
+            # accumulation shows the ack bubble the same way a real streamed
+            # reply would, with no extra frontend-side casing needed.
+            await self._send_json({"type": "text_delta", "text": ack_text})
+            await tts_queue.put(ack_text)
+            await tts_queue.put(None)
+            await tts_worker
+            await self._send_json({"type": "final", "text": ack_text, "mood": ack_mood})
+        except asyncio.CancelledError:
+            logger.info("agent task queueing cancelled (barge-in)")
+            await tts_queue.put(None)
+            tts_worker.cancel()
+            raise
+        except Exception:
+            logger.exception("agent task queueing failed")
+            await tts_queue.put(None)
+            tts_worker.cancel()
+            await self._send_json({"type": "error", "message": "couldn't start that task"})
+
+    # ------------------------------------------------------------------
     # TTS worker — single consumer of the sentence queue, ordered output
     # ------------------------------------------------------------------
     async def _tts_worker(self, queue: asyncio.Queue[str | None]) -> None:
@@ -208,6 +262,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             conversation_id=self._conversation_id, role="user", text=text, mood=""
         )
         return self._conversation_id, msg.id
+
+    @database_sync_to_async
+    def _start_agent_task(self, conv_id: int, instruction: str) -> int:
+        task = AgentTask.objects.create(instruction=instruction, conversation_id=conv_id)
+        async_result = run_agent_task.delay(task.id)
+        task.celery_task_id = async_result.id
+        task.save(update_fields=["celery_task_id"])
+        return task.id
 
     @database_sync_to_async
     def _persist_assistant_message(self, conv_id: int, text: str, mood: str) -> int:

@@ -90,6 +90,11 @@ class ClassroomSubmissionDraft(models.Model):
     enum. Only ASSIGNMENT and SHORT_ANSWER_QUESTION are supported for
     solve+turn-in in this app; MULTIPLE_CHOICE_QUESTION and MATERIAL items
     are visible in the assignments list but can't produce a draft here.
+
+    coursework_description/attachment_text are a snapshot taken at solve
+    time, not a live reference — they let the UI show "the full assignment"
+    later without another Classroom API round-trip, and keep working even
+    if the coursework is edited or removed on Google's side afterward.
     """
 
     class WorkType(models.TextChoices):
@@ -104,11 +109,14 @@ class ClassroomSubmissionDraft(models.Model):
     course_name = models.CharField(max_length=255, blank=True, default="")
     coursework_id = models.CharField(max_length=64)
     coursework_title = models.CharField(max_length=500, blank=True, default="")
+    coursework_description = models.TextField(blank=True, default="")
+    attachment_text = models.TextField(blank=True, default="")
     work_type = models.CharField(max_length=32, choices=WorkType.choices)
     due_date = models.DateTimeField(null=True, blank=True)
 
     google_submission_id = models.CharField(max_length=64, blank=True, default="")
 
+    extra_instructions = models.TextField(blank=True, default="")
     answer_text = models.TextField(blank=True, default="")
     solution_doc_id = models.CharField(max_length=128, blank=True, default="")
     solution_doc_url = models.URLField(max_length=1000, blank=True, default="")

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import DOMPurify from "dompurify";
 import { Loader2 } from "lucide-react";
 import { generateOutlookReply, getOutlookMessage, replyOutlookMessage } from "../../services/api";
@@ -15,6 +15,27 @@ function formatDate(iso) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+function ShadowEmail({ html }) {
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    let shadow = containerRef.current.shadowRoot;
+    if (!shadow) {
+      shadow = containerRef.current.attachShadow({ mode: "open" });
+    }
+    const sanitized = DOMPurify.sanitize(html, { ADD_TAGS: ["style"], ADD_ATTR: ["target"] });
+    shadow.innerHTML = sanitized;
+  }, [html]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="text-[15px] leading-relaxed overflow-x-auto"
+      style={{ color: cream(0.85), background: "transparent" }}
+    />
+  );
 }
 
 export default function OutlookMessageView({ messageId, onBack }) {
@@ -141,18 +162,13 @@ export default function OutlookMessageView({ messageId, onBack }) {
                   {" · "}
                   {formatDate(item.receivedDateTime || item.sentDateTime)}
                 </p>
-                <div
-                  className="text-[15px] leading-relaxed overflow-x-auto"
-                  style={{ color: cream(0.85) }}
-                  dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(item.body?.content || "", { ADD_ATTR: ["target"] }),
-                  }}
-                />
+                <ShadowEmail html={item.body?.content || ""} />
               </div>
             ))}
           </div>
 
           <div style={{ marginTop: space[8], paddingTop: space[6], borderTop: `1px solid ${cream(0.1)}` }}>
+
             <div style={labelStyle}>{justSent ? "Write another reply" : "Reply"}</div>
 
             <div className="flex items-center flex-wrap" style={{ gap: space[4], marginTop: space[3] }}>

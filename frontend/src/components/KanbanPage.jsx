@@ -50,6 +50,31 @@ export default function KanbanPage() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const approachingTasks = useMemo(() => {
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
+    return tasks.filter(t => {
+      if (t.status === "done" || !t.due_date) return false;
+      const [year, month, day] = t.due_date.split("-").map(Number);
+      let hour = 23, min = 59, sec = 59;
+      if (t.due_time) {
+        const parts = t.due_time.split(":");
+        hour = Number(parts[0]);
+        min = Number(parts[1]);
+        if (parts.length > 2) sec = Number(parts[2]);
+        else sec = 0;
+      }
+      const due = new Date(year, month - 1, day, hour, min, sec, 999);
+      const diff = due.getTime() - now;
+      return diff > 0 && diff <= TWO_HOURS;
+    });
+  }, [tasks, now]);
+
   const [showBraindump, setShowBraindump] = useState(false);
   const [modalTask, setModalTask] = useState(null); // null = closed, {} = new, {...} = edit
   const [modalStatus, setModalStatus] = useState("todo");
@@ -354,6 +379,22 @@ export default function KanbanPage() {
       </div>
 
       {error && <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
+
+      {approachingTasks.length > 0 && (
+        <div
+          style={{
+            marginTop: space[4],
+            padding: space[4],
+            background: "rgba(224,140,140,0.1)",
+            border: "1px solid rgba(224,140,140,0.3)",
+            borderRadius: 6,
+            color: "rgba(224,140,140,0.95)",
+            fontSize: 14,
+          }}
+        >
+          <strong style={{ fontWeight: 600 }}>Reminder:</strong> You have {approachingTasks.length} task{approachingTasks.length > 1 ? "s" : ""} due in less than 2 hours: {approachingTasks.map(t => t.title).join(", ")}.
+        </div>
+      )}
 
       {!selectedProjectId ? (
         <p style={{ marginTop: space[8], fontSize: 15, color: cream(0.5) }}>Create a project to start its board.</p>

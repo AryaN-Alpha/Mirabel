@@ -14,7 +14,14 @@ pydantic==2.13.4
 pydantic-settings==2.7.1
 
 # --- AI core ---
-anthropic==0.42.0
+# anthropic bumped 0.42.0 -> 0.125.0 (still pre-1.0) to satisfy
+# langchain-anthropic's `anthropic<2.0.0,>=0.120.0` requirement below.
+# Deliberately NOT bumped to the 1.x series: verified live that
+# anthropic>=1.0 drops `temperature`/`top_p` as messages.create() kwargs,
+# which would break core/services/providers/anthropic_provider.py. 0.125.0
+# keeps that exact call shape (temperature, top_p, APIError subclasses,
+# messages.stream(), models.list() all unchanged from 0.42.0).
+anthropic==0.125.0
 google-genai==2.19.0
 openai==3.3.1
 
@@ -49,7 +56,7 @@ daphne==4.1.2
 uvicorn[standard]==0.34.0
 
 groq==0.15.0
-edge-tts==7.0.0
+edge-tts==7.2.8
 
 # Sentence segmentation for streaming TTS — pure-python, no model download
 pysbd==0.3.4
@@ -71,3 +78,15 @@ msal==1.37.0
 # GObject and doesn't work out of the box on a bare Windows dev machine).
 pdfplumber==0.11.10
 xhtml2pdf==0.2.17
+
+# --- Phase 6: agent (LangGraph tool-calling agent, run via Celery) ---
+langgraph==1.2.11
+# Postgres-backed checkpointer — agent runs pause (interrupt) and resume
+# across separate Celery task invocations / processes, so state can't live
+# in memory. Reuses the same Postgres DB as everything else (see
+# agent/management/commands/setup_agent_checkpointer.py).
+langgraph-checkpoint-postgres==3.1.2
+langchain-core==1.6.1
+langchain-anthropic==1.7.0
+langchain-openai==1.6.0
+langchain-google-genai==4.3.7

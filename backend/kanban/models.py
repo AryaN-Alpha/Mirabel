@@ -71,6 +71,7 @@ class KanbanTask(models.Model):
     priority = models.CharField(max_length=8, choices=PRIORITY_CHOICES, default=PRIORITY_MEDIUM)
     effort = models.CharField(max_length=8, choices=EFFORT_CHOICES, default=PRIORITY_MEDIUM)
     due_date = models.DateField(null=True, blank=True)
+    due_time = models.TimeField(null=True, blank=True)
     source = models.CharField(max_length=8, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     original_transcript_snippet = models.TextField(blank=True, default="")
     position = models.PositiveIntegerField(default=0)

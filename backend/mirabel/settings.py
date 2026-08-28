@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "classroom",
     "cv",
     "kanban",
+    "agent",
 ]
 
 MIDDLEWARE = [
@@ -133,6 +134,16 @@ CHROMA_DATABASE = os.getenv("CHROMA_DATABASE", "default_database")
 # --- Memory tuning ---
 MEMORY_RETRIEVAL_TOP_K = int(os.getenv("MEMORY_RETRIEVAL_TOP_K", "6"))
 MEMORY_RECENCY_HALF_LIFE_DAYS = float(os.getenv("MEMORY_RECENCY_HALF_LIFE_DAYS", "30"))
+
+# --- Agent tuning ---
+# Cap on tool-call steps per run — a cost/DoS guard, same spirit as
+# MAX_MESSAGE_LENGTH on the chat endpoint. Celery time limits are deliberately
+# generous (a multi-tool-call run needs minutes, not the 60s/45s the rest of
+# this app's tasks get) but set per-task in agent/tasks.py, not here, so the
+# global CELERY_TASK_TIME_LIMIT above stays correct for every other task.
+AGENT_MAX_STEPS = int(os.getenv("AGENT_MAX_STEPS", "15"))
+AGENT_TASK_TIME_LIMIT = int(os.getenv("AGENT_TASK_TIME_LIMIT", "600"))
+AGENT_TASK_SOFT_TIME_LIMIT = int(os.getenv("AGENT_TASK_SOFT_TIME_LIMIT", "540"))
 
 # --- Outlook / Microsoft Graph ---
 # MS_CLIENT_ID / MS_CLIENT_SECRET are deliberately not read here — they're
@@ -238,6 +249,11 @@ LOGGING = {
             "propagate": False,
         },
         "kanban": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "agent": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": False,

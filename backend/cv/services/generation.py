@@ -3,7 +3,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
-from cv.prompts import project_description_system_prompt, section_rewrite_system_prompt
+from cv.prompts import cover_letter_system_prompt, project_description_system_prompt, section_rewrite_system_prompt
 
 logger = logging.getLogger("cv.services.generation")
 
@@ -45,7 +45,10 @@ def format_cv_context(sections: dict) -> str:
         title, company = exp.get("title", ""), exp.get("company", "")
         if title or company:
             lines.append(f"Experience: {title} at {company}".strip())
-    skills = sections.get("skills") or []
+    # schema.py's shape is skill_groups (a list of {category, skills}), not a
+    # flat "skills" key — that key never exists, so this always silently
+    # produced zero skill context for every caller. Flatten it here instead.
+    skills = [skill for group in sections.get("skill_groups", []) for skill in group.get("skills", [])]
     if skills:
         lines.append(f"Skills: {', '.join(skills[:15])}")
     return "\n".join(lines)[:MAX_CONTEXT_CHARS]
@@ -63,3 +66,11 @@ def regenerate_section(*, section_type: str, current_text: str, instructions: st
         f"Instructions: {instructions}" if instructions else "Improve this."
     )
     return _generate(system=section_rewrite_system_prompt(section_type, context), user_content=user_content)
+
+
+def generate_cover_letter(*, job_description: str, company_name: str, job_title: str, sections: dict) -> dict[str, Any]:
+    context = format_cv_context(sections)
+    header = f"Job title: {job_title}\n" if job_title else ""
+    header += f"Company: {company_name}\n" if company_name else ""
+    user_content = f"{header}Job description:\n{job_description}"
+    return _generate(system=cover_letter_system_prompt(context), user_content=user_content)

@@ -6,6 +6,7 @@ from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
 from cv.prompts import structure_system_prompt
 from cv.schema import empty_sections, normalize_sections
+from cv.services.json_utils import extract_json_object
 
 logger = logging.getLogger("cv.services.structuring")
 
@@ -48,7 +49,7 @@ def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[st
         return _fallback(raw_text, error=True, reason="unknown")
 
     try:
-        parsed = json.loads(_extract_json_object(text))
+        parsed = json.loads(extract_json_object(text))
     except json.JSONDecodeError as exc:
         logger.error("CV structuring returned invalid JSON: %s", exc)
         return _fallback(raw_text, error=False, reason=None)
@@ -62,23 +63,6 @@ def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[st
         return _fallback(raw_text, error=False, reason=None)
 
     return {"sections": normalize_sections(parsed), "error": False, "reason": None}
-
-
-def _extract_json_object(text: str) -> str:
-    """Strips a markdown code fence if present, then narrows to the outermost
-    {...} span — covers models that add stray commentary before/after the
-    JSON despite being told not to (the prompt says "no commentary", but
-    that's not a guarantee)."""
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.strip("`")
-        if stripped.lower().startswith("json"):
-            stripped = stripped[4:]
-        stripped = stripped.strip()
-    start, end = stripped.find("{"), stripped.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return stripped[start : end + 1]
-    return stripped
 
 
 def _fallback(raw_text: str, *, error: bool, reason: str | None) -> dict[str, Any]:

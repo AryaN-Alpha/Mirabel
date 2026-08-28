@@ -14,4 +14,11 @@ urlpatterns = [
         views.regenerate_section_view,
         name="cv-regenerate-section",
     ),
+    path("<int:cv_id>/tailor/", views.tailor_to_job, name="cv-tailor"),
+    path("<int:cv_id>/consistency-check/", views.consistency_check, name="cv-consistency-check"),
+    path("<int:cv_id>/cover-letters/", views.cover_letter_list, name="cv-cover-letter-list"),
+    path("<int:cv_id>/cover-letters/<int:letter_id>/", views.cover_letter_detail, name="cv-cover-letter-detail"),
+    path(
+        "<int:cv_id>/cover-letters/<int:letter_id>/export/", views.cover_letter_export, name="cv-cover-letter-export"
+    ),
 ]

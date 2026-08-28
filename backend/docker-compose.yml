@@ -56,6 +56,37 @@ services:
       chroma:
         condition: service_started
 
+  agent-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mirabel-agent-worker
+    restart: unless-stopped
+    # Dedicated queue/worker for agent.tasks.* (agent/tasks.py) — kept
+    # separate from celery-worker above so a long-running multi-tool-call
+    # agent run never blocks the short-lived memory/outlook tasks, and vice
+    # versa. Single worker for now, per design — see agent/graph.py.
+    # One-time setup before first run (not part of the image build):
+    #   docker compose exec celery-worker python manage.py setup_agent_checkpointer
+    command: celery -A mirabel worker -Q agent --concurrency=1 -l info
+    env_file:
+      - .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      CHANNEL_LAYER_REDIS_URL: redis://redis:6379/3
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      DB_HOST: host.docker.internal
+      CELERY_TASK_ALWAYS_EAGER: "False"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+
   celery-beat:
     build:
       context: .
