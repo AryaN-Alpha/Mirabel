@@ -43,6 +43,7 @@ def check_cv_consistency(sections: dict) -> dict[str, Any]:
             history=[{"role": "user", "content": "Check this CV for tense/tone/grammar consistency."}],
             max_tokens=max(pref.max_tokens, 1000),
             temperature=0.2,
+            call_site="cv.consistency_check",
         )
     except ProviderError as exc:
         logger.error("%s provider call failed checking CV consistency: %s", pref.provider, exc)

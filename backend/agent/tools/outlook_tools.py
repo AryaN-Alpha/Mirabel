@@ -12,11 +12,18 @@ from django.utils.dateparse import parse_datetime
 from langchain_core.tools import tool
 
 from agent.tools._common import rejected_message, require_confirmation
+from core.services.text_utils import encode_compact_list, truncate_chars
 from outlook.models import OutlookCredential, ScheduledEmail
 from outlook.services import graph_client, oauth, sending
 from outlook.services.email_ai import generate_compose_draft as _generate_compose_draft
 from outlook.services.email_ai import generate_reply_draft as _generate_reply_draft
 from outlook.services.oauth import OutlookError
+
+# Raw Microsoft Graph message bodies can be arbitrarily large (HTML emails,
+# long threads) with no size contract from the API — cap what reaches the
+# LLM the same way cv/services/generation.py caps CV context.
+_MAX_BODY_CHARS = 3000
+_MAX_PREVIEW_CHARS = 500
 
 
 @tool
@@ -41,7 +48,17 @@ def list_outlook_inbox(domain: str = "", sender: str = "", top: int = 10) -> dic
         messages = graph_client.list_inbox_messages(token, domain=domain or None, sender=sender or None, top=top)
     except OutlookError as exc:
         return {"error": str(exc)}
-    return {"messages": messages}
+    for message in messages:
+        preview = message.get("bodyPreview")
+        if preview:
+            message["bodyPreview"] = truncate_chars(
+                preview, _MAX_PREVIEW_CHARS, label="preview", call_site="outlook.list_inbox"
+            )
+    # Below the size gate, encode_compact_list returns None and this is a
+    # no-op — same list-of-dicts shape as before, unchanged for the common
+    # small-inbox case.
+    compact = encode_compact_list(messages)
+    return {"messages": compact if compact is not None else messages}
 
 
 @tool
@@ -56,6 +73,11 @@ def get_outlook_message(message_id: str) -> dict:
         message = graph_client.get_message(token, message_id, prefer_text=True)
     except OutlookError as exc:
         return {"error": str(exc)}
+    body = message.get("body", {}).get("content")
+    if body:
+        message["body"]["content"] = truncate_chars(
+            body, _MAX_BODY_CHARS, label="email body", call_site="outlook.get_message"
+        )
     return message
 
 
@@ -73,10 +95,16 @@ def generate_outlook_reply(message_id: str, instructions: str = "") -> dict:
     except OutlookError as exc:
         return {"error": str(exc)}
     sender = message.get("from", {}).get("emailAddress", {}).get("address", "unknown sender")
+    body_text = truncate_chars(
+        message.get("body", {}).get("content", ""),
+        _MAX_BODY_CHARS,
+        label="email body",
+        call_site="outlook.generate_reply",
+    )
     return _generate_reply_draft(
         original_subject=message.get("subject", ""),
         original_sender=sender,
-        original_body_text=message.get("body", {}).get("content", ""),
+        original_body_text=body_text,
         instructions=instructions,
     )
 

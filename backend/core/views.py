@@ -9,7 +9,7 @@ from rest_framework.throttling import AnonRateThrottle
 from core.models import Conversation, Message, ModelPreference, ProviderCredential
 from core.services.llm import generate_reply
 from core.services.providers import AVAILABLE_MODELS, ENV_VAR_NAMES, ProviderError, get_provider
-from memory.tasks import embed_and_store
+from memory.tasks import embed_and_store, extract_and_supersede_facts
 
 HISTORY_WINDOW = 20
 MAX_MESSAGE_LENGTH = 4000
@@ -56,6 +56,10 @@ def chat(request: Request) -> Response:
     # Fire-and-forget: embed both turns asynchronously via Celery.
     embed_and_store.delay(user_msg.id)
     embed_and_store.delay(assistant_msg.id)
+    # User message only — facts are extracted from user disclosures, not
+    # assistant output (see memory/services/salience.py's existing
+    # "assistant gets no disclosure bonus" convention).
+    extract_and_supersede_facts.delay(user_msg.id)
 
     response_data = {
         "conversation_id": conversation.id,

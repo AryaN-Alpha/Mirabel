@@ -14,6 +14,7 @@ const PROVIDER_LABELS = {
   anthropic: "Anthropic",
   gemini: "Gemini",
   openai: "OpenAI",
+  deepseek: "DeepSeek",
   opencode: "OpenCode",
 };
 

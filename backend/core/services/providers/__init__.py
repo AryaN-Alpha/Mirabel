@@ -1,6 +1,7 @@
 from .anthropic_provider import AnthropicProvider
 from .base import Provider, ProviderError
 from .credentials import ENV_VAR_NAMES as ENV_VAR_NAMES
+from .deepseek_provider import DeepSeekProvider
 from .gemini_provider import GeminiProvider
 from .opencode_provider import OpenCodeProvider
 from .openai_provider import OpenAIProvider
@@ -21,6 +22,11 @@ AVAILABLE_MODELS: dict[str, list[dict[str, str]]] = {
         {"id": "gpt-5.6-terra", "label": "GPT-5.6 Terra — balanced (default)"},
         {"id": "gpt-5.6-luna", "label": "GPT-5.6 Luna — fastest"},
     ],
+    "deepseek": [
+        {"id": "deepseek-v4-flash", "label": "DeepSeek V4 Flash — fast & affordable (default)"},
+        {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro — most capable"},
+        {"id": "deepseek-v4-flash-vision-exp", "label": "DeepSeek V4 Flash Vision — multimodal (exp)"},
+    ],
     # Not wired up yet — kept in the registry so the frontend can show it as
     # "coming soon" instead of not knowing it exists.
     "opencode": [],
@@ -30,6 +36,7 @@ _PROVIDERS: dict[str, Provider] = {
     "anthropic": AnthropicProvider(),
     "gemini": GeminiProvider(),
     "openai": OpenAIProvider(),
+    "deepseek": DeepSeekProvider(),
     "opencode": OpenCodeProvider(),
 }
 

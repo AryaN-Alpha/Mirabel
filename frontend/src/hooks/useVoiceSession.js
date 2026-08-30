@@ -17,6 +17,7 @@ export function useVoiceSession() {
   const [thinking, setThinking] = useState(false);
   const [wsError, setWsError] = useState("");
   const [agentTask, setAgentTask] = useState(null);
+  const [agentTaskNudge, setAgentTaskNudge] = useState("");
 
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
@@ -94,6 +95,7 @@ export function useVoiceSession() {
           break;
         case "transcript":
           setWsError("");
+          setAgentTaskNudge("");
           setTranscript(msg.text || "");
           if (msg.text) {
             setThinking(true);
@@ -136,6 +138,14 @@ export function useVoiceSession() {
         case "final":
           setMood(msg.mood || "neutral");
           setThinking(false);
+          break;
+        case "agent_task_nudge":
+          // Server suppressed/redirected this utterance instead of starting
+          // new work (a task is already pending) — surface it so the user
+          // isn't left wondering why nothing happened. Not an error: no
+          // wsError, just a transient status line.
+          setThinking(false);
+          setAgentTaskNudge(msg.message || "");
           break;
         case "error":
           console.error("server error:", msg.message);
@@ -284,6 +294,7 @@ export function useVoiceSession() {
     mood,
     thinking,
     wsError,
+    agentTaskNudge,
     startMic,
     stopMic,
     setAgentMode,

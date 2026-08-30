@@ -10,7 +10,7 @@ from memory.services.retrieval import format_memories_for_prompt, retrieve_relev
 logger = logging.getLogger("linkedin.services.generation")
 
 
-def _generate(*, system: str, user_content: str) -> dict[str, Any]:
+def _generate(*, system: str, user_content: str, call_site: str, system_suffix: str = "") -> dict[str, Any]:
     """Never-crash contract, matching core/services/llm.py::generate_reply and
     outlook/services/email_ai.py::_generate."""
     pref = ModelPreference.current()
@@ -19,9 +19,11 @@ def _generate(*, system: str, user_content: str) -> dict[str, Any]:
         text = provider.generate_text(
             model=pref.model,
             system=system,
+            system_suffix=system_suffix,
             history=[{"role": "user", "content": user_content}],
             max_tokens=pref.max_tokens,
             temperature=pref.temperature,
+            call_site=call_site,
         )
         return {"text": text.strip(), "error": False, "reason": None}
     except ProviderError as exc:
@@ -47,10 +49,7 @@ def generate_post(*, prompt: str, tone: str = "", length: str = "medium") -> dic
     name = LinkedInCredential.current().name
 
     system = post_system_prompt(tone=tone, length=length, author_name=name)
-    if memory_block:
-        system = f"{system}\n\n{memory_block}"
-
-    return _generate(system=system, user_content=prompt)
+    return _generate(system=system, system_suffix=memory_block, user_content=prompt, call_site="linkedin.generate_post")
 
 
 def generate_comment_reply(*, post_context: str, instructions: str = "") -> dict[str, Any]:
@@ -63,4 +62,4 @@ def generate_comment_reply(*, post_context: str, instructions: str = "") -> dict
         f"The post you're replying to:\n{post_context}\n\n"
         f"{'Instructions for the reply: ' + instructions if instructions else 'Write an appropriate, engaging reply.'}"
     )
-    return _generate(system=comment_system_prompt(), user_content=user_content)
+    return _generate(system=comment_system_prompt(), user_content=user_content, call_site="linkedin.generate_comment")

@@ -3,13 +3,20 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.text_utils import truncate_chars
 
 from classroom.prompts import solver_system_prompt
 
 logger = logging.getLogger("classroom.services.solver")
 
+# Caps on unbounded user-provided content (pasted attachment text, long
+# assignment descriptions) — these previously went into the prompt with no
+# limit at all.
+_MAX_DESCRIPTION_CHARS = 6000
+_MAX_ATTACHMENT_CHARS = 6000
 
-def _generate(*, system: str, user_content: str) -> dict[str, Any]:
+
+def _generate(*, system: str, user_content: str, call_site: str) -> dict[str, Any]:
     """Never-crash contract, matching linkedin.services.generation._generate /
     outlook.services.email_ai._generate."""
     pref = ModelPreference.current()
@@ -21,6 +28,7 @@ def _generate(*, system: str, user_content: str) -> dict[str, Any]:
             history=[{"role": "user", "content": user_content}],
             max_tokens=pref.max_tokens,
             temperature=pref.temperature,
+            call_site=call_site,
         )
         return {"text": text.strip(), "error": False, "reason": None}
     except ProviderError as exc:
@@ -46,12 +54,18 @@ def solve_coursework(
 
     parts = [f"Title: {title}"]
     if description:
+        description = truncate_chars(
+            description, _MAX_DESCRIPTION_CHARS, label="assignment description", call_site="classroom.solve"
+        )
         parts.append(f"Description:\n{description}")
     if attachment_text:
+        attachment_text = truncate_chars(
+            attachment_text, _MAX_ATTACHMENT_CHARS, label="attachment", call_site="classroom.solve"
+        )
         parts.append(f"Attached document text:\n{attachment_text}")
     if extra_instructions:
         parts.append(f"Additional instructions from the student:\n{extra_instructions}")
     user_content = "\n\n".join(parts)
 
     system = solver_system_prompt(work_type=work_type, course_name=course_name)
-    return _generate(system=system, user_content=user_content)
+    return _generate(system=system, user_content=user_content, call_site="classroom.solve_coursework")

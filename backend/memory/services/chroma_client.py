@@ -95,6 +95,14 @@ def list_memories(
     return total, page
 
 
+def delete_memories(ids: list[str]) -> None:
+    """No-op on an empty list — Chroma's delete() errors on ids=[]."""
+    if not ids:
+        return
+    collection = get_collection()
+    collection.delete(ids=ids)
+
+
 def collection_stats() -> dict[str, Any]:
     """Total count, mood breakdown, and date range across the whole collection."""
     collection = get_collection()
@@ -120,14 +128,26 @@ def collection_stats() -> dict[str, Any]:
 
 
 def query_memories(
-    *, query_text: str, n_results: int = 12
+    *, query_text: str, n_results: int = 12, where: dict[str, Any] | None = None
 ) -> list[dict[str, Any]]:
     """
     Returns {id, text, metadata, similarity} dicts.
     Over-fetches (n_results=12) so the re-ranker in retrieval.py has room to work.
+
+    `where` is an optional Chroma metadata filter, passed through unchanged.
+    Chroma's equality filters only match documents where the key is PRESENT
+    — they do not treat a missing key as "not equal," they simply never
+    match it. Only pass `where` when every candidate document is guaranteed
+    to have the filtered key (e.g. memory/services/supersession.py filtering
+    kind="fact" rows, which never predate that key existing). General
+    retrieval over the whole collection must NOT filter this way — see
+    retrieval.py's status filter, which is done in Python after fetch instead.
     """
     collection = get_collection()
-    raw = collection.query(query_texts=[query_text], n_results=n_results)
+    kwargs: dict[str, Any] = {"query_texts": [query_text], "n_results": n_results}
+    if where:
+        kwargs["where"] = where
+    raw = collection.query(**kwargs)
 
     out: list[dict[str, Any]] = []
     if not raw["ids"] or not raw["ids"][0]:

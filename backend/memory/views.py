@@ -21,7 +21,7 @@ def _build_where(request: Request) -> dict[str, Any] | None:
         conditions.append({"mood": {"$in": moods}})
 
     kind = (request.GET.get("kind") or "").strip()
-    if kind in ("turn", "summary"):
+    if kind in ("turn", "summary", "fact"):
         conditions.append({"kind": kind})
 
     date_from = (request.GET.get("date_from") or "").strip()
@@ -57,6 +57,8 @@ def _serialize_memory(item: dict[str, Any]) -> dict[str, Any]:
         "kind": meta.get("kind", "turn"),
         "created_at": meta.get("created_at"),
         "conversation_id": meta.get("conversation_id"),
+        "fact_type": meta.get("fact_type"),
+        "status": meta.get("status", "active"),
     }
 
 

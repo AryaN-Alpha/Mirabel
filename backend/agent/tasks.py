@@ -22,6 +22,7 @@ from langgraph.types import Command
 
 from agent.graph import build_agent, run_config
 from agent.models import AgentTask
+from agent.tools.routing import select_tools
 from core.models import Message
 from voice.services.protocol import ProtocolParser
 
@@ -82,7 +83,11 @@ def _run_graph(task: AgentTask, graph_input) -> None:
     if the run pauses for approval (verified against the installed
     langgraph 1.2.11 source: langgraph/types.py's interrupt() docstring
     example shows this exact shape)."""
-    agent = build_agent()
+    # Routed from task.instruction (persisted on the row) rather than any
+    # live/ephemeral state, so a resumed run recomputes the exact same tool
+    # subset the original run used — the checkpointed thread's tool-call
+    # history must line up with whatever tools are bound on replay.
+    agent = build_agent(tools=select_tools(task.instruction))
     config = run_config(task.thread_id)
     all_messages: list = []
     interrupt_value = None

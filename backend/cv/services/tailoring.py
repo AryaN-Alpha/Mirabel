@@ -4,6 +4,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.text_utils import select_relevant_sentences
 from cv.prompts import job_tailor_system_prompt
 from cv.services.generation import format_cv_context
 from cv.services.json_utils import extract_json_object
@@ -11,6 +12,7 @@ from cv.services.json_utils import extract_json_object
 logger = logging.getLogger("cv.services.tailoring")
 
 _VALID_SECTION_TYPES = {"experience", "education", "projects", "certifications", "summary", "strengths"}
+_MAX_JOB_DESCRIPTION_CHARS = 6000
 
 
 def _fallback(*, error: bool, reason: str | None) -> dict[str, Any]:
@@ -41,6 +43,15 @@ def tailor_cv_to_job(sections: dict, job_description: str) -> dict[str, Any]:
     shape: provider call -> JSON parse -> normalize, falling back to an
     empty-but-valid result (never raises) at any failure point."""
     context = format_cv_context(sections)
+    # The CV's own content is the relevance query: a job posting mixes
+    # load-bearing requirements with boilerplate (company blurbs, benefits,
+    # EOE statements), and what's relevant is determined by what's in the
+    # candidate's CV, not a fixed character offset. Falls back to plain
+    # truncate_chars internally if extraction isn't applicable.
+    job_description = select_relevant_sentences(
+        job_description, query=context, max_chars=_MAX_JOB_DESCRIPTION_CHARS,
+        label="job description", call_site="cv.tailor",
+    )
     pref = ModelPreference.current()
     try:
         provider = get_provider(pref.provider)
@@ -50,6 +61,7 @@ def tailor_cv_to_job(sections: dict, job_description: str) -> dict[str, Any]:
             history=[{"role": "user", "content": job_description}],
             max_tokens=max(pref.max_tokens, 1000),
             temperature=0.3,
+            call_site="cv.tailor",
         )
     except ProviderError as exc:
         logger.error("%s provider call failed tailoring CV: %s", pref.provider, exc)

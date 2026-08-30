@@ -6,6 +6,7 @@ from typing import Any
 from core.models import ModelPreference
 from core.prompts.persona import ALLOWED_MOODS, MIRABEL_SYSTEM_PROMPT
 from core.services.providers import ProviderError, get_provider
+from memory.services.gating import needs_memory
 from memory.services.retrieval import format_memories_for_prompt, retrieve_relevant_memories
 
 logger = logging.getLogger("core.services.llm")
@@ -23,21 +24,23 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
     latest_user_msg = next(
         (m["content"] for m in reversed(history) if m["role"] == "user"), ""
     )
-    memories = retrieve_relevant_memories(query_text=latest_user_msg)
+    if needs_memory(latest_user_msg):
+        memories = retrieve_relevant_memories(query_text=latest_user_msg)
+    else:
+        logger.debug("memory gate: skipping retrieval for trivial message %r", latest_user_msg[:40])
+        memories = []
     memory_block = format_memories_for_prompt(memories)
-
-    system = MIRABEL_SYSTEM_PROMPT
-    if memory_block:
-        system = f"{system}\n\n{memory_block}"
 
     try:
         provider = get_provider(pref.provider)
         raw = provider.generate_text(
             model=pref.model,
-            system=system,
+            system=MIRABEL_SYSTEM_PROMPT,
+            system_suffix=memory_block,
             history=history,
             max_tokens=pref.max_tokens,
             temperature=pref.temperature,
+            call_site="chat.rest",
         )
     except ProviderError as exc:
         logger.error("%s provider call failed: %s", pref.provider, exc)

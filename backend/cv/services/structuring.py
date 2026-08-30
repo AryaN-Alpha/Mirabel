@@ -4,11 +4,14 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.text_utils import truncate_chars
 from cv.prompts import structure_system_prompt
 from cv.schema import empty_sections, normalize_sections
 from cv.services.json_utils import extract_json_object
 
 logger = logging.getLogger("cv.services.structuring")
+
+_MAX_RAW_TEXT_CHARS = 8000
 
 
 def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[str, Any]:
@@ -26,10 +29,10 @@ def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[st
     never the actual href, so without this the model has no way to fill in
     a real URL and would either invent one or leave the label in its place.
     """
-    user_content = raw_text
+    user_content = truncate_chars(raw_text, _MAX_RAW_TEXT_CHARS, label="extracted CV text", call_site="cv.structure")
     if hyperlinks:
         links_block = "\n".join(f"- {link['label']} -> {link['url']}" for link in hyperlinks)
-        user_content = f"{raw_text}\n\nLinks found in the PDF (label -> actual URL):\n{links_block}"
+        user_content = f"{user_content}\n\nLinks found in the PDF (label -> actual URL):\n{links_block}"
 
     pref = ModelPreference.current()
     try:
@@ -40,6 +43,7 @@ def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[st
             history=[{"role": "user", "content": user_content}],
             max_tokens=max(pref.max_tokens, 4000),
             temperature=0.2,
+            call_site="cv.structure",
         )
     except ProviderError as exc:
         logger.error("%s provider call failed structuring CV: %s", pref.provider, exc)

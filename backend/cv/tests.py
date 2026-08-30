@@ -581,6 +581,43 @@ class CvTailorEndpointTests(CvAPITestCase):
         self.assertEqual(response.data["suggestions"][0]["section_type"], "summary")
 
 
+class CvTailorExtractionTests(CvAPITestCase):
+    """Pass 6: cv/services/tailoring.py replaced a plain character-offset
+    truncation with select_relevant_sentences for the job description,
+    scored against the CV's own content. Exercises that path directly
+    (rather than through the endpoint, since the endpoint's test CVs above
+    have no populated sections to score against)."""
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_long_job_description_is_condensed_but_keeps_relevant_terms(self, mock_get_provider):
+        from cv.schema import empty_sections
+        from cv.services.tailoring import _MAX_JOB_DESCRIPTION_CHARS, tailor_cv_to_job
+
+        mock_get_provider.return_value.generate_text.return_value = (
+            '{"match_score": 80, "missing_keywords": [], "suggestions": []}'
+        )
+        sections = empty_sections()
+        sections["skill_groups"] = [{"category": "Backend", "skills": ["Python", "Django", "PostgreSQL", "Celery"]}]
+
+        long_job_description = (
+            "We are a fast-growing startup that values collaboration and fun. " * 60
+            + "You must have 5+ years of experience with Python and Django. "
+            + "We offer competitive benefits and a great culture. " * 60
+            + "Experience with PostgreSQL and Celery is required."
+        )
+        self.assertGreater(len(long_job_description), _MAX_JOB_DESCRIPTION_CHARS)
+
+        result = tailor_cv_to_job(sections, long_job_description)
+
+        self.assertFalse(result["error"])
+        self.assertEqual(result["match_score"], 80)
+        sent_content = mock_get_provider.return_value.generate_text.call_args.kwargs["history"][0]["content"]
+        self.assertLessEqual(len(sent_content), _MAX_JOB_DESCRIPTION_CHARS + 200)
+        lower = sent_content.lower()
+        self.assertIn("python", lower)
+        self.assertIn("django", lower)
+
+
 class CvConsistencyCheckEndpointTests(CvAPITestCase):
     def test_unknown_cv_404(self):
         response = self.client.post(reverse("cv-consistency-check", args=[999]), {}, format="json")

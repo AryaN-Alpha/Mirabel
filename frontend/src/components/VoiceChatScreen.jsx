@@ -22,6 +22,7 @@ export default function VoiceChatScreen() {
     streamingText,
     thinking,
     wsError,
+    agentTaskNudge,
     startMic,
     stopMic,
     setAgentMode,
@@ -95,6 +96,8 @@ export default function VoiceChatScreen() {
     ? micError
     : wsError
     ? wsError
+    : agentTaskNudge
+    ? agentTaskNudge
     : agentModeOn
     ? "Agent mode. Tell me what to do and I'll go actually do it."
     : micOn

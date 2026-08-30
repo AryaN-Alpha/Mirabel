@@ -11,6 +11,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from django.conf import settings
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.prebuilt import create_react_agent
 from psycopg import Connection
@@ -20,6 +21,55 @@ from agent.prompts import AGENT_SYSTEM_PROMPT
 from agent.tools.registry import ALL_TOOLS
 from core.models import ModelPreference
 from core.services.providers.credentials import get_api_key
+
+# Caps how many of the run's accumulated messages are sent to the LLM on
+# each iteration (see _trim_agent_messages) — a safety net for pathological
+# long tool-call chains, not the common case now that agent/tools/routing.py
+# keeps most tasks focused. AGENT_MAX_STEPS bounds the *number* of tool-call
+# round trips; this bounds how much of that history gets resent each time.
+_MAX_AGENT_MESSAGES = 20
+
+
+def _group_messages(messages: list) -> list[list]:
+    """Clusters each AIMessage-with-tool_calls together with the
+    ToolMessage(s) it produced, so trimming can never split a pair —
+    Anthropic/OpenAI reject a request with a tool_use lacking its
+    tool_result (or vice versa). Every other message is its own group."""
+    groups: list[list] = []
+    for msg in messages:
+        if isinstance(msg, ToolMessage) and groups and isinstance(groups[-1][-1], (AIMessage, ToolMessage)):
+            groups[-1].append(msg)
+        else:
+            groups.append([msg])
+    return groups
+
+
+def _trim_agent_messages(state: dict) -> dict:
+    """pre_model_hook: bounds what's sent to the LLM on each agent-loop
+    iteration without touching the checkpointed state — returns
+    llm_input_messages only, so a resumed/replayed run still sees its full
+    history. Always keeps the first message (the original instruction) plus
+    as many of the most recent whole tool-call groups as fit the budget."""
+    messages = state["messages"]
+    if len(messages) <= _MAX_AGENT_MESSAGES:
+        return {"llm_input_messages": messages}
+
+    groups = _group_messages(messages)
+    first_group, rest = groups[0], groups[1:]
+    budget = _MAX_AGENT_MESSAGES - len(first_group)
+    kept: list = []
+    for group in reversed(rest):
+        if len(group) > budget:
+            # Skip this one oversized group, not the whole rest of the scan
+            # — an older group further back may still be small enough to
+            # fit. `continue` (not `break`) is what makes this actually
+            # "as many of the most recent whole tool-call groups as fit the
+            # budget" (see docstring) rather than all-or-nothing on
+            # whichever single group happens to be checked first.
+            continue
+        kept = group + kept
+        budget -= len(group)
+    return {"llm_input_messages": first_group + kept}
 
 
 def connection_string() -> str:
@@ -39,11 +89,13 @@ def _checkpointer() -> PostgresSaver:
     return PostgresSaver(conn)
 
 
-def build_agent():
+def build_agent(tools: list | None = None):
     """Returns a compiled LangGraph agent bound to the current model
-    preference and the full tool registry. Cheap to call repeatedly — the
-    checkpointer connection is memoized; only the model/graph wiring is
-    rebuilt, which matters because ModelPreference can change between runs.
+    preference and the given tool list (defaults to the full registry when
+    `tools` is omitted, preserving prior behavior for any caller that
+    doesn't route). Cheap to call repeatedly — the checkpointer connection
+    is memoized; only the model/graph wiring is rebuilt, which matters
+    because ModelPreference can change between runs.
 
     NOTE: langgraph.prebuilt.create_react_agent is deprecated as of
     langgraph 1.x in favor of langchain.agents.create_agent (removal
@@ -55,9 +107,10 @@ def build_agent():
     model = _build_model()
     return create_react_agent(
         model,
-        tools=ALL_TOOLS,
+        tools=tools if tools is not None else ALL_TOOLS,
         prompt=AGENT_SYSTEM_PROMPT,
         checkpointer=_checkpointer(),
+        pre_model_hook=_trim_agent_messages,
     )
 
 
@@ -95,6 +148,20 @@ def _build_model():
             model=pref.model,
             google_api_key=api_key,
             max_output_tokens=pref.max_tokens,
+            temperature=pref.temperature,
+        )
+    if pref.provider == "deepseek":
+        from langchain_openai import ChatOpenAI
+
+        from core.services.providers.deepseek_provider import DEEPSEEK_BASE_URL
+
+        # DeepSeek exposes an OpenAI-compatible API — point ChatOpenAI at their
+        # base URL. langchain-openai supports this via openai_api_base / base_url.
+        return ChatOpenAI(
+            model=pref.model,
+            api_key=api_key,
+            base_url=DEEPSEEK_BASE_URL,
+            max_tokens=pref.max_tokens,
             temperature=pref.temperature,
         )
     raise RuntimeError(f"Agent doesn't support provider '{pref.provider}'.")
