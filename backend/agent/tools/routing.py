@@ -25,8 +25,10 @@ from agent.tools import (
     linkedin_tools,
     memory_tools,
     outlook_tools,
+    spotify_tools,
 )
 from agent.tools.registry import ALL_TOOLS
+from core.services.telemetry import log_optimization_event
 
 # Tools every task can reach regardless of domain: memory lookup and
 # clarifying-question are cheap (3 schemas total) and not domain-specific.
@@ -52,6 +54,10 @@ _DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
         "classroom", "assignment", "coursework", "turn in", "google classroom",
         "homework",
     ),
+    "spotify": (
+        "spotify", "playlist", "song", "songs", "track", "album", "artist",
+        "play music", "currently playing", "now playing", "queue",
+    ),
 }
 
 _DOMAIN_TOOLS: dict[str, list] = {
@@ -60,6 +66,7 @@ _DOMAIN_TOOLS: dict[str, list] = {
     "linkedin": linkedin_tools.TOOLS,
     "outlook": outlook_tools.TOOLS,
     "classroom": classroom_tools.TOOLS,
+    "spotify": spotify_tools.TOOLS,
 }
 
 _MAX_DOMAINS = 2
@@ -80,9 +87,11 @@ def select_tools(instruction: str) -> list:
     more than _MAX_DOMAINS match (a genuinely cross-domain/ambiguous task)."""
     domains = _matched_domains(instruction or "")
     if not domains or len(domains) > _MAX_DOMAINS:
+        log_optimization_event(category="tool_routing", outcome="full", count=len(ALL_TOOLS))
         return ALL_TOOLS
 
     tools = list(_ALWAYS_ON)
     for domain in domains:
         tools.extend(_DOMAIN_TOOLS[domain])
+    log_optimization_event(category="tool_routing", outcome="routed", count=len(tools), extra=len(ALL_TOOLS))
     return tools

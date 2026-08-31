@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, SlidersHorizontal, Mail, Linkedin, GraduationCap, FileText, Brain, SquareKanban } from "lucide-react";
+import { LayoutDashboard, SlidersHorizontal, Mail, Linkedin, GraduationCap, FileText, Brain, SquareKanban, Music, BarChart3 } from "lucide-react";
 import { fontHeading, text, accent } from "./homeTheme";
 
 function NavRow({ icon: Icon, label, to, end }) {
@@ -55,8 +55,10 @@ export default function Sidebar() {
         <NavRow icon={Linkedin} label="LinkedIn" to="/home/linkedin" />
         <NavRow icon={GraduationCap} label="Classroom" to="/home/classroom" />
         <NavRow icon={FileText} label="CV" to="/home/cv" />
+        <NavRow icon={Music} label="Spotify" to="/home/spotify" />
         <NavRow icon={Brain} label="Agent" to="/home/agent" />
         <NavRow icon={SquareKanban} label="Tasks" to="/home/tasks" />
+        <NavRow icon={BarChart3} label="Stats" to="/home/stats" />
       </nav>
     </aside>
   );

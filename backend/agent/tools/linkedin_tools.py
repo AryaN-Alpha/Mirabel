@@ -9,11 +9,16 @@ from __future__ import annotations
 from langchain_core.tools import tool
 
 from agent.tools._common import rejected_message, require_confirmation
-from linkedin.models import LinkedInCredential, LinkedInDraft
+from core.services.text_utils import encode_compact_list
+from linkedin.models import LinkedInAutomation, LinkedInCredential, LinkedInDraft, LinkedInProfileChange
 from linkedin.services import client, oauth, publishing
+from linkedin.services.activity import content_activity as _content_activity
 from linkedin.services.generation import generate_comment_reply as _generate_comment_reply
 from linkedin.services.generation import generate_post as _generate_post
 from linkedin.services.oauth import LinkedInError
+from linkedin.services.overview import build_overview as _build_overview
+from linkedin.services.profile import latest_synced_at as _latest_synced_at
+from linkedin.services.profile import profile_health as _profile_health
 
 
 @tool
@@ -120,6 +125,119 @@ def post_linkedin_comment(post_urn: str, message: str) -> dict:
     return {"posted": True}
 
 
+@tool
+def get_linkedin_profile() -> dict:
+    """Get the connected LinkedIn account's profile: name, email, picture, connection
+    status, a deterministic profile-completeness health score, and when it was last
+    synchronized. Only returns fields LinkedIn actually exposes through this
+    integration (name/email/picture) — it will never have headline, experience,
+    education, skills, certifications, or location; this integration's OAuth scope
+    (openid, profile, email) doesn't provide those, so don't imply otherwise."""
+    cred = LinkedInCredential.current()
+    synced_at = _latest_synced_at()
+    return {
+        "connected": cred.is_connected,
+        "name": cred.name,
+        "email": cred.email,
+        "picture_url": cred.picture_url,
+        "last_synced": synced_at.isoformat() if synced_at else None,
+        "health": _profile_health(),
+    }
+
+
+@tool
+def get_linkedin_profile_changes(limit: int = 10) -> dict:
+    """Get the most recently detected changes to the connected LinkedIn profile
+    (name, email, or picture), most recent first. Empty means no changes have been
+    detected since profile syncing started, not that nothing ever changed.
+
+    Args:
+        limit: Max number of changes to return (default 10, capped at 50).
+    """
+    limit = max(1, min(limit, 50))
+    changes = [
+        {
+            "field": c.field,
+            "old_value": c.old_value,
+            "new_value": c.new_value,
+            "detected_at": c.detected_at.isoformat(),
+        }
+        for c in LinkedInProfileChange.objects.order_by("-detected_at")[:limit]
+    ]
+    compact = encode_compact_list(changes)
+    return {"changes": compact if compact is not None else changes}
+
+
+@tool
+def get_linkedin_analytics() -> dict:
+    """Check whether LinkedIn engagement analytics (profile views, search
+    appearances, follower counts, post impressions/reactions/comments) are
+    available. They are NOT — LinkedIn does not expose that data through this
+    integration's OAuth scope (openid, profile, email, w_member_social), a standard
+    self-serve developer product, not the partner-gated Marketing Developer
+    Platform. ALWAYS call this instead of guessing at engagement numbers when asked
+    about LinkedIn analytics; use get_linkedin_content_activity for the
+    publishing-record data that IS available."""
+    return {
+        "available": False,
+        "reason": (
+            "LinkedIn does not provide profile views, search appearances, "
+            "follower counts, or post-level impressions/reactions/comments "
+            "through this integration's OAuth scope. That data requires "
+            "LinkedIn's partner-gated Marketing Developer Platform / "
+            "Community Management API, which this integration does not have "
+            "access to."
+        ),
+    }
+
+
+@tool
+def get_linkedin_content_activity(period_days: int = 30) -> dict:
+    """Get Mirabel's own record of LinkedIn posts published through this app in the
+    last N days — this is NOT LinkedIn engagement analytics (LinkedIn doesn't expose
+    those; call get_linkedin_analytics first if asked about engagement/impressions/
+    reactions). Includes post count, visibility breakdown, and the most recent
+    published posts.
+
+    Args:
+        period_days: One of 7, 30, or 90 (defaults to 30; any other value falls back to 30).
+    """
+    result = _content_activity(period_days)
+    compact = encode_compact_list(result["recent_posts"])
+    if compact is not None:
+        result["recent_posts"] = compact
+    return result
+
+
+@tool
+def get_linkedin_automation_status() -> dict:
+    """List configured LinkedIn automations (profile sync, daily briefing, weekly
+    report) with whether each is enabled and its last run's status."""
+    automations = [
+        {
+            "id": a.id,
+            "name": a.name,
+            "type": a.type,
+            "enabled": a.enabled,
+            "last_status": a.last_status,
+            "last_run_at": a.last_run_at.isoformat() if a.last_run_at else None,
+            "next_run_at": a.next_run_at.isoformat() if a.next_run_at else None,
+            "failure_count": a.failure_count,
+        }
+        for a in LinkedInAutomation.objects.all()
+    ]
+    return {"automations": automations}
+
+
+@tool
+def get_linkedin_activity_summary() -> dict:
+    """Get a combined LinkedIn summary — profile health, recent profile changes,
+    Mirabel's publishing activity for the last 30 days, and automation status. Use
+    this for broad questions like "how is my LinkedIn doing" or "what should I focus
+    on this week"."""
+    return _build_overview(30)
+
+
 def _serialize_draft(draft: LinkedInDraft) -> dict:
     return {
         "id": draft.id,
@@ -138,4 +256,10 @@ TOOLS = [
     publish_linkedin_draft,
     generate_linkedin_comment,
     post_linkedin_comment,
+    get_linkedin_profile,
+    get_linkedin_profile_changes,
+    get_linkedin_analytics,
+    get_linkedin_content_activity,
+    get_linkedin_automation_status,
+    get_linkedin_activity_summary,
 ]

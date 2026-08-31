@@ -246,6 +246,299 @@ export async function generateLinkedInComment(postContext, instructions) {
   return data;
 }
 
+export async function getLinkedInProfile() {
+  const { data } = await client.get("/api/linkedin/profile/");
+  return data;
+}
+
+export async function getLinkedInProfileHistory() {
+  const { data } = await client.get("/api/linkedin/profile/history/");
+  return data;
+}
+
+export async function syncLinkedInProfile() {
+  const { data } = await client.post("/api/linkedin/sync/");
+  return data;
+}
+
+export async function getLinkedInActivity(period = 30) {
+  const { data } = await client.get("/api/linkedin/activity/", { params: { period } });
+  return data;
+}
+
+export async function getLinkedInOverview(period = 30) {
+  const { data } = await client.get("/api/linkedin/overview/", { params: { period } });
+  return data;
+}
+
+export async function listLinkedInAutomations() {
+  const { data } = await client.get("/api/linkedin/automations/");
+  return data;
+}
+
+export async function createLinkedInAutomation(automation) {
+  const { data } = await client.post("/api/linkedin/automations/", automation);
+  return data;
+}
+
+export async function updateLinkedInAutomation(id, patch) {
+  const { data } = await client.patch(`/api/linkedin/automations/${id}/`, patch);
+  return data;
+}
+
+export async function deleteLinkedInAutomation(id) {
+  await client.delete(`/api/linkedin/automations/${id}/`);
+}
+
+export async function runLinkedInAutomationNow(id) {
+  const { data } = await client.post(`/api/linkedin/automations/${id}/run/`);
+  return data;
+}
+
+export async function listLinkedInAutomationRuns(automationId) {
+  const { data } = await client.get("/api/linkedin/automation-runs/", {
+    params: automationId ? { automation_id: automationId } : {},
+  });
+  return data;
+}
+
+export function spotifyConnectUrl() {
+  const base = import.meta.env.VITE_SPOTIFY_API_URL || client.defaults.baseURL;
+  return `${base}/api/spotify/auth/start/`;
+}
+
+export async function getSpotifyStatus() {
+  const { data } = await client.get("/api/spotify/status/");
+  return data;
+}
+
+export async function disconnectSpotify() {
+  const { data } = await client.post("/api/spotify/disconnect/");
+  return data;
+}
+
+export async function searchSpotify(q, { types, limit, offset } = {}) {
+  const { data } = await client.get("/api/spotify/search/", {
+    params: { q, types, limit, offset },
+  });
+  return data;
+}
+
+export async function getSpotifyAlbum(id) {
+  const { data } = await client.get(`/api/spotify/albums/${id}/`);
+  return data;
+}
+
+export async function getSpotifyArtist(id) {
+  const { data } = await client.get(`/api/spotify/artists/${id}/`);
+  return data;
+}
+
+export async function getSpotifyTrack(id) {
+  const { data } = await client.get(`/api/spotify/tracks/${id}/`);
+  return data;
+}
+
+export async function getSpotifySavedTracks({ limit, offset } = {}) {
+  const { data } = await client.get("/api/spotify/me/library/tracks/", { params: { limit, offset } });
+  return data;
+}
+
+export async function saveSpotifyTracks(ids) {
+  const { data } = await client.put("/api/spotify/me/library/tracks/", { ids });
+  return data;
+}
+
+export async function removeSpotifySavedTracks(ids) {
+  const { data } = await client.delete("/api/spotify/me/library/tracks/", { data: { ids } });
+  return data;
+}
+
+export async function getSpotifySavedAlbums({ limit, offset } = {}) {
+  const { data } = await client.get("/api/spotify/me/library/albums/", { params: { limit, offset } });
+  return data;
+}
+
+export async function saveSpotifyAlbums(ids) {
+  const { data } = await client.put("/api/spotify/me/library/albums/", { ids });
+  return data;
+}
+
+export async function removeSpotifySavedAlbums(ids) {
+  const { data } = await client.delete("/api/spotify/me/library/albums/", { data: { ids } });
+  return data;
+}
+
+export async function getSpotifyPlaylists({ limit, offset } = {}) {
+  const { data } = await client.get("/api/spotify/me/playlists/", { params: { limit, offset } });
+  return data;
+}
+
+export async function createSpotifyPlaylist({ name, description, public: isPublic }) {
+  const { data } = await client.post("/api/spotify/me/playlists/", { name, description, public: isPublic });
+  return data;
+}
+
+export async function getSpotifyPlaylist(id) {
+  const { data } = await client.get(`/api/spotify/playlists/${id}/`);
+  return data;
+}
+
+export async function updateSpotifyPlaylist(id, patch) {
+  const { data } = await client.put(`/api/spotify/playlists/${id}/`, patch);
+  return data;
+}
+
+export async function getSpotifyPlaylistTracks(id, { limit, offset } = {}) {
+  const { data } = await client.get(`/api/spotify/playlists/${id}/tracks/`, { params: { limit, offset } });
+  return data;
+}
+
+export async function addSpotifyPlaylistTracks(id, uris) {
+  const { data } = await client.post(`/api/spotify/playlists/${id}/tracks/`, { uris });
+  return data;
+}
+
+export async function removeSpotifyPlaylistTracks(id, uris) {
+  const { data } = await client.delete(`/api/spotify/playlists/${id}/tracks/`, { data: { uris } });
+  return data;
+}
+
+export async function reorderSpotifyPlaylistTracks(id, rangeStart, insertBefore, rangeLength = 1) {
+  const { data } = await client.put(`/api/spotify/playlists/${id}/tracks/`, {
+    range_start: rangeStart,
+    insert_before: insertBefore,
+    range_length: rangeLength,
+  });
+  return data;
+}
+
+export async function uploadSpotifyPlaylistCover(id, file) {
+  const form = new FormData();
+  form.append("image", file);
+  const { data } = await client.put(`/api/spotify/playlists/${id}/cover/`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function getSpotifyFollowedArtists({ limit, after } = {}) {
+  const { data } = await client.get("/api/spotify/me/following/artists/", { params: { limit, after } });
+  return data;
+}
+
+export async function followSpotifyArtists(ids) {
+  const { data } = await client.put("/api/spotify/me/following/artists/", { ids });
+  return data;
+}
+
+export async function unfollowSpotifyArtists(ids) {
+  const { data } = await client.delete("/api/spotify/me/following/artists/", { data: { ids } });
+  return data;
+}
+
+export async function getSpotifyTopArtists({ timeRange, limit } = {}) {
+  const { data } = await client.get("/api/spotify/me/top/artists/", {
+    params: { time_range: timeRange, limit },
+  });
+  return data;
+}
+
+export async function getSpotifyTopTracks({ timeRange, limit } = {}) {
+  const { data } = await client.get("/api/spotify/me/top/tracks/", {
+    params: { time_range: timeRange, limit },
+  });
+  return data;
+}
+
+export async function getSpotifyPlayerState() {
+  const { data } = await client.get("/api/spotify/me/player/");
+  return data;
+}
+
+export async function getSpotifyCurrentlyPlaying() {
+  const { data } = await client.get("/api/spotify/me/player/currently-playing/");
+  return data;
+}
+
+export async function spotifyPlay({ deviceId, contextUri, uris, offset } = {}) {
+  const { data } = await client.put("/api/spotify/me/player/play/", {
+    device_id: deviceId,
+    context_uri: contextUri,
+    uris,
+    offset,
+  });
+  return data;
+}
+
+export async function spotifyPause(deviceId) {
+  const { data } = await client.put("/api/spotify/me/player/pause/", { device_id: deviceId });
+  return data;
+}
+
+export async function spotifyNext(deviceId) {
+  const { data } = await client.post("/api/spotify/me/player/next/", { device_id: deviceId });
+  return data;
+}
+
+export async function spotifyPrevious(deviceId) {
+  const { data } = await client.post("/api/spotify/me/player/previous/", { device_id: deviceId });
+  return data;
+}
+
+export async function spotifySeek(positionMs, deviceId) {
+  const { data } = await client.put("/api/spotify/me/player/seek/", { position_ms: positionMs, device_id: deviceId });
+  return data;
+}
+
+export async function spotifySetVolume(volumePercent, deviceId) {
+  const { data } = await client.put("/api/spotify/me/player/volume/", {
+    volume_percent: volumePercent,
+    device_id: deviceId,
+  });
+  return data;
+}
+
+export async function spotifySetShuffle(state, deviceId) {
+  const { data } = await client.put("/api/spotify/me/player/shuffle/", { state, device_id: deviceId });
+  return data;
+}
+
+export async function spotifySetRepeat(state, deviceId) {
+  const { data } = await client.put("/api/spotify/me/player/repeat/", { state, device_id: deviceId });
+  return data;
+}
+
+export async function getSpotifyDevices() {
+  const { data } = await client.get("/api/spotify/me/player/devices/");
+  return data;
+}
+
+export async function transferSpotifyPlayback(deviceId, play = false) {
+  const { data } = await client.put("/api/spotify/me/player/transfer/", { device_id: deviceId, play });
+  return data;
+}
+
+export async function getSpotifyQueue() {
+  const { data } = await client.get("/api/spotify/me/player/queue/");
+  return data;
+}
+
+export async function addSpotifyQueue(uri, deviceId) {
+  const { data } = await client.post("/api/spotify/me/player/queue/", { uri, device_id: deviceId });
+  return data;
+}
+
+export async function getSpotifyStats() {
+  const { data } = await client.get("/api/spotify/stats/");
+  return data;
+}
+
+export async function getSpotifyHomeDashboard() {
+  const { data } = await client.get("/api/spotify/home/");
+  return data;
+}
+
 export function classroomConnectUrl() {
   const base = import.meta.env.VITE_CLASSROOM_API_URL || client.defaults.baseURL;
   return `${base}/api/classroom/auth/start/`;
@@ -452,4 +745,80 @@ export async function deleteCoverLetter(cvId, id) {
 
 export function coverLetterExportUrl(cvId, id) {
   return `${client.defaults.baseURL}/api/cv/${cvId}/cover-letters/${id}/export/`;
+}
+
+// --- Stats dashboard ---
+
+export async function getStatsMeta() {
+  const { data } = await client.get("/api/stats/meta/");
+  return data;
+}
+
+export async function getStatsOverview(filters) {
+  const { data } = await client.get("/api/stats/overview/", { params: filters });
+  return data;
+}
+
+export async function getStatsTimeseries(filters, groupByProvider) {
+  const params = { ...filters };
+  if (groupByProvider) params.group_by = "provider";
+  const { data } = await client.get("/api/stats/timeseries/", { params });
+  return data;
+}
+
+export async function getStatsProviders(filters) {
+  const { data } = await client.get("/api/stats/providers/", { params: filters });
+  return data.results;
+}
+
+export async function getStatsModels(filters) {
+  const { data } = await client.get("/api/stats/models/", { params: filters });
+  return data.results;
+}
+
+export async function getStatsCallSites(filters) {
+  const { data } = await client.get("/api/stats/call-sites/", { params: filters });
+  return data.results;
+}
+
+export async function getStatsCache(filters) {
+  const { data } = await client.get("/api/stats/cache/", { params: filters });
+  return data;
+}
+
+export async function getStatsPerformance(filters) {
+  const { data } = await client.get("/api/stats/performance/", { params: filters });
+  return data;
+}
+
+export async function getStatsOptimization(filters) {
+  const { data } = await client.get("/api/stats/optimization/", { params: filters });
+  return data;
+}
+
+export async function getStatsTopUsage(filters, kind, limit, offset) {
+  const { data } = await client.get("/api/stats/top-usage/", {
+    params: { ...filters, kind, limit, offset },
+  });
+  return data;
+}
+
+export async function getStatsPricing() {
+  const { data } = await client.get("/api/stats/pricing/");
+  return data.results;
+}
+
+export async function getStatsBudget() {
+  const { data } = await client.get("/api/stats/budget/");
+  return data;
+}
+
+export async function setStatsBudget({ monthly_budget_usd, alert_thresholds }) {
+  const { data } = await client.put("/api/stats/budget/", { monthly_budget_usd, alert_thresholds });
+  return data;
+}
+
+export function statsExportUrl(section, filters) {
+  const params = new URLSearchParams({ section, ...filters });
+  return `${client.defaults.baseURL}/api/stats/export/?${params.toString()}`;
 }

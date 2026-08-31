@@ -15,4 +15,13 @@ urlpatterns = [
     path("images/", views.upload_image, name="linkedin-upload-image"),
     path("comments/", views.post_comment, name="linkedin-post-comment"),
     path("comments/generate/", views.generate_comment, name="linkedin-generate-comment"),
+    path("profile/", views.profile, name="linkedin-profile"),
+    path("profile/history/", views.profile_history, name="linkedin-profile-history"),
+    path("sync/", views.sync_now, name="linkedin-sync"),
+    path("activity/", views.activity, name="linkedin-activity"),
+    path("overview/", views.overview, name="linkedin-overview"),
+    path("automations/", views.automations, name="linkedin-automations"),
+    path("automations/<int:automation_id>/", views.automation_detail, name="linkedin-automation-detail"),
+    path("automations/<int:automation_id>/run/", views.automation_run_now, name="linkedin-automation-run-now"),
+    path("automation-runs/", views.automation_runs, name="linkedin-automation-runs"),
 ]

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "classroom",
     "cv",
     "kanban",
+    "spotify",
     "agent",
 ]
 
@@ -206,6 +207,16 @@ GOOGLE_CLASSROOM_SCOPES = os.getenv(
     "https://www.googleapis.com/auth/drive.file "
     "https://www.googleapis.com/auth/documents",
 )
+
+# --- Spotify ---
+# SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET are deliberately not read here —
+# they're read lazily in spotify/services/oauth.py (same reasoning as
+# MS_CLIENT_ID/LINKEDIN_CLIENT_ID/GOOGLE_CLASSROOM_CLIENT_ID above), so a dev
+# without a Spotify app configured can still run the server.
+SPOTIFY_REDIRECT_URI = os.getenv(
+    "SPOTIFY_REDIRECT_URI", "http://localhost:8000/api/spotify/auth/callback/"
+)
+# FRONTEND_URL above is reused for the Spotify OAuth redirect too.
 
 # --- Media (LinkedIn post images, staged locally before upload) ---
 MEDIA_URL = "/media/"

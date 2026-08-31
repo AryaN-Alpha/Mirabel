@@ -68,6 +68,13 @@ class GeminiProvider(Provider):
                 ),
             )
         except genai_errors.APIError as exc:
+            log_llm_call(
+                provider="gemini",
+                model=model,
+                call_site=call_site,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
             raise ProviderError(str(exc)) from exc
         usage = getattr(response, "usage_metadata", None)
         log_llm_call(

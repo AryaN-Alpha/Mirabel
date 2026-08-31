@@ -6,6 +6,7 @@ from typing import Any
 from core.models import ModelPreference
 from core.prompts.persona import ALLOWED_MOODS, MIRABEL_SYSTEM_PROMPT
 from core.services.providers import ProviderError, get_provider
+from core.services.telemetry import log_optimization_event
 from memory.services.gating import needs_memory
 from memory.services.retrieval import format_memories_for_prompt, retrieve_relevant_memories
 
@@ -25,9 +26,11 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
         (m["content"] for m in reversed(history) if m["role"] == "user"), ""
     )
     if needs_memory(latest_user_msg):
+        log_optimization_event(category="memory_gate", outcome="retrieved")
         memories = retrieve_relevant_memories(query_text=latest_user_msg)
     else:
         logger.debug("memory gate: skipping retrieval for trivial message %r", latest_user_msg[:40])
+        log_optimization_event(category="memory_gate", outcome="skipped")
         memories = []
     memory_block = format_memories_for_prompt(memories)
 

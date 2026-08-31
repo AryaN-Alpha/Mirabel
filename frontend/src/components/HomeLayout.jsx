@@ -3,6 +3,7 @@ import Sidebar from "./Sidebar";
 import HomeNavbar from "./HomeNavbar";
 import { bg, accent, accent2700 } from "./homeTheme";
 import { ScrollContainerProvider, useScrollContainer } from "./ScrollContainerContext";
+import SpotifyNowPlayingBar from "./spotify/SpotifyNowPlayingBar";
 
 const PAGE_TITLES = {
   "/home/ai-model": "AI Model",
@@ -12,6 +13,8 @@ const PAGE_TITLES = {
   "/home/cv": "CV",
   "/home/agent": "Agent",
   "/home/tasks": "Tasks",
+  "/home/spotify": "Spotify",
+  "/home/stats": "Stats",
 };
 
 const EMBERS = [
@@ -40,54 +43,58 @@ function HomeLayoutInner({ title }) {
   const scrollRef = useScrollContainer();
 
   return (
-    <div className="relative flex-1 min-h-0 w-full flex items-stretch overflow-hidden" style={{ background: bg }}>
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(120% 90% at 12% 8%, ${accent[400]}29 0%, transparent 58%)`,
-          animation: "home-hearth 17s ease-in-out infinite",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(90% 70% at 82% 96%, ${accent2700}66 0%, transparent 60%)`,
-          animation: "home-drift 26s ease-in-out infinite",
-        }}
-      />
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(70% 60% at 62% 40%, ${accent[800]}56 0%, transparent 62%)`,
-          animation: "home-drift 34s ease-in-out infinite reverse",
-        }}
-      />
+    <div className="relative flex-1 min-h-0 w-full flex flex-col overflow-hidden" style={{ background: bg }}>
+      <div className="relative flex-1 min-h-0 w-full flex items-stretch overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(120% 90% at 12% 8%, ${accent[400]}29 0%, transparent 58%)`,
+            animation: "home-hearth 17s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(90% 70% at 82% 96%, ${accent2700}66 0%, transparent 60%)`,
+            animation: "home-drift 26s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(70% 60% at 62% 40%, ${accent[800]}56 0%, transparent 62%)`,
+            animation: "home-drift 34s ease-in-out infinite reverse",
+          }}
+        />
 
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {EMBERS.map((ember, i) => (
-          <span
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              left: ember.left,
-              bottom: ember.bottom,
-              width: ember.size,
-              height: ember.size,
-              background: i % 2 === 0 ? accent[300] : accent[200],
-              animation: `home-ember ${ember.duration}s linear infinite ${ember.delay}s`,
-            }}
-          />
-        ))}
-      </div>
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {EMBERS.map((ember, i) => (
+            <span
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                left: ember.left,
+                bottom: ember.bottom,
+                width: ember.size,
+                height: ember.size,
+                background: i % 2 === 0 ? accent[300] : accent[200],
+                animation: `home-ember ${ember.duration}s linear infinite ${ember.delay}s`,
+              }}
+            />
+          ))}
+        </div>
 
-      <Sidebar />
+        <Sidebar />
 
-      <div ref={scrollRef} className={`relative flex-1 min-w-0 min-h-0 flex flex-col ${title ? "overflow-y-auto" : "overflow-hidden"}`}>
-        {title && <HomeNavbar title={title} />}
-        <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full min-w-0" : "flex-1 w-full min-h-0 min-w-0"}>
-          <Outlet />
+        <div ref={scrollRef} className={`relative flex-1 min-w-0 min-h-0 flex flex-col ${title ? "overflow-y-auto" : "overflow-hidden"}`}>
+          {title && <HomeNavbar title={title} />}
+          <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full min-w-0" : "flex-1 w-full min-h-0 min-w-0"}>
+            <Outlet />
+          </div>
         </div>
       </div>
+
+      <SpotifyNowPlayingBar />
     </div>
   );
 }

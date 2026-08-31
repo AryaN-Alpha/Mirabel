@@ -10,6 +10,8 @@ import ClassroomPage from "./components/ClassroomPage";
 import CvPage from "./components/CvPage";
 import AgentPage from "./components/AgentPage";
 import KanbanPage from "./components/KanbanPage";
+import SpotifyPage from "./components/SpotifyPage";
+import StatsPage from "./components/StatsPage";
 
 export default function App() {
   return (
@@ -25,6 +27,8 @@ export default function App() {
           <Route path="cv" element={<CvPage />} />
           <Route path="agent" element={<AgentPage />} />
           <Route path="tasks" element={<KanbanPage />} />
+          <Route path="spotify" element={<SpotifyPage />} />
+          <Route path="stats" element={<StatsPage />} />
         </Route>
       </Routes>
     </CozyBackdrop>

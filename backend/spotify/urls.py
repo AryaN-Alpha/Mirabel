@@ -1,0 +1,38 @@
+from django.urls import path
+
+from spotify import views
+
+urlpatterns = [
+    path("auth/start/", views.auth_start, name="spotify-auth-start"),
+    path("auth/callback/", views.auth_callback, name="spotify-auth-callback"),
+    path("status/", views.status, name="spotify-status"),
+    path("disconnect/", views.disconnect, name="spotify-disconnect"),
+    path("search/", views.search, name="spotify-search"),
+    path("albums/<str:album_id>/", views.album_detail, name="spotify-album-detail"),
+    path("artists/<str:artist_id>/", views.artist_detail, name="spotify-artist-detail"),
+    path("tracks/<str:track_id>/", views.track_detail, name="spotify-track-detail"),
+    path("me/library/tracks/", views.library_tracks, name="spotify-library-tracks"),
+    path("me/library/albums/", views.library_albums, name="spotify-library-albums"),
+    path("me/playlists/", views.playlists, name="spotify-playlists"),
+    path("playlists/<str:playlist_id>/", views.playlist_detail, name="spotify-playlist-detail"),
+    path("playlists/<str:playlist_id>/tracks/", views.playlist_tracks, name="spotify-playlist-tracks"),
+    path("playlists/<str:playlist_id>/cover/", views.playlist_cover, name="spotify-playlist-cover"),
+    path("me/following/artists/", views.following_artists, name="spotify-following-artists"),
+    path("me/top/artists/", views.top_artists, name="spotify-top-artists"),
+    path("me/top/tracks/", views.top_tracks, name="spotify-top-tracks"),
+    path("me/player/", views.player_state, name="spotify-player-state"),
+    path("me/player/currently-playing/", views.currently_playing, name="spotify-currently-playing"),
+    path("me/player/play/", views.player_play, name="spotify-player-play"),
+    path("me/player/pause/", views.player_pause, name="spotify-player-pause"),
+    path("me/player/next/", views.player_next, name="spotify-player-next"),
+    path("me/player/previous/", views.player_previous, name="spotify-player-previous"),
+    path("me/player/seek/", views.player_seek, name="spotify-player-seek"),
+    path("me/player/volume/", views.player_volume, name="spotify-player-volume"),
+    path("me/player/shuffle/", views.player_shuffle, name="spotify-player-shuffle"),
+    path("me/player/repeat/", views.player_repeat, name="spotify-player-repeat"),
+    path("me/player/devices/", views.devices, name="spotify-devices"),
+    path("me/player/transfer/", views.transfer_playback, name="spotify-transfer-playback"),
+    path("me/player/queue/", views.queue, name="spotify-queue"),
+    path("stats/", views.stats, name="spotify-stats"),
+    path("home/", views.home_dashboard, name="spotify-home-dashboard"),
+]

@@ -82,6 +82,13 @@ class AnthropicProvider(Provider):
                 temperature=min(temperature, 1.0),
             )
         except anthropic.APIError as exc:
+            log_llm_call(
+                provider="anthropic",
+                model=model,
+                call_site=call_site,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
             raise ProviderError(str(exc)) from exc
         log_llm_call(
             provider="anthropic",

@@ -25,7 +25,7 @@ from agent.tasks import run_agent_task
 from core.models import Conversation, Message, ModelPreference
 from core.prompts.persona import MIRABEL_STREAMING_SYSTEM_PROMPT
 from core.services.providers import get_provider
-from core.services.telemetry import log_llm_call
+from core.services.telemetry import log_llm_call, log_optimization_event
 from memory.services.gating import needs_memory
 from memory.services.retrieval import (
     format_memories_for_prompt,
@@ -268,12 +268,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # already in flight while the (usually slower) Chroma round-trip runs.
         history_task = asyncio.create_task(self._build_history(conv_id))
         if needs_memory(user_text):
+            await asyncio.to_thread(log_optimization_event, category="memory_gate", outcome="retrieved")
             memories = await asyncio.to_thread(
                 retrieve_relevant_memories,
                 query_text=user_text,
             )
         else:
             logger.debug("memory gate: skipping retrieval for trivial utterance %r", user_text[:40])
+            await asyncio.to_thread(log_optimization_event, category="memory_gate", outcome="skipped")
             memories = []
         history = await history_task
         memory_block = format_memories_for_prompt(memories)
@@ -284,6 +286,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
 
         started = time.perf_counter()
+        provider_name = model = None
         try:
             provider_name, model, max_tokens, temperature = await self._current_model_preference()
             provider = get_provider(provider_name)
@@ -320,7 +323,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 len(MIRABEL_STREAMING_SYSTEM_PROMPT) + len(memory_block)
                 + sum(len(m.get("content", "")) for m in history)
             )
-            log_llm_call(
+            # log_llm_call now does a DB write (see core/services/telemetry.py)
+            # — must not block this consumer's event loop (CLAUDE.md Phase 3:
+            # "NEVER block the WebSocket consumer's event loop with sync I/O").
+            await asyncio.to_thread(
+                log_llm_call,
                 provider=provider_name,
                 model=model,
                 call_site="voice.turn",
@@ -342,6 +349,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise
         except Exception:
             logger.exception("turn pipeline failed")
+            if provider_name:
+                await asyncio.to_thread(
+                    log_llm_call,
+                    provider=provider_name,
+                    model=model or "",
+                    call_site="voice.turn",
+                    latency_ms=(time.perf_counter() - started) * 1000,
+                    estimated=True,
+                    error=True,
+                )
             await tts_queue.put(None)
             tts_worker.cancel()
             await self._send_json({"type": "error", "message": "generation error"})

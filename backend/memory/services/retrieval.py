@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from django.conf import settings
 from django.core.cache import cache
 
+from core.services.telemetry import log_optimization_event
 from memory.services.chroma_client import query_memories
 from memory.services.salience import score_for_retrieval
 
@@ -37,6 +38,7 @@ def retrieve_relevant_memories(*, query_text: str) -> list[dict]:
         cache_key = _cache_key(query_text)
         cached = cache.get(cache_key)
         if cached is not None:
+            log_optimization_event(category="memory_retrieval", outcome="cache_hit", count=len(cached))
             return cached
     except Exception:
         logger.debug("memory retrieval cache read failed, continuing uncached", exc_info=True)
@@ -79,6 +81,12 @@ def retrieve_relevant_memories(*, query_text: str) -> list[dict]:
     # top-K genuinely dynamic (0..K), not always exactly K.
     relevant = [hit for score, hit in scored if score >= settings.MEMORY_RELEVANCE_THRESHOLD]
     top = relevant[: settings.MEMORY_RETRIEVAL_TOP_K]
+    log_optimization_event(
+        category="memory_retrieval",
+        outcome="cache_miss",
+        count=len(top),
+        extra=len(scored) - len(relevant),
+    )
 
     if cache_key is not None:
         try:

@@ -9,6 +9,9 @@ import LinkedInProfileTab from "./linkedin/LinkedInProfileTab";
 import LinkedInCreatePostTab from "./linkedin/LinkedInCreatePostTab";
 import LinkedInDraftsTab from "./linkedin/LinkedInDraftsTab";
 import LinkedInSettingsTab from "./linkedin/LinkedInSettingsTab";
+import LinkedInOverviewTab from "./linkedin/LinkedInOverviewTab";
+import LinkedInAutomationsTab from "./linkedin/LinkedInAutomationsTab";
+import LinkedInResearchTab from "./linkedin/LinkedInResearchTab";
 
 // Legacy underline input style, kept exported for the tab components below.
 export const inputStyle = {
@@ -23,9 +26,12 @@ export const inputStyle = {
 };
 
 const TABS = [
+  { id: "overview", label: "Overview" },
   { id: "profile", label: "Profile" },
   { id: "create", label: "Create post" },
   { id: "drafts", label: "Drafts" },
+  { id: "automations", label: "Automations" },
+  { id: "research", label: "AI Research" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -38,7 +44,7 @@ export default function LinkedInPage() {
   const [busy, setBusy] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState("overview");
 
   const banner = searchParams.get("connected") ? "connected" : searchParams.get("error") ? "error" : null;
   const bannerError = searchParams.get("error");
@@ -165,9 +171,12 @@ export default function LinkedInPage() {
           )}
 
           <div style={{ marginTop: space[6] }}>
+            {activeTab === "overview" && <LinkedInOverviewTab />}
             {activeTab === "profile" && <LinkedInProfileTab status={status} />}
             {activeTab === "create" && <LinkedInCreatePostTab disabled={expired} />}
             {activeTab === "drafts" && <LinkedInDraftsTab disabled={expired} onPublished={() => setReloadToken((n) => n + 1)} />}
+            {activeTab === "automations" && <LinkedInAutomationsTab />}
+            {activeTab === "research" && <LinkedInResearchTab />}
             {activeTab === "settings" && <LinkedInSettingsTab status={status} onChanged={() => setReloadToken((n) => n + 1)} />}
           </div>
         </>

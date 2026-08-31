@@ -64,6 +64,13 @@ class DeepSeekProvider(Provider):
                 temperature=temperature,
             )
         except openai.APIError as exc:
+            log_llm_call(
+                provider="deepseek",
+                model=model,
+                call_site=call_site,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
             raise ProviderError(str(exc)) from exc
         usage = getattr(response, "usage", None)
         log_llm_call(

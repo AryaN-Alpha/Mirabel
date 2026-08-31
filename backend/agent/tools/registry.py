@@ -20,6 +20,7 @@ from agent.tools import (
     linkedin_tools,
     memory_tools,
     outlook_tools,
+    spotify_tools,
 )
 
 ALL_TOOLS = (
@@ -28,6 +29,7 @@ ALL_TOOLS = (
     + linkedin_tools.TOOLS
     + outlook_tools.TOOLS
     + classroom_tools.TOOLS
+    + spotify_tools.TOOLS
     + memory_tools.TOOLS
     + conversation_tools.TOOLS
 )

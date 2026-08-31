@@ -208,6 +208,18 @@ voice) until explicitly told.
   LLM + TTS tasks immediately. Handle `asyncio.CancelledError` cleanly.
 - Do not store raw audio. Transcripts only.
 
+## Extending the system (new tools, RAG features, LLM call sites)
+Full rules, reusable patterns, and a definition-of-done checklist live in
+`docs/EXTENDING.md` — read it before adding an agent tool
+(`agent/tools/*_tools.py`), a new Chroma write/read pipeline
+(`memory/services/*`), or any new call site that hits an LLM provider. It is
+the detailed companion to this file's Provider/Security/Testing sections
+above, written specifically so new work reuses the existing tool registry,
+domain-routed tool binding, salience/gating/dedup/supersession pipeline, and
+provider-caching conventions instead of re-deriving (or accidentally
+undoing) them. Don't duplicate its content here — keep this file the
+"hard rules" reference and that one the "how do I add X" reference.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

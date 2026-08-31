@@ -6,6 +6,7 @@ from celery import shared_task
 from django.conf import settings
 
 from core.models import Message
+from core.services.telemetry import log_optimization_event
 from memory.models import MemoryFact, MemorySummary
 from memory.services.chroma_client import add_memory
 from memory.services.dedup import is_near_duplicate
@@ -49,8 +50,10 @@ def embed_and_store(self, message_id: int) -> None:
 
     if is_near_duplicate(msg.text):
         logger.info("embed_and_store: skipping near-duplicate message %s", message_id)
+        log_optimization_event(category="dedup", outcome="duplicate")
         return
 
+    log_optimization_event(category="dedup", outcome="stored")
     add_memory(
         memory_id=f"msg_{msg.id}",
         text=msg.text,

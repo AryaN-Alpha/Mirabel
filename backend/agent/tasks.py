@@ -14,6 +14,7 @@ a multi-tool-call agent run needs minutes, not seconds.
 from __future__ import annotations
 
 import logging
+import time
 
 from celery import shared_task
 from django.conf import settings
@@ -23,7 +24,8 @@ from langgraph.types import Command
 from agent.graph import build_agent, run_config
 from agent.models import AgentTask
 from agent.tools.routing import select_tools
-from core.models import Message
+from core.models import Message, ModelPreference
+from core.services.telemetry import log_llm_call
 from voice.services.protocol import ProtocolParser
 
 logger = logging.getLogger("agent.tasks")
@@ -87,10 +89,12 @@ def _run_graph(task: AgentTask, graph_input) -> None:
     # live/ephemeral state, so a resumed run recomputes the exact same tool
     # subset the original run used — the checkpointed thread's tool-call
     # history must line up with whatever tools are bound on replay.
+    pref = ModelPreference.current()
     agent = build_agent(tools=select_tools(task.instruction))
     config = run_config(task.thread_id)
     all_messages: list = []
     interrupt_value = None
+    step_started = time.perf_counter()
 
     for chunk in agent.stream(graph_input, config, stream_mode="updates"):
         if "__interrupt__" in chunk:
@@ -100,6 +104,9 @@ def _run_graph(task: AgentTask, graph_input) -> None:
             for message in update.get("messages", []):
                 all_messages.append(message)
                 _record_step(task, node_name, message)
+                if node_name == "agent":
+                    _log_agent_llm_call(pref, message, step_started)
+                    step_started = time.perf_counter()
 
     if interrupt_value is not None:
         task.status = (
@@ -126,6 +133,38 @@ def _run_graph(task: AgentTask, graph_input) -> None:
 
     if task.conversation_id:
         Message.objects.create(conversation_id=task.conversation_id, role="assistant", text=text, mood=mood)
+
+
+def _log_agent_llm_call(pref: ModelPreference, message, started: float) -> None:
+    """The agent graph's model calls go through langchain_anthropic/
+    ChatOpenAI/ChatGoogleGenerativeAI directly (agent/graph.py::_build_model)
+    rather than core/services/providers, so unlike every other call site in
+    this app they previously had zero telemetry. AIMessage.usage_metadata is
+    LangChain's standardized usage shape (verified against the installed
+    langchain-core's messages/ai.py: UsageMetadata TypedDict with
+    input_tokens/output_tokens and an optional input_token_details.cache_read
+    /.cache_creation) — only present on AIMessage, so this only fires on the
+    "agent" node's model-response messages, never on "tools" node messages.
+    Silently skips (no fabricated telemetry) when a provider integration
+    doesn't populate it."""
+    from langchain_core.messages import AIMessage
+
+    if not isinstance(message, AIMessage):
+        return
+    usage = getattr(message, "usage_metadata", None)
+    if not usage:
+        return
+    details = usage.get("input_token_details") or {}
+    log_llm_call(
+        provider=pref.provider,
+        model=pref.model,
+        call_site="agent.run",
+        input_tokens=usage.get("input_tokens"),
+        output_tokens=usage.get("output_tokens"),
+        latency_ms=(time.perf_counter() - started) * 1000,
+        cache_read_tokens=details.get("cache_read"),
+        cache_write_tokens=details.get("cache_creation"),
+    )
 
 
 def _record_step(task: AgentTask, node_name: str, message) -> None:

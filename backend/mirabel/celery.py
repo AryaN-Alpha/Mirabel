@@ -26,4 +26,8 @@ app.conf.beat_schedule = {
         "task": "outlook.tasks.send_due_scheduled_emails",
         "schedule": 60.0,
     },
+    "linkedin-automations-tick": {
+        "task": "linkedin.tasks.run_due_automations",
+        "schedule": 300.0,
+    },
 }

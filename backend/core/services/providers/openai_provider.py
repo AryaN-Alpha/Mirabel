@@ -57,6 +57,13 @@ class OpenAIProvider(Provider):
                 temperature=temperature,
             )
         except openai.APIError as exc:
+            log_llm_call(
+                provider="openai",
+                model=model,
+                call_site=call_site,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
             raise ProviderError(str(exc)) from exc
         usage = getattr(response, "usage", None)
         cache_details = getattr(usage, "input_tokens_details", None)

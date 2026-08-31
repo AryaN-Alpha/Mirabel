@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/linkedin/", include("linkedin.urls")),
     path("api/classroom/", include("classroom.urls")),
     path("api/cv/", include("cv.urls")),
+    path("api/spotify/", include("spotify.urls")),
     path("api/memory/", include("memory.urls")),
     path("api/agent/", include("agent.urls")),
     path("api/", include("kanban.urls")),

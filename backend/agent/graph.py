@@ -21,6 +21,7 @@ from agent.prompts import AGENT_SYSTEM_PROMPT
 from agent.tools.registry import ALL_TOOLS
 from core.models import ModelPreference
 from core.services.providers.credentials import get_api_key
+from core.services.telemetry import log_optimization_event
 
 # Caps how many of the run's accumulated messages are sent to the LLM on
 # each iteration (see _trim_agent_messages) — a safety net for pathological
@@ -52,6 +53,7 @@ def _trim_agent_messages(state: dict) -> dict:
     as many of the most recent whole tool-call groups as fit the budget."""
     messages = state["messages"]
     if len(messages) <= _MAX_AGENT_MESSAGES:
+        log_optimization_event(category="agent_trim", outcome="not_trimmed", count=len(messages), extra=len(messages))
         return {"llm_input_messages": messages}
 
     groups = _group_messages(messages)
@@ -69,7 +71,9 @@ def _trim_agent_messages(state: dict) -> dict:
             continue
         kept = group + kept
         budget -= len(group)
-    return {"llm_input_messages": first_group + kept}
+    sent = first_group + kept
+    log_optimization_event(category="agent_trim", outcome="trimmed", count=len(messages), extra=len(sent))
+    return {"llm_input_messages": sent}
 
 
 def connection_string() -> str:

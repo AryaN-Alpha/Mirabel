@@ -11,13 +11,135 @@ from agent.services.lifecycle import (
     resume_confirmation,
 )
 from agent.tasks import _message_text
+from agent.tools import linkedin_tools, spotify_tools
 from core.models import Conversation
+from linkedin.models import LinkedInAutomation, LinkedInDraft
+from spotify.services.oauth import SpotifyError
 
 
 class AgentTaskModelTests(APITestCase):
     def test_thread_id_is_derived_from_pk(self):
         task = AgentTask.objects.create(instruction="do a thing")
         self.assertEqual(task.thread_id, f"agent-task-{task.id}")
+
+
+class LinkedInResearchToolsTests(APITestCase):
+    """Unit coverage for the read-only LinkedIn research tools per
+    docs/EXTENDING.md §2.6 — call the tool function directly, assert the
+    returned dict shape, and that nothing is ever raised."""
+
+    def test_get_linkedin_analytics_always_reports_unavailable(self):
+        """Regression guard against the AI-safety rule in the task spec:
+        this tool must never let the model believe engagement analytics
+        exist — LinkedIn doesn't expose them at this integration's scope."""
+        result = linkedin_tools.get_linkedin_analytics.func()
+        self.assertFalse(result["available"])
+        self.assertIn("reason", result)
+
+    def test_get_linkedin_profile_reflects_disconnected_state(self):
+        result = linkedin_tools.get_linkedin_profile.func()
+        self.assertFalse(result["connected"])
+        self.assertIn("health", result)
+
+    def test_get_linkedin_content_activity_only_counts_published_drafts(self):
+        LinkedInDraft.objects.create(body="a", status=LinkedInDraft.Status.PUBLISHED)
+        LinkedInDraft.objects.create(body="b", status=LinkedInDraft.Status.DRAFT)
+
+        result = linkedin_tools.get_linkedin_content_activity.func(period_days=30)
+
+        self.assertEqual(result["posts_published"], 1)
+        self.assertEqual(result["data_source"], "mirabel_publishing_record")
+
+    def test_get_linkedin_automation_status_lists_configured_automations(self):
+        LinkedInAutomation.objects.create(name="Sync", type=LinkedInAutomation.Type.PROFILE_SYNC)
+
+        result = linkedin_tools.get_linkedin_automation_status.func()
+
+        self.assertEqual(len(result["automations"]), 1)
+        self.assertEqual(result["automations"][0]["type"], "profile_sync")
+
+    def test_get_linkedin_activity_summary_is_grounded_in_real_data_only(self):
+        result = linkedin_tools.get_linkedin_activity_summary.func()
+        self.assertIn("profile_health", result)
+        self.assertIn("activity", result)
+        self.assertIn("automations", result)
+
+
+class SpotifyToolsTests(APITestCase):
+    """Unit coverage for agent/tools/spotify_tools.py per docs/EXTENDING.md
+    §2.6: call the tool function directly, assert the returned dict shape,
+    and that a SpotifyError is always caught and turned into {"error": ...}
+    rather than raised (an uncaught exception here would kill the whole
+    agent turn instead of giving the model something to react to)."""
+
+    def test_check_connection_reflects_disconnected_state(self):
+        result = spotify_tools.check_spotify_connection.func()
+        self.assertFalse(result["connected"])
+
+    @patch("agent.tools.spotify_tools.client.search")
+    @patch("agent.tools.spotify_tools.get_active_access_token", return_value="token")
+    def test_search_spotify_never_raises_on_provider_error(self, mock_token, mock_search):
+        mock_search.side_effect = SpotifyError("rate limited", reason="rate_limited")
+
+        result = spotify_tools.search_spotify.func(query="lofi", types="track", limit=10)
+
+        self.assertIn("error", result)
+
+    @patch("agent.tools.spotify_tools.client.search")
+    @patch("agent.tools.spotify_tools.get_active_access_token", return_value="token")
+    def test_search_spotify_compacts_five_or_more_uniform_tracks(self, mock_token, mock_search):
+        tracks = [
+            {"id": str(i), "uri": f"spotify:track:{i}", "name": f"Track {i}", "artists": [{"name": "Artist"}]}
+            for i in range(6)
+        ]
+        mock_search.return_value = {"tracks": {"items": tracks}}
+
+        result = spotify_tools.search_spotify.func(query="lofi", types="track", limit=10)
+
+        self.assertIsInstance(result["tracks"], str)
+        self.assertIn("6 items", result["tracks"])
+
+    @patch("agent.tools.spotify_tools.client.search")
+    @patch("agent.tools.spotify_tools.get_active_access_token", return_value="token")
+    def test_search_spotify_leaves_small_result_sets_as_a_plain_list(self, mock_token, mock_search):
+        mock_search.return_value = {
+            "tracks": {"items": [{"id": "1", "uri": "spotify:track:1", "name": "Track 1", "artists": []}]}
+        }
+
+        result = spotify_tools.search_spotify.func(query="lofi", types="track", limit=10)
+
+        self.assertIsInstance(result["tracks"], list)
+
+    def test_control_playback_rejects_invalid_action_without_calling_spotify(self):
+        result = spotify_tools.control_spotify_playback.func(action="rewind")
+        self.assertIn("error", result)
+
+    @patch("agent.tools.spotify_tools.require_confirmation")
+    def test_create_playlist_rejected_never_touches_spotify(self, mock_confirm):
+        mock_confirm.return_value = {"approved": False, "args": None}
+
+        result = spotify_tools.create_spotify_playlist.func(name="Road Trip", description="", track_uris=[])
+
+        self.assertFalse(result["created"])
+        self.assertIn("did not approve", result["message"])
+
+    @patch("agent.tools.spotify_tools.client.add_playlist_tracks")
+    @patch("agent.tools.spotify_tools.client.create_playlist")
+    @patch("agent.tools.spotify_tools.get_active_access_token", return_value="token")
+    @patch("agent.tools.spotify_tools.require_confirmation")
+    def test_create_playlist_approved_creates_and_adds_tracks(
+        self, mock_confirm, mock_token, mock_create, mock_add
+    ):
+        mock_confirm.return_value = {"approved": True, "args": None}
+        mock_create.return_value = {"id": "pl123", "external_urls": {"spotify": "https://open.spotify.com/playlist/pl123"}}
+
+        result = spotify_tools.create_spotify_playlist.func(
+            name="Road Trip", description="", track_uris=["spotify:track:1"]
+        )
+
+        self.assertTrue(result["created"])
+        self.assertEqual(result["playlist_id"], "pl123")
+        mock_add.assert_called_once_with("token", "pl123", ["spotify:track:1"])
 
 
 class MessageTextExtractionTests(APITestCase):
