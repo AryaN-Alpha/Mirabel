@@ -178,15 +178,15 @@ export default function SpotifyNowPlayingBar() {
         </div>
       )}
       <div
-        className="flex items-center justify-between gap-4"
+        className="flex items-center justify-between gap-2 sm:gap-4"
         style={{
           borderTop: `1px solid ${cream(0.1)}`,
           background: "rgba(15,12,10,0.75)",
           backdropFilter: "blur(16px)",
-          padding: `${space[2]}px ${space[4]}px`,
+          padding: `${space[2]}px ${space[3]}px`,
         }}
       >
-      <div className="flex items-center gap-3 min-w-0" style={{ width: 260 }}>
+      <div className="hidden sm:flex items-center gap-3 min-w-0 shrink-0" style={{ width: 260 }}>
         {item ? (
           <>
             <Thumb src={item.album?.images?.[2]?.url || item.album?.images?.[0]?.url} size={44} />
@@ -204,12 +204,24 @@ export default function SpotifyNowPlayingBar() {
         )}
       </div>
 
-      <div className="flex flex-col items-center" style={{ flex: 1, maxWidth: 480 }}>
-        <div className="flex items-center gap-4">
+      {item && (
+        <div className="flex sm:hidden items-center gap-2 min-w-0 shrink">
+          <Thumb src={item.album?.images?.[2]?.url || item.album?.images?.[0]?.url} size={36} />
+          <div className="min-w-0">
+            <div className="truncate" style={{ fontFamily: fontHeading, fontSize: 13, color: text.base }}>
+              {item.name}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col items-center min-w-0" style={{ flex: 1, maxWidth: 480 }}>
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             type="button"
             disabled={busy}
             onClick={() => withBusy(() => spotifySetShuffle(!state?.shuffle_state, deviceId))}
+            className="hidden sm:inline-flex"
             style={{ background: "none", border: "none", cursor: "pointer", color: state?.shuffle_state ? accent[300] : cream(0.5) }}
             title="Shuffle"
           >
@@ -255,6 +267,7 @@ export default function SpotifyNowPlayingBar() {
             type="button"
             disabled={busy}
             onClick={() => withBusy(() => spotifySetRepeat(NEXT_REPEAT_STATE[state?.repeat_state] || "context", deviceId))}
+            className="hidden sm:inline-flex"
             style={{ background: "none", border: "none", cursor: "pointer", color: state?.repeat_state && state.repeat_state !== "off" ? accent[300] : cream(0.5) }}
             title={`Repeat: ${state?.repeat_state || "off"}`}
           >
@@ -310,8 +323,8 @@ export default function SpotifyNowPlayingBar() {
         )}
       </div>
 
-      <div className="flex items-center gap-3 relative" style={{ width: 200, justifyContent: "flex-end" }}>
-        <Volume2 size={15} strokeWidth={1.8} color={cream(0.5)} />
+      <div className="flex items-center gap-2 sm:gap-3 relative shrink-0" style={{ justifyContent: "flex-end" }}>
+        <Volume2 size={15} strokeWidth={1.8} color={cream(0.5)} className="hidden sm:block" />
         <input
           type="range"
           min={0}
@@ -326,6 +339,7 @@ export default function SpotifyNowPlayingBar() {
               withBusy(() => spotifySetVolume(Number(e.target.value), deviceId));
             }
           }}
+          className="hidden sm:block"
           style={{ width: 80, accentColor: accent[400] }}
         />
         <button

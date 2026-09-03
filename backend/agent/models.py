@@ -34,6 +34,11 @@ class AgentTask(models.Model):
     # [{"tool": str, "result_summary": str}, ...] — a simple audit trail, not a
     # full replay log.
     steps = models.JSONField(default=list, blank=True)
+    # [{"label": str, "path": str}|{"label": str, "url": str}, ...] — deterministic,
+    # tool-result-derived "go check it" links, computed by
+    # agent/tools/links.py::resolve_result_link and accumulated alongside `steps`.
+    # Never LLM-generated — see that module's docstring.
+    result_links = models.JSONField(default=list, blank=True)
     # Human-readable "what she's doing right now" line, updated live while
     # status=running (e.g. "Reading your Outlook inbox…") — see
     # agent/tasks.py::_run_graph. Cleared once the run leaves "running".

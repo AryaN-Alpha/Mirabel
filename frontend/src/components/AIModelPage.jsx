@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
   clearProviderCredential,
@@ -40,45 +41,6 @@ const underlineInputStyle = {
   fontSize: 15,
   outline: "none",
 };
-
-function ProviderRow({ label, active, isSaved, onSelect }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <a
-      href="#"
-      onClick={(e) => {
-        e.preventDefault();
-        onSelect();
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="no-underline flex items-center justify-between"
-      style={{
-        padding: `${space[3]}px 0`,
-        borderBottom: `1px solid ${active ? `${accent[400]}8c` : cream(0.1)}`,
-        fontFamily: fontHeading,
-        fontSize: 19,
-        color: active || hovered ? text.base : cream(0.66),
-        transition: "color 0.4s ease",
-      }}
-    >
-      {label}
-      {isSaved && (
-        <span
-          style={{
-            fontFamily: "inherit",
-            fontSize: 9,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: accent[300],
-          }}
-        >
-          active
-        </span>
-      )}
-    </a>
-  );
-}
 
 function GhostLink({ children, onClick, disabled, muted, ...rest }) {
   const [hovered, setHovered] = useState(false);
@@ -138,14 +100,20 @@ function OutlineButton({ children, onClick, disabled }) {
 }
 
 export default function AIModelPage() {
+  const { provider: providerParam } = useParams();
+  const navigate = useNavigate();
+
   const [available, setAvailable] = useState(null);
   const [credentials, setCredentials] = useState({});
 
   // The currently persisted (active) selection.
   const [saved, setSaved] = useState(null);
 
-  // The draft being edited — starts pointed at whichever provider is active.
-  const [provider, setProvider] = useState(null);
+  // The provider comes from the sidebar tree's route (falling back to the
+  // saved one while the URL has no provider segment yet — see the redirect
+  // effect below). Model/maxTokens/temperature stay local draft state,
+  // edited in place before Save.
+  const provider = providerParam ?? saved?.provider ?? null;
   const [model, setModel] = useState(null);
   const [maxTokens, setMaxTokens] = useState(400);
   const [temperature, setTemperature] = useState(1.0);
@@ -174,7 +142,6 @@ export default function AIModelPage() {
         if (cancelled) return;
         setAvailable(data.available);
         setCredentials(data.credentials);
-        setProvider(data.provider);
         setModel(data.model);
         setMaxTokens(data.max_tokens);
         setTemperature(data.temperature);
@@ -203,7 +170,21 @@ export default function AIModelPage() {
     setLiveError("");
   }, [provider]);
 
-  const providers = available ? Object.keys(available) : [];
+  // No provider in the URL yet (bare /home/ai-model) — send the user to the
+  // currently active provider's route once we know what it is.
+  useEffect(() => {
+    if (saved && !providerParam) {
+      navigate(`/home/ai-model/${saved.provider}`, { replace: true });
+    }
+  }, [saved, providerParam, navigate]);
+
+  // Reset the draft model whenever the sidebar tree switches provider — the
+  // saved model if this is the active provider, else its first available one.
+  useEffect(() => {
+    if (!available || !saved || !provider) return;
+    setModel(provider === saved.provider ? saved.model : available[provider]?.[0]?.id ?? null);
+  }, [provider, available, saved]);
+
   const modelsForProvider = available?.[provider] ?? [];
   const dirty =
     !!saved &&
@@ -231,13 +212,6 @@ export default function AIModelPage() {
     }
     return merged;
   })();
-
-  function selectTab(p) {
-    setProvider(p);
-    // Pre-fill with the live model if this tab is the active provider,
-    // otherwise default to its first available model.
-    setModel(p === saved?.provider ? saved.model : available[p][0]?.id ?? null);
-  }
 
   async function handleSave() {
     setSaving(true);
@@ -360,23 +334,8 @@ export default function AIModelPage() {
         <div style={{ fontVariantNumeric: "tabular-nums", fontSize: 14, color: cream(0.55) }}>{saved.model}</div>
       </div>
 
-      <div className="flex flex-wrap" style={{ gap: space[8] * 1.2, marginTop: space[8] * 1.2 }}>
-        <div style={{ flex: "0 0 200px" }}>
-          <div style={{ ...labelStyle, marginBottom: space[4] }}>Provider</div>
-          <div className="flex flex-col">
-            {providers.map((p) => (
-              <ProviderRow
-                key={p}
-                label={PROVIDER_LABELS[p] ?? p}
-                active={provider === p}
-                isSaved={saved.provider === p}
-                onSelect={() => selectTab(p)}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col" style={{ flex: 1, minWidth: 380, maxWidth: 720, gap: space[8] * 0.9 }}>
+      <div className="flex flex-wrap" style={{ marginTop: space[8] * 1.2 }}>
+        <div className="flex flex-col w-full min-w-0 sm:min-w-[380px]" style={{ flex: 1, maxWidth: 720, gap: space[8] * 0.9 }}>
           <div>
             <div style={{ ...labelStyle, marginBottom: space[3] }}>Model</div>
             {modelsForProvider.length === 0 ? (

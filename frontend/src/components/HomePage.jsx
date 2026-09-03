@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { fontHeading, fontBody, text, accent } from "./homeTheme";
+import useNameHidden from "../hooks/useNameHidden";
 
 const FRAME_SETS = {
   original: {
@@ -108,6 +109,7 @@ export default function HomePage() {
   const [loadProgress, setLoadProgress] = useState(0);
   const [progress, setProgress] = useState(0); // 0 → 1
 
+  const [nameHidden] = useNameHidden();
   const prefersReducedMotion = usePrefersReducedMotion();
   const accumulatedDelta = useRef(0);
   const playheadRef = useRef(0);
@@ -181,13 +183,10 @@ export default function HomePage() {
     }
   }, [progress, images, renderFrame, prefersReducedMotion]);
 
-  /* ── Wheel handler: capture scroll wheel ── */
-  const handleWheel = useCallback(
-    (e) => {
-      if (images.length < FRAME_COUNT || prefersReducedMotion) return;
-
-      e.preventDefault();
-      
+  /* ── Shared scrub logic: a deltaY-like value from either a wheel tick or
+     a touch-drag distance drives the same accumulator/progress math. ── */
+  const applyDelta = useCallback(
+    (deltaY) => {
       clearTimeout(scrollTimeout.current);
       scrollTimeout.current = setTimeout(() => {
         if (accumulatedDelta.current >= SCROLL_SENSITIVITY) {
@@ -197,12 +196,12 @@ export default function HomePage() {
         }
       }, 150);
 
-      if (isAtEnd.current && e.deltaY > 0) {
+      if (isAtEnd.current && deltaY > 0) {
         // User initiated a new scroll down after pausing at the end
         accumulatedDelta.current = 0;
         isAtEnd.current = false;
       } else {
-        accumulatedDelta.current += e.deltaY;
+        accumulatedDelta.current += deltaY;
         accumulatedDelta.current = Math.max(
           0,
           Math.min(SCROLL_SENSITIVITY, accumulatedDelta.current)
@@ -212,17 +211,52 @@ export default function HomePage() {
       const newProgress = accumulatedDelta.current / SCROLL_SENSITIVITY;
       setProgress(newProgress);
     },
-    [images.length, prefersReducedMotion, FRAME_COUNT]
+    []
   );
 
-  /* ── Attach wheel listener ── */
+  /* ── Wheel handler: capture scroll wheel ── */
+  const handleWheel = useCallback(
+    (e) => {
+      if (images.length < FRAME_COUNT || prefersReducedMotion) return;
+      e.preventDefault();
+      applyDelta(e.deltaY);
+    },
+    [images.length, prefersReducedMotion, FRAME_COUNT, applyDelta]
+  );
+
+  /* ── Touch handlers: a vertical drag scrubs the same way a wheel tick
+     does — wheel events never fire on touch devices, so without this the
+     hero animation was permanently stuck on frame 0 on mobile. ── */
+  const touchStartY = useRef(0);
+  const handleTouchStart = useCallback((e) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+  const handleTouchMove = useCallback(
+    (e) => {
+      if (images.length < FRAME_COUNT || prefersReducedMotion) return;
+      e.preventDefault();
+      const currentY = e.touches[0].clientY;
+      const deltaY = touchStartY.current - currentY; // drag up == scroll down
+      touchStartY.current = currentY;
+      applyDelta(deltaY * 2.2); // touch drags cover less distance than wheel ticks
+    },
+    [images.length, prefersReducedMotion, FRAME_COUNT, applyDelta]
+  );
+
+  /* ── Attach wheel/touch listeners ── */
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     container.addEventListener("wheel", handleWheel, { passive: false });
-    return () => container.removeEventListener("wheel", handleWheel);
-  }, [handleWheel]);
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [handleWheel, handleTouchStart, handleTouchMove]);
 
   /* ── Reduced motion: auto-play ── */
   useEffect(() => {
@@ -319,12 +353,12 @@ export default function HomePage() {
             fontWeight: 400,
             fontSize: "clamp(52px, 6.5vw, 96px)",
             lineHeight: 1.02,
-            letterSpacing: "-0.02em",
+            letterSpacing: nameHidden ? "0.06em" : "-0.02em",
             color: text.bright,
             margin: 0,
           }}
         >
-          Mirabel
+          {nameHidden ? "•••••••" : "Mirabel"}
         </h1>
 
       </motion.div>

@@ -39,10 +39,25 @@ def _request(method: str, token: str, path: str, **kwargs) -> requests.Response:
         raise SpotifyError(f"Couldn't reach Spotify: {exc}") from exc
 
 
+def _body(resp: requests.Response) -> dict:
+    """Playback-control endpoints (play/pause/next/...) return 204 No Content
+    on success, but Spotify occasionally sends a body that's non-empty (so
+    `resp.content` is truthy) yet not valid JSON — e.g. stray whitespace.
+    Treat any unparseable body on a successful response as "no content"
+    instead of letting json.JSONDecodeError (not a SpotifyError) escape
+    the view's `except SpotifyError` and surface as an unhandled 500."""
+    if not resp.content:
+        return {}
+    try:
+        return resp.json()
+    except ValueError:
+        return {}
+
+
 def _get(token: str, path: str, params: dict | None = None) -> dict:
     resp = _request("GET", token, path, headers=_headers(token), params=params)
     raise_for_response(resp)
-    return resp.json() if resp.content else {}
+    return _body(resp)
 
 
 def _post(token: str, path: str, body: dict | None = None, params: dict | None = None) -> dict:
@@ -50,7 +65,7 @@ def _post(token: str, path: str, body: dict | None = None, params: dict | None =
         "POST", token, path, headers=_headers(token, json_body=True), json=body, params=params
     )
     raise_for_response(resp)
-    return resp.json() if resp.content else {}
+    return _body(resp)
 
 
 def _put(token: str, path: str, body: dict | None = None, params: dict | None = None) -> dict:
@@ -58,7 +73,7 @@ def _put(token: str, path: str, body: dict | None = None, params: dict | None = 
         "PUT", token, path, headers=_headers(token, json_body=True), json=body, params=params
     )
     raise_for_response(resp)
-    return resp.json() if resp.content else {}
+    return _body(resp)
 
 
 def _delete(token: str, path: str, body: dict | None = None, params: dict | None = None) -> dict:
@@ -66,7 +81,7 @@ def _delete(token: str, path: str, body: dict | None = None, params: dict | None
         "DELETE", token, path, headers=_headers(token, json_body=True), json=body, params=params
     )
     raise_for_response(resp)
-    return resp.json() if resp.content else {}
+    return _body(resp)
 
 
 # --- Profile -----------------------------------------------------------

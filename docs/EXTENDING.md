@@ -130,6 +130,15 @@ can still edit) do **not** need confirmation — see `schedule_outlook_email`
 for the precedent. Only things that are irrevocable *the moment the tool
 returns* need the gate.
 
+If the tool has a real destination page the user would want to check
+afterward, add an entry to `agent/tools/links.py::_RESOLVERS` too — it's how
+a finished `AgentTask` shows a "go check it" link/preview in
+`AgentTaskPanel.jsx` instead of just a text confirmation. It's a small,
+tool-name-keyed resolver over the tool's own JSON result (never the LLM's
+own text — see that module's docstring), so it's a few-line addition, not a
+new subsystem. Optional, but skipping it for a new write-tool means that
+tool's completions silently don't get one.
+
 ### 2.5 Ambiguous instructions
 If a tool needs information the instruction didn't provide and you can't
 reasonably default it, don't guess — call

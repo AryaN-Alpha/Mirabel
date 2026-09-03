@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { regenerateCvSection, tailorCvToJob } from "../../services/api";
+import { applyCvTailoring, regenerateCvSection, tailorCvToJob } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
 import { GhostLink, ErrorNote, underlineInputStyle, Tag } from "../homeWidgets";
@@ -15,12 +15,14 @@ const SECTION_LABELS = {
   strengths: "Strengths",
 };
 
-export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTab }) {
+export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTab, onTailoredCvCreated }) {
   const [jobDescription, setJobDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [rewritingSummary, setRewritingSummary] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState("");
 
   async function handleTailor() {
     if (!jobDescription.trim()) return;
@@ -61,6 +63,22 @@ export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTa
     }
   }
 
+  // Applies every current suggestion (summary, skills, and each multi-entry
+  // section's flagged notes) in one backend call, into a brand-new CV rather
+  // than mutating this one — the original stays exactly as-is either way.
+  async function handleApplyAndSave() {
+    setApplying(true);
+    setApplyError("");
+    try {
+      const data = await applyCvTailoring(cvId, result.suggestions, result.missing_keywords);
+      onTailoredCvCreated?.(data);
+    } catch (err) {
+      setApplyError(getErrorMessage(err, "Couldn't create the tailored CV."));
+    } finally {
+      setApplying(false);
+    }
+  }
+
   return (
     <div className="flex flex-col" style={{ gap: space[4] }}>
       <textarea
@@ -98,6 +116,19 @@ export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTa
                   <Tag key={i}>{kw}</Tag>
                 ))}
               </div>
+            </div>
+          )}
+
+          {result.suggestions.length > 0 && (
+            <div>
+              <GhostLink onClick={handleApplyAndSave} disabled={applying}>
+                {applying && <Loader2 size={13} className="animate-spin" />}
+                Auto-update & save as new CV →
+              </GhostLink>
+              <p style={{ fontSize: 12, marginTop: space[1], color: cream(0.4) }}>
+                Applies these suggestions and saves the result as a new CV — this one is left untouched.
+              </p>
+              <ErrorNote>{applyError}</ErrorNote>
             </div>
           )}
 

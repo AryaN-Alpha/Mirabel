@@ -23,6 +23,7 @@ from langgraph.types import Command
 
 from agent.graph import build_agent, run_config
 from agent.models import AgentTask
+from agent.tools.links import resolve_result_link
 from agent.tools.routing import select_tools
 from core.models import Message, ModelPreference
 from core.services.telemetry import log_llm_call
@@ -167,6 +168,9 @@ def _log_agent_llm_call(pref: ModelPreference, message, started: float) -> None:
     )
 
 
+_MAX_RESULT_LINKS = 5
+
+
 def _record_step(task: AgentTask, node_name: str, message) -> None:
     """Persists progress immediately (not batched) so a client polling
     AgentTask mid-run sees it — this is the whole point of streaming
@@ -174,9 +178,19 @@ def _record_step(task: AgentTask, node_name: str, message) -> None:
     from langchain_core.messages import AIMessage, ToolMessage
 
     if node_name == "tools" and isinstance(message, ToolMessage):
-        task.steps.append({"tool": message.name, "result_summary": _message_text(message)[:300]})
+        text = _message_text(message)
+        task.steps.append({"tool": message.name, "result_summary": text[:300]})
+        update_fields = ["steps", "current_step"]
+        # Deterministic, tool-result-derived "go check it" link — never
+        # LLM-generated, see agent/tools/links.py's docstring. Accumulates
+        # across run_agent_task/resume_agent_task the same way `steps`
+        # already does, since both are appended to the same persisted row.
+        link = resolve_result_link(message.name, text)
+        if link and link not in task.result_links and len(task.result_links) < _MAX_RESULT_LINKS:
+            task.result_links.append(link)
+            update_fields.append("result_links")
         task.current_step = ""
-        task.save(update_fields=["steps", "current_step"])
+        task.save(update_fields=update_fields)
     elif node_name == "agent" and isinstance(message, AIMessage) and message.tool_calls:
         # Only the first parallel tool call gets a status line — showing
         # all of them at once is noisier than useful for one status line.
@@ -198,6 +212,14 @@ _STEP_DESCRIPTIONS = {
     "turn_in_classroom_assignment": "Getting that assignment ready to turn in…",
     "solve_classroom_coursework": "Working through the assignment…",
     "ask_clarifying_question": "Thinking of what to ask…",
+    "create_spotify_playlist": "Getting that playlist ready to create…",
+    "update_spotify_playlist_details": "Getting that playlist update ready…",
+    "add_tracks_to_spotify_playlist": "Getting those tracks ready to add…",
+    "remove_tracks_from_spotify_playlist": "Getting those tracks ready to remove…",
+    "save_spotify_tracks": "Getting those tracks ready to save…",
+    "remove_spotify_saved_tracks": "Getting those tracks ready to unsave…",
+    "follow_spotify_artists": "Getting ready to follow that artist…",
+    "unfollow_spotify_artists": "Getting ready to unfollow that artist…",
 }
 
 

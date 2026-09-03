@@ -13,6 +13,8 @@ from agent.tasks import run_agent_task
 from core.models import Conversation
 
 MAX_INSTRUCTION_LENGTH = 4000
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
 
 
 def _serialize(task: AgentTask) -> dict:
@@ -25,6 +27,7 @@ def _serialize(task: AgentTask) -> dict:
         "steps": task.steps,
         "current_step": task.current_step,
         "result_text": task.result_text,
+        "result_links": task.result_links,
         "result_mood": task.result_mood,
         "error_message": task.error_message,
         "created_at": task.created_at,
@@ -37,7 +40,27 @@ def _serialize(task: AgentTask) -> dict:
 @throttle_classes([AnonRateThrottle])
 def tasks(request: Request) -> Response:
     if request.method == "GET":
-        return Response({"tasks": [_serialize(t) for t in AgentTask.objects.all()[:100]]})
+        try:
+            page = max(1, int(request.GET.get("page", 1)))
+        except ValueError:
+            page = 1
+        try:
+            page_size = int(request.GET.get("page_size", DEFAULT_PAGE_SIZE))
+        except ValueError:
+            page_size = DEFAULT_PAGE_SIZE
+        page_size = max(1, min(page_size, MAX_PAGE_SIZE))
+
+        queryset = AgentTask.objects.all()
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        return Response(
+            {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "tasks": [_serialize(t) for t in queryset[offset : offset + page_size]],
+            }
+        )
 
     instruction = (request.data.get("instruction") or "").strip()
     if not instruction:

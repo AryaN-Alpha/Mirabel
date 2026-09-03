@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -10,8 +11,9 @@ from agent.services.lifecycle import (
     resume_clarification,
     resume_confirmation,
 )
-from agent.tasks import _message_text
+from agent.tasks import _message_text, _record_step
 from agent.tools import linkedin_tools, spotify_tools
+from agent.tools.links import resolve_result_link
 from core.models import Conversation
 from linkedin.models import LinkedInAutomation, LinkedInDraft
 from spotify.services.oauth import SpotifyError
@@ -200,6 +202,30 @@ class AgentTaskApiTests(APITestCase):
         detail = self.client.get(f"/api/agent/tasks/{task.id}/")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.data["instruction"], "do a thing")
+
+    def test_list_is_paginated(self):
+        for i in range(25):
+            AgentTask.objects.create(instruction=f"task {i}")
+
+        page1 = self.client.get("/api/agent/tasks/", {"page_size": 10})
+        self.assertEqual(page1.status_code, 200)
+        self.assertEqual(page1.data["total"], 25)
+        self.assertEqual(page1.data["page"], 1)
+        self.assertEqual(page1.data["page_size"], 10)
+        self.assertEqual(len(page1.data["tasks"]), 10)
+
+        page2 = self.client.get("/api/agent/tasks/", {"page": 2, "page_size": 10})
+        self.assertEqual(len(page2.data["tasks"]), 10)
+        self.assertEqual(
+            set(t["id"] for t in page1.data["tasks"]).intersection(t["id"] for t in page2.data["tasks"]),
+            set(),
+        )
+
+        page3 = self.client.get("/api/agent/tasks/", {"page": 3, "page_size": 10})
+        self.assertEqual(len(page3.data["tasks"]), 5)
+
+        oversized = self.client.get("/api/agent/tasks/", {"page_size": 9999})
+        self.assertEqual(oversized.data["page_size"], 100)
 
     def test_approve_requires_awaiting_confirmation_status(self):
         task = AgentTask.objects.create(instruction="do a thing", status=AgentTask.Status.RUNNING)
@@ -482,3 +508,88 @@ class TrimAgentMessagesTests(APITestCase):
         self.assertGreater(len(result), 1)
         # All 5 older small groups should have fit and been kept.
         self.assertEqual(len(result), 1 + len(small_groups))
+
+
+class ResolveResultLinkTests(APITestCase):
+    """Unit coverage for agent/tools/links.py per docs/EXTENDING.md §2.6:
+    call the function directly, assert the returned dict shape, and that a
+    malformed/unexpected result never raises (this runs on the hot path of
+    every tool-call step in agent/tasks.py::_record_step)."""
+
+    def test_unknown_tool_returns_none(self):
+        self.assertIsNone(resolve_result_link("some_read_only_tool", "{}"))
+
+    def test_malformed_json_returns_none_not_raise(self):
+        self.assertIsNone(resolve_result_link("create_spotify_playlist", "not json"))
+
+    def test_non_dict_json_returns_none(self):
+        self.assertIsNone(resolve_result_link("create_spotify_playlist", "[1, 2, 3]"))
+
+    def test_rejected_confirmation_result_yields_no_link(self):
+        result = json.dumps({"created": False, "message": "The user did not approve this action."})
+        self.assertIsNone(resolve_result_link("create_spotify_playlist", result))
+
+    def test_spotify_playlist_created_links_to_external_url(self):
+        result = json.dumps({"created": True, "playlist_id": "pl1", "url": "https://open.spotify.com/playlist/pl1"})
+        link = resolve_result_link("create_spotify_playlist", result)
+        self.assertEqual(link, {"label": "Open playlist on Spotify", "url": "https://open.spotify.com/playlist/pl1"})
+
+    def test_spotify_playlist_created_without_url_yields_no_link(self):
+        result = json.dumps({"created": True, "playlist_id": "pl1"})
+        self.assertIsNone(resolve_result_link("create_spotify_playlist", result))
+
+    def test_linkedin_publish_builds_feed_url_from_post_urn(self):
+        result = json.dumps({"published": True, "post_urn": "urn:li:share:12345"})
+        link = resolve_result_link("publish_linkedin_draft", result)
+        self.assertEqual(link, {"label": "View post on LinkedIn", "url": "https://www.linkedin.com/feed/update/urn:li:share:12345/"})
+
+    def test_kanban_task_created_links_to_board(self):
+        result = json.dumps({"id": 7, "title": "Do the thing", "status": "todo"})
+        link = resolve_result_link("create_kanban_task", result)
+        self.assertEqual(link, {"label": "View Kanban board", "path": "/home/tasks"})
+
+    def test_schedule_outlook_email_links_to_scheduled_tab(self):
+        result = json.dumps({"id": 3, "send_at": "2026-09-10T10:00:00Z", "status": "pending"})
+        link = resolve_result_link("schedule_outlook_email", result)
+        self.assertEqual(link, {"label": "View scheduled emails", "path": "/home/outlook/scheduled"})
+
+
+class RecordStepResultLinksTests(APITestCase):
+    """agent/tasks.py::_record_step must accumulate result_links the same
+    way it already accumulates `steps` — incrementally, deduped, and safe
+    to call again with an identical tool result (e.g. across a
+    run_agent_task -> resume_agent_task cycle)."""
+
+    def test_linkable_tool_result_appends_a_link(self):
+        task = AgentTask.objects.create(instruction="make me a playlist")
+        message = ToolMessage(
+            content='{"created": true, "playlist_id": "pl1", "url": "https://open.spotify.com/playlist/pl1"}',
+            name="create_spotify_playlist",
+            tool_call_id="call_1",
+        )
+
+        _record_step(task, "tools", message)
+
+        task.refresh_from_db()
+        self.assertEqual(
+            task.result_links, [{"label": "Open playlist on Spotify", "url": "https://open.spotify.com/playlist/pl1"}]
+        )
+
+    def test_duplicate_link_is_not_appended_twice(self):
+        task = AgentTask.objects.create(instruction="update two playlists")
+        message = ToolMessage(content='{"updated": true}', name="update_spotify_playlist_details", tool_call_id="c1")
+
+        _record_step(task, "tools", message)
+        _record_step(task, "tools", message)
+
+        task.refresh_from_db()
+        self.assertEqual(len(task.result_links), 1)
+
+    def test_non_linkable_tool_result_leaves_result_links_empty(self):
+        task = AgentTask.objects.create(instruction="list my kanban projects")
+        message = ToolMessage(content="[]", name="list_kanban_projects", tool_call_id="call_1")
+
+        _record_step(task, "tools", message)
+
+        task.refresh_from_db()
+        self.assertEqual(task.result_links, [])

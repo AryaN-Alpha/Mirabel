@@ -195,8 +195,8 @@ export default function LinkedInCreatePostTab({ disabled }) {
   return (
     <fieldset
       disabled={disabled}
-      className="border-none p-0 m-0"
-      style={{ opacity: disabled ? 0.5 : 1, display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(220px,.55fr)", gap: space[8] * 1.2 }}
+      className="border-none p-0 m-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,.55fr)]"
+      style={{ opacity: disabled ? 0.5 : 1, gap: space[8] * 1.2 }}
     >
       <div>
         <div style={labelStyle}>Generate with AI</div>

@@ -581,6 +581,273 @@ class CvTailorEndpointTests(CvAPITestCase):
         self.assertEqual(response.data["suggestions"][0]["section_type"], "summary")
 
 
+class CvTailorApplyEndpointTests(CvAPITestCase):
+    """POST /tailor/apply/ — the 'auto-update & save as new CV' action.
+    Exercises the view/wiring; CvAutoTailorServiceTests below exercises the
+    merge logic directly."""
+
+    def test_unknown_cv_404(self):
+        response = self.client.post(reverse("cv-tailor-apply", args=[999]), {"suggestions": []}, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_suggestions_must_be_a_list(self):
+        cv = _create_cv()
+        response = self.client.post(reverse("cv-tailor-apply", args=[cv.id]), {}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_creates_new_cv_leaves_original_untouched(self, mock_get_provider):
+        from cv.schema import normalize_sections
+
+        cv = _create_cv(name="Main")
+        cv.sections = normalize_sections(SAMPLE_SECTIONS)
+        cv.save()
+        original_summary = cv.sections["summary"]
+
+        mock_get_provider.return_value.generate_text.return_value = '{"summary": "A sharper backend engineer summary."}'
+        response = self.client.post(
+            reverse("cv-tailor-apply", args=[cv.id]),
+            {"suggestions": [{"section_type": "summary", "note": "Sharpen it."}], "missing_keywords": ["Kubernetes"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertNotEqual(response.data["id"], cv.id)
+        self.assertEqual(response.data["name"], "Main — Tailored")
+        self.assertEqual(response.data["sections"]["summary"], "A sharper backend engineer summary.")
+        self.assertEqual(response.data["changed_sections"], ["summary"])
+        self.assertFalse(response.data["error"])
+
+        cv.refresh_from_db()
+        self.assertEqual(cv.sections["summary"], original_summary)
+        self.assertEqual(CVProfile.objects.count(), 2)
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_no_supported_suggestions_creates_unchanged_copy_without_llm_call(self, mock_get_provider):
+        cv = _create_cv()
+        response = self.client.post(
+            reverse("cv-tailor-apply", args=[cv.id]),
+            {"suggestions": [{"section_type": "certifications", "note": "List AWS cert first."}]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["changed_sections"], [])
+        self.assertFalse(response.data["error"])
+        mock_get_provider.return_value.generate_text.assert_not_called()
+
+
+class CvAutoTailorServiceTests(CvAPITestCase):
+    """Exercises cv.services.tailoring.auto_tailor_sections directly, since
+    the merge/invention-guard logic is the load-bearing part of this
+    feature — 'only change what was flagged, never invent a skill'."""
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_merges_summary_skills_and_experience_leaves_rest_untouched(self, mock_get_provider):
+        from cv.schema import normalize_sections
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = normalize_sections(SAMPLE_SECTIONS)
+        sections["skill_groups"] = [{"category": "Backend", "skills": ["Python", "Django"]}]
+        first_id = sections["experience"][0]["id"]
+        second_id = sections["experience"][1]["id"]
+        untouched_bullets = list(sections["experience"][1]["bullets"])
+
+        mock_get_provider.return_value.generate_text.return_value = (
+            "{"
+            '"summary": "Backend engineer with cloud experience.",'
+            # Category relabeled ("Backend" -> "Backend & Cloud") is a real
+            # change on top of the invention-guard case below, so this group
+            # is correctly reported as changed even after "Kubernetes" gets
+            # stripped back out.
+            '"skill_groups": [{"category": "Backend & Cloud", "skills": ["Python", "Django", "Kubernetes"]}],'
+            f'"experience": [{{"id": "{first_id}", "bullets": ["Did a thing with cloud infra."]}}]'
+            "}"
+        )
+
+        suggestions = [
+            {"section_type": "summary", "note": "Mention cloud experience."},
+            {"section_type": "skills", "note": "Emphasize backend skills."},
+            {"section_type": "experience", "note": "Mention cloud infra."},
+        ]
+        result = auto_tailor_sections(sections, suggestions, ["Kubernetes"])
+
+        self.assertFalse(result["error"])
+        self.assertEqual(set(result["changed_sections"]), {"summary", "skills", "experience"})
+        self.assertEqual(result["sections"]["summary"], "Backend engineer with cloud experience.")
+
+        # "Kubernetes" was never in the CV's own skill_groups, so it must be
+        # dropped even though the (mocked) model tried to add it.
+        applied_skills = result["sections"]["skill_groups"][0]["skills"]
+        self.assertIn("Python", applied_skills)
+        self.assertIn("Django", applied_skills)
+        self.assertNotIn("Kubernetes", applied_skills)
+
+        exp_by_id = {e["id"]: e for e in result["sections"]["experience"]}
+        self.assertEqual(exp_by_id[first_id]["bullets"], ["Did a thing with cloud infra."])
+        # Second entry wasn't in the model's response -> stays byte-identical,
+        # including every non-text field (title/company/dates).
+        self.assertEqual(exp_by_id[second_id]["bullets"], untouched_bullets)
+        self.assertEqual(exp_by_id[second_id]["company"], "Acme Labs")
+
+    def test_only_certifications_flagged_is_a_no_op_no_llm_call(self):
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = empty_sections()
+        with patch("cv.services.tailoring.get_provider") as mock_get_provider:
+            result = auto_tailor_sections(sections, [{"section_type": "certifications", "note": "x"}], [])
+            mock_get_provider.assert_not_called()
+        self.assertEqual(result["sections"], sections)
+        self.assertEqual(result["changed_sections"], [])
+        self.assertFalse(result["error"])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_falls_back_on_provider_error(self, mock_get_provider):
+        from core.services.providers import ProviderError
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = empty_sections()
+        sections["summary"] = "Original summary."
+        mock_get_provider.return_value.generate_text.side_effect = ProviderError("no api key configured")
+
+        result = auto_tailor_sections(sections, [{"section_type": "summary", "note": "x"}], [])
+
+        self.assertTrue(result["error"])
+        self.assertEqual(result["reason"], "provider")
+        self.assertEqual(result["sections"]["summary"], "Original summary.")
+        self.assertEqual(result["changed_sections"], [])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_malformed_json_response_is_distinguishable_from_a_real_no_op(self, mock_get_provider):
+        """A model that returns unparseable JSON (observed live: a
+        reasoning-heavy model burning its whole token budget before ever
+        emitting a closing brace) must not look identical to "the AI
+        legitimately decided nothing needed to change" — the frontend needs
+        reason="malformed" to tell the user their click didn't actually
+        work, distinct from the no-suggestions-supported no-op path (which
+        correctly keeps reason=None, see test_only_certifications_flagged_
+        is_a_no_op_no_llm_call above)."""
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = empty_sections()
+        sections["summary"] = "Original summary."
+        mock_get_provider.return_value.generate_text.return_value = "not json at all"
+
+        result = auto_tailor_sections(sections, [{"section_type": "summary", "note": "x"}], [])
+
+        self.assertFalse(result["error"])
+        self.assertEqual(result["reason"], "malformed")
+        self.assertEqual(result["sections"]["summary"], "Original summary.")
+        self.assertEqual(result["changed_sections"], [])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_empty_response_retries_once_at_double_budget_then_succeeds(self, mock_get_provider):
+        """Live-verified failure mode: a reasoning-heavy model (this app's
+        DeepSeek default) can burn its whole max_tokens budget on hidden
+        reasoning and return an empty string — this was the actual, repeated
+        cause of "creates a new CV but nothing changed" (confirmed in
+        backend/logs/mirabel.log: completion_tokens landing exactly on the
+        6000 cap with empty message content). The fix retries once at double
+        the budget instead of silently accepting the empty response."""
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = empty_sections()
+        sections["summary"] = "Original summary."
+        mock_get_provider.return_value.generate_text.side_effect = [
+            "",
+            '{"summary": "Tailored summary with cloud experience."}',
+        ]
+
+        result = auto_tailor_sections(sections, [{"section_type": "summary", "note": "x"}], [])
+
+        self.assertEqual(mock_get_provider.return_value.generate_text.call_count, 2)
+        retry_call = mock_get_provider.return_value.generate_text.call_args_list[1]
+        first_call = mock_get_provider.return_value.generate_text.call_args_list[0]
+        self.assertGreater(retry_call.kwargs["max_tokens"], first_call.kwargs["max_tokens"])
+        self.assertFalse(result["error"])
+        self.assertIsNone(result["reason"])
+        self.assertEqual(result["changed_sections"], ["summary"])
+        self.assertEqual(result["sections"]["summary"], "Tailored summary with cloud experience.")
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_empty_response_on_retry_too_falls_back_to_malformed(self, mock_get_provider):
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = empty_sections()
+        sections["summary"] = "Original summary."
+        mock_get_provider.return_value.generate_text.side_effect = ["", ""]
+
+        result = auto_tailor_sections(sections, [{"section_type": "summary", "note": "x"}], [])
+
+        self.assertEqual(mock_get_provider.return_value.generate_text.call_count, 2)
+        self.assertFalse(result["error"])
+        self.assertEqual(result["reason"], "malformed")
+        self.assertEqual(result["sections"]["summary"], "Original summary.")
+        self.assertEqual(result["changed_sections"], [])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_entry_echoed_back_unchanged_is_not_reported_as_a_change(self, mock_get_provider):
+        """The prompt tells the model to omit an entry it didn't change, but
+        that's not a guarantee — if it echoes the identical bullets back
+        anyway, that must not count as a change (previously it did, since
+        the old code only checked "did an id match", not "did the value
+        actually differ")."""
+        from cv.schema import normalize_sections
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = normalize_sections(SAMPLE_SECTIONS)
+        first_id = sections["experience"][0]["id"]
+        same_bullets = sections["experience"][0]["bullets"]
+
+        mock_get_provider.return_value.generate_text.return_value = (
+            f'{{"experience": [{{"id": "{first_id}", "bullets": {same_bullets!r}}}]}}'.replace("'", '"')
+        )
+
+        result = auto_tailor_sections(sections, [{"section_type": "experience", "note": "x"}], [])
+
+        self.assertEqual(result["changed_sections"], [])
+        self.assertEqual(result["changes"], [])
+
+    @patch("cv.services.tailoring.get_provider")
+    def test_changes_report_includes_before_after_detail(self, mock_get_provider):
+        """Backs the CvTailorTab "Auto-update & save as new CV" report
+        popup (TailoringReportModal.jsx) — the frontend needs the actual
+        before/after text, not just the list of changed section names, to
+        show the user what an AI call rewrote in their new CV."""
+        from cv.schema import normalize_sections
+        from cv.services.tailoring import auto_tailor_sections
+
+        sections = normalize_sections(SAMPLE_SECTIONS)
+        first_id = sections["experience"][0]["id"]
+        original_bullets = sections["experience"][0]["bullets"]
+
+        mock_get_provider.return_value.generate_text.return_value = (
+            "{"
+            '"summary": "Tailored summary.",'
+            f'"experience": [{{"id": "{first_id}", "bullets": ["A rewritten bullet."]}}]'
+            "}"
+        )
+
+        result = auto_tailor_sections(
+            sections,
+            [
+                {"section_type": "summary", "note": "x"},
+                {"section_type": "experience", "note": "x"},
+            ],
+            [],
+        )
+
+        changes_by_section = {c["section"]: c for c in result["changes"]}
+        self.assertEqual(changes_by_section["summary"]["before"], "Backend engineer.")
+        self.assertEqual(changes_by_section["summary"]["after"], "Tailored summary.")
+
+        exp_entries = changes_by_section["experience"]["entries"]
+        self.assertEqual(len(exp_entries), 1)
+        self.assertEqual(exp_entries[0]["id"], first_id)
+        self.assertEqual(exp_entries[0]["before"], original_bullets)
+        self.assertEqual(exp_entries[0]["after"], ["A rewritten bullet."])
+        self.assertEqual(exp_entries[0]["label"], "Engineer at Acme")
+
+
 class CvTailorExtractionTests(CvAPITestCase):
     """Pass 6: cv/services/tailoring.py replaced a plain character-offset
     truncation with select_relevant_sentences for the job description,

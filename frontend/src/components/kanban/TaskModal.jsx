@@ -70,7 +70,7 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
         style={underlineInputStyle}
       />
 
-      <div className="grid grid-cols-2" style={{ gap: space[4] }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: space[4] }}>
         <label className="flex flex-col" style={{ gap: space[2] }}>
           <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Status</span>
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={underlineSelectStyle}>

@@ -15,6 +15,7 @@ import ChatInput from "../ChatInput";
 import AgentTaskPanel from "./AgentTaskPanel";
 
 const POLL_INTERVAL_MS = 1500;
+const PAGE_SIZE = 20;
 const NON_TERMINAL = new Set(["queued", "running", "awaiting_confirmation", "awaiting_clarification"]);
 
 const PANEL_PALETTE = {
@@ -57,17 +58,20 @@ function formatDate(iso) {
 
 export default function AgentTasksTab() {
   const [tasks, setTasks] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const pollRef = useRef(null);
 
-  const load = useCallback(async ({ silent = false } = {}) => {
+  const load = useCallback(async (targetPage, { silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
-      const data = await listAgentTasks();
+      const data = await listAgentTasks({ page: targetPage, page_size: PAGE_SIZE });
       setTasks(data.tasks);
+      setTotal(data.total);
       setError("");
     } catch (err) {
       if (!silent) setError(getErrorMessage(err, "Couldn't load agent tasks."));
@@ -77,22 +81,26 @@ export default function AgentTasksTab() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(page);
+  }, [page, load]);
 
   useEffect(() => {
     const hasActive = (tasks || []).some((t) => NON_TERMINAL.has(t.status));
     if (!hasActive) return undefined;
-    pollRef.current = setInterval(() => load({ silent: true }), POLL_INTERVAL_MS);
+    pollRef.current = setInterval(() => load(page, { silent: true }), POLL_INTERVAL_MS);
     return () => clearInterval(pollRef.current);
-  }, [tasks, load]);
+  }, [tasks, page, load]);
 
   async function handleStart(instruction) {
     setStarting(true);
     setError("");
     try {
-      const task = await startAgentTask(instruction);
-      setTasks((prev) => [task, ...(prev || [])]);
+      await startAgentTask(instruction);
+      if (page === 1) {
+        await load(1, { silent: true });
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't start that task."));
     } finally {
@@ -129,6 +137,8 @@ export default function AgentTasksTab() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <div className="flex flex-col" style={{ gap: space[6] }}>
       <ChatInput onSend={handleStart} disabled={starting} />
@@ -147,8 +157,8 @@ export default function AgentTasksTab() {
               key={task.id}
               style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}` }}
             >
-              <div className="flex items-baseline justify-between gap-4">
-                <span style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
+              <div className="flex items-baseline justify-between gap-4 flex-wrap">
+                <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
                 <span
                   className="flex items-center gap-1.5"
                   style={{
@@ -212,6 +222,20 @@ export default function AgentTasksTab() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {tasks && tasks.length > 0 && (
+        <div className="flex items-center justify-between" style={{ marginTop: space[6] }}>
+          <GhostLink disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} muted={page <= 1}>
+            ← Previous
+          </GhostLink>
+          <span style={{ fontSize: 12, color: cream(0.4) }}>
+            {total} task{total === 1 ? "" : "s"} · page {page} of {totalPages}
+          </span>
+          <GhostLink disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} muted={page >= totalPages}>
+            Next →
+          </GhostLink>
         </div>
       )}
     </div>

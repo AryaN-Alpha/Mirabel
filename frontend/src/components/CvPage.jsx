@@ -20,6 +20,7 @@ import CvPreview from "./cv/CvPreview";
 import CvPreviewMinimal from "./cv/CvPreviewMinimal";
 import CvVersionTabs from "./cv/CvVersionTabs";
 import CvVersionModal from "./cv/CvVersionModal";
+import TailoringReportModal from "./cv/TailoringReportModal";
 import CvPersonalInfoTab from "./cv/CvPersonalInfoTab";
 import CvSummaryTab from "./cv/CvSummaryTab";
 import CvExperienceTab from "./cv/CvExperienceTab";
@@ -125,6 +126,7 @@ export default function CvPage() {
 
   const [cvVersionModal, setCvVersionModal] = useState(null); // null = closed, {} = new, {...} = rename
   const [deletingCv, setDeletingCv] = useState(null);
+  const [tailoringReport, setTailoringReport] = useState(null); // null = closed, else the tailor/apply response
 
   // Style preference is global (not per-CV-version), fetched once here and
   // shared between CvStyleTab (the controls) and whichever CvPreview* is
@@ -285,6 +287,30 @@ export default function CvPage() {
     if (data.id !== selectedCvId) selectCv(data.id);
   }
 
+  // "Auto-update & save as new CV" (CvTailorTab) already created the new
+  // CVProfile server-side — this just mirrors handleUploaded's list-refresh
+  // + select pattern so it shows up in the version tabs and becomes active.
+  function handleTailoredCvCreated(data) {
+    listCvs()
+      .then((list) => setCvs(list.cvs))
+      .catch(() => {});
+    let notice;
+    if (data.changed_sections.length > 0) {
+      notice = `Created "${data.name}" — tailored ${data.changed_sections.join(", ")}.`;
+    } else if (data.reason === "malformed") {
+      // The AI call went through but its response couldn't be used (see
+      // cv.services.tailoring.auto_tailor_sections) — the copy still got
+      // created, just untailored, so say that plainly rather than implying
+      // nothing needed to change.
+      notice = `Created "${data.name}", but the AI's response couldn't be used this time — try Auto-update again.`;
+    } else {
+      notice = `Created "${data.name}" — none of the flagged sections needed a change.`;
+    }
+    setUploadNotice(notice);
+    setTailoringReport(data);
+    selectCv(data.id);
+  }
+
   function handleReplaceClick() {
     if (window.confirm("Uploading a new PDF will replace your current CV sections. Continue?")) {
       setShowReplace(true);
@@ -351,6 +377,9 @@ export default function CvPage() {
     <>
       {cvVersionModal !== null && (
         <CvVersionModal cv={cvVersionModal} onClose={() => setCvVersionModal(null)} onSave={handleSaveCvVersion} />
+      )}
+      {tailoringReport && (
+        <TailoringReportModal report={tailoringReport} onClose={() => setTailoringReport(null)} />
       )}
       {deletingCv && (
         <ConfirmDialog
@@ -458,8 +487,8 @@ export default function CvPage() {
       )}
 
       <div
-        className="grid items-start"
-        style={{ gridTemplateColumns: "minmax(0,1.7fr) minmax(260px,.6fr)", gap: space[8] * 1.1, marginTop: space[8] * 1.1 }}
+        className="grid items-start grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,.6fr)]"
+        style={{ gap: space[8] * 1.1, marginTop: space[8] * 1.1 }}
       >
         {stylePref?.template_choice === "minimal-single-column" ? (
           <CvPreviewMinimal
@@ -502,6 +531,7 @@ export default function CvPage() {
               stylePref={stylePref}
               onSaveStylePref={saveStylePref}
               onJumpToTab={setActiveTab}
+              onTailoredCvCreated={handleTailoredCvCreated}
             />
           </div>
 

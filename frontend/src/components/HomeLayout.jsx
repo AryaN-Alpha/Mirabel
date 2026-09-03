@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import HomeNavbar from "./HomeNavbar";
-import { bg, accent, accent2700 } from "./homeTheme";
+import { bg, accent, accent2700, fontHeading, text } from "./homeTheme";
 import { ScrollContainerProvider, useScrollContainer } from "./ScrollContainerContext";
 import SpotifyNowPlayingBar from "./spotify/SpotifyNowPlayingBar";
 
@@ -28,9 +28,15 @@ const EMBERS = [
   { left: "94%", bottom: "30%", size: 2, duration: 27, delay: 2 },
 ];
 
+function resolveTitle(pathname) {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  const prefix = Object.keys(PAGE_TITLES).find((path) => pathname.startsWith(`${path}/`));
+  return prefix ? PAGE_TITLES[prefix] : undefined;
+}
+
 export default function HomeLayout() {
   const { pathname } = useLocation();
-  const title = PAGE_TITLES[pathname];
+  const title = resolveTitle(pathname);
 
   return (
     <ScrollContainerProvider>
@@ -87,8 +93,16 @@ function HomeLayoutInner({ title }) {
         <Sidebar />
 
         <div ref={scrollRef} className={`relative flex-1 min-w-0 min-h-0 flex flex-col ${title ? "overflow-y-auto" : "overflow-hidden"}`}>
+          <div
+            className="md:hidden flex items-center justify-center h-14 shrink-0"
+            style={{ borderBottom: `1px solid ${text.divider}` }}
+          >
+            <span style={{ fontFamily: fontHeading, fontSize: 18, fontStyle: "italic", color: text.bright }}>
+              Mirabel
+            </span>
+          </div>
           {title && <HomeNavbar title={title} />}
-          <div className={title ? "px-6 md:px-8 pb-10 flex-1 w-full min-w-0" : "flex-1 w-full min-h-0 min-w-0"}>
+          <div className={title ? "px-4 md:px-8 pb-10 flex-1 w-full min-w-0" : "flex-1 w-full min-h-0 min-w-0"}>
             <Outlet />
           </div>
         </div>

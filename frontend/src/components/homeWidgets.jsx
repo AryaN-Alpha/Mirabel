@@ -198,9 +198,10 @@ export function ModalShell({ children, onClose, maxWidth = 460, busy = false }) 
       onClick={busy ? undefined : onClose}
     >
       <div
-        className="w-full flex flex-col"
+        className="w-full flex flex-col overflow-y-auto"
         style={{
           maxWidth,
+          maxHeight: "90vh",
           gap: space[4],
           padding: space[6],
           border: `1px solid ${cream(0.14)}`,

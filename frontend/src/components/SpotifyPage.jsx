@@ -1,39 +1,46 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Home, Library, ListMusic, Loader2, Search, Sparkles, TrendingUp, Users } from "lucide-react";
+import { Outlet, useOutletContext, useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { disconnectSpotify, getSpotifyStatus, spotifyConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton, TabLink } from "./homeWidgets";
+import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import SpotifyHomeTab from "./spotify/SpotifyHomeTab";
 import SpotifySearchTab from "./spotify/SpotifySearchTab";
 import SpotifyLibraryTab from "./spotify/SpotifyLibraryTab";
 import SpotifyPlaylistsTab from "./spotify/SpotifyPlaylistsTab";
 import SpotifyPlaylistDetail from "./spotify/SpotifyPlaylistDetail";
 import SpotifyArtistsTab from "./spotify/SpotifyArtistsTab";
-import SpotifyTopTracksTab from "./spotify/SpotifyTopTracksTab";
-import SpotifyQueueTab from "./spotify/SpotifyQueueTab";
-import SpotifyStatisticsTab from "./spotify/SpotifyStatisticsTab";
-import SpotifyAIPlaylistTab from "./spotify/SpotifyAIPlaylistTab";
 import SpotifyAlbumView from "./spotify/SpotifyAlbumView";
 import SpotifyArtistView from "./spotify/SpotifyArtistView";
 
-// Music Center navigation (spec section 28) — kept flat rather than the
-// spec's full 10-item suggestion (Search/Top Tracks/Top Artists folded into
-// Artists+time-range and a single Search tab) since this app's TabLink row
-// convention (see OutlookPage/LinkedInPage) works best with a handful of
-// tabs, not a sidebar-within-a-sidebar.
-const TABS = [
-  { key: "home", label: "Home", icon: Home },
-  { key: "search", label: "Search", icon: Search },
-  { key: "library", label: "Library", icon: Library },
-  { key: "playlists", label: "Playlists", icon: ListMusic },
-  { key: "artists", label: "Artists", icon: Users },
-  { key: "top-tracks", label: "Top Tracks", icon: TrendingUp },
-  { key: "queue", label: "Queue", icon: ListMusic },
-  { key: "stats", label: "Statistics", icon: TrendingUp },
-  { key: "ai-playlist", label: "AI Playlist", icon: Sparkles },
-];
+// Sub-routes whose tab component needs the album/artist/playlist overlay
+// openers owned by SpotifyPage pull them via outlet context instead of
+// props, matching the Outlook/LinkedIn/Classroom sidebar-tree pattern.
+export function SpotifyHomeRoute() {
+  const { status, openAlbum, openArtist, openPlaylist } = useOutletContext();
+  return <SpotifyHomeTab displayName={status.display_name} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onOpenPlaylist={openPlaylist} />;
+}
+
+export function SpotifySearchRoute() {
+  const { openAlbum, openArtist } = useOutletContext();
+  return <SpotifySearchTab onOpenAlbum={openAlbum} onOpenArtist={openArtist} />;
+}
+
+export function SpotifyLibraryRoute() {
+  const { openAlbum } = useOutletContext();
+  return <SpotifyLibraryTab onOpenAlbum={openAlbum} />;
+}
+
+export function SpotifyPlaylistsRoute() {
+  const { openPlaylist } = useOutletContext();
+  return <SpotifyPlaylistsTab onOpenPlaylist={openPlaylist} />;
+}
+
+export function SpotifyArtistsRoute() {
+  const { openArtist } = useOutletContext();
+  return <SpotifyArtistsTab onOpenArtist={openArtist} />;
+}
 
 export default function SpotifyPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,7 +50,6 @@ export default function SpotifyPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("home");
   // Detail overlays — clicking an album/artist/playlist anywhere pushes one
   // of these instead of a nested route, so "back" always returns to
   // whichever tab you were on (spec sections 12/17/14 — album/artist/
@@ -179,35 +185,13 @@ export default function SpotifyPage() {
       {error && <p style={{ fontSize: 12, marginTop: space[3], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 
       {status?.connected ? (
-        <>
-          {!overlayOpen && (
-            <div className="flex items-center" style={{ gap: space[5], marginTop: space[6], flexWrap: "wrap" }}>
-              {TABS.map((t) => (
-                <TabLink key={t.key} active={activeTab === t.key} onClick={() => setActiveTab(t.key)} icon={t.icon}>
-                  {t.label}
-                </TabLink>
-              ))}
-            </div>
-          )}
+        <div style={{ marginTop: space[6] }}>
+          {openAlbumId && <SpotifyAlbumView albumId={openAlbumId} onBack={closeOverlay} onOpenArtist={openArtist} />}
+          {openArtistId && <SpotifyArtistView artistId={openArtistId} onBack={closeOverlay} onOpenAlbum={openAlbum} />}
+          {openPlaylistId && <SpotifyPlaylistDetail playlistId={openPlaylistId} onBack={closeOverlay} />}
 
-          <div style={{ marginTop: space[6] }}>
-            {openAlbumId && <SpotifyAlbumView albumId={openAlbumId} onBack={closeOverlay} onOpenArtist={openArtist} />}
-            {openArtistId && <SpotifyArtistView artistId={openArtistId} onBack={closeOverlay} onOpenAlbum={openAlbum} />}
-            {openPlaylistId && <SpotifyPlaylistDetail playlistId={openPlaylistId} onBack={closeOverlay} />}
-
-            {!overlayOpen && activeTab === "home" && (
-              <SpotifyHomeTab displayName={status.display_name} onOpenAlbum={openAlbum} onOpenArtist={openArtist} onOpenPlaylist={openPlaylist} />
-            )}
-            {!overlayOpen && activeTab === "search" && <SpotifySearchTab onOpenAlbum={openAlbum} onOpenArtist={openArtist} />}
-            {!overlayOpen && activeTab === "library" && <SpotifyLibraryTab onOpenAlbum={openAlbum} />}
-            {!overlayOpen && activeTab === "playlists" && <SpotifyPlaylistsTab onOpenPlaylist={openPlaylist} />}
-            {!overlayOpen && activeTab === "artists" && <SpotifyArtistsTab onOpenArtist={openArtist} />}
-            {!overlayOpen && activeTab === "top-tracks" && <SpotifyTopTracksTab />}
-            {!overlayOpen && activeTab === "queue" && <SpotifyQueueTab />}
-            {!overlayOpen && activeTab === "stats" && <SpotifyStatisticsTab />}
-            {!overlayOpen && activeTab === "ai-playlist" && <SpotifyAIPlaylistTab />}
-          </div>
-        </>
+          {!overlayOpen && <Outlet context={{ status, openAlbum, openArtist, openPlaylist }} />}
+        </div>
       ) : (
         <p
           style={{

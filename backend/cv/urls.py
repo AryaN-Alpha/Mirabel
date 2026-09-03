@@ -15,6 +15,7 @@ urlpatterns = [
         name="cv-regenerate-section",
     ),
     path("<int:cv_id>/tailor/", views.tailor_to_job, name="cv-tailor"),
+    path("<int:cv_id>/tailor/apply/", views.apply_tailoring, name="cv-tailor-apply"),
     path("<int:cv_id>/consistency-check/", views.consistency_check, name="cv-consistency-check"),
     path("<int:cv_id>/cover-letters/", views.cover_letter_list, name="cv-cover-letter-list"),
     path("<int:cv_id>/cover-letters/<int:letter_id>/", views.cover_letter_detail, name="cv-cover-letter-detail"),

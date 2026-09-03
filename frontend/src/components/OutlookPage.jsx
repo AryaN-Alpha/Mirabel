@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Clock, FileSignature, Inbox, Loader2, PenSquare } from "lucide-react";
+import { Outlet, useOutletContext, useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { disconnectOutlook, getOutlookStatus, outlookConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, accent, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton, TabLink } from "./homeWidgets";
+import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import OutlookInboxTab from "./outlook/OutlookInboxTab";
-import OutlookComposeTab from "./outlook/OutlookComposeTab";
-import OutlookScheduledTab from "./outlook/OutlookScheduledTab";
-import OutlookSignatureTab from "./outlook/OutlookSignatureTab";
+
+// Renders the Inbox tab for the /home/outlook/inbox nested route, pulling
+// the account status (fetched once by OutlookPage) via outlet context.
+export function OutlookInboxRoute() {
+  const { status } = useOutletContext();
+  return <OutlookInboxTab defaultDomain={status?.default_domain} />;
+}
 
 // Legacy underline input style, kept exported for the tab components below —
 // same shape as homeWidgets' underlineInputStyle.
@@ -30,9 +34,6 @@ export default function OutlookPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const [activeTab, setActiveTab] = useState("inbox");
-  const [showSignature, setShowSignature] = useState(false);
 
   const banner = searchParams.get("connected") ? "connected" : searchParams.get("error") ? "error" : null;
   const bannerError = searchParams.get("error");
@@ -129,10 +130,6 @@ export default function OutlookPage() {
         </div>
         {status?.connected ? (
           <div className="flex items-center gap-5">
-            <GhostLink onClick={() => setShowSignature((v) => !v)}>
-              <FileSignature size={14} strokeWidth={1.8} />
-              Signature
-            </GhostLink>
             <GhostLink onClick={handleDisconnect} disabled={busy} muted>
               Disconnect
             </GhostLink>
@@ -148,32 +145,10 @@ export default function OutlookPage() {
         <p style={{ fontSize: 12, marginTop: space[3], color: "rgba(224,140,140,0.9)" }}>{error}</p>
       )}
 
-      {status?.connected && showSignature && (
-        <div style={{ marginTop: space[6], paddingBottom: space[6], borderBottom: `1px solid ${cream(0.1)}` }}>
-          <OutlookSignatureTab />
-        </div>
-      )}
-
       {status?.connected ? (
-        <>
-          <div className="flex items-center" style={{ gap: space[6], marginTop: space[6], flexWrap: "wrap" }}>
-            <TabLink active={activeTab === "inbox"} onClick={() => setActiveTab("inbox")} icon={Inbox}>
-              Inbox
-            </TabLink>
-            <TabLink active={activeTab === "compose"} onClick={() => setActiveTab("compose")} icon={PenSquare}>
-              Compose
-            </TabLink>
-            <TabLink active={activeTab === "scheduled"} onClick={() => setActiveTab("scheduled")} icon={Clock}>
-              Scheduled
-            </TabLink>
-          </div>
-
-          <div style={{ marginTop: space[6] }}>
-            {activeTab === "inbox" && <OutlookInboxTab defaultDomain={status?.default_domain} />}
-            {activeTab === "compose" && <OutlookComposeTab />}
-            {activeTab === "scheduled" && <OutlookScheduledTab />}
-          </div>
-        </>
+        <div style={{ marginTop: space[6] }}>
+          <Outlet context={{ status }} />
+        </div>
       ) : (
         <p
           style={{

@@ -85,8 +85,8 @@ export async function getMemoryStats() {
   return data;
 }
 
-export async function listAgentTasks() {
-  const { data } = await client.get("/api/agent/tasks/");
+export async function listAgentTasks(params) {
+  const { data } = await client.get("/api/agent/tasks/", { params });
   return data;
 }
 
@@ -709,8 +709,38 @@ export async function updateCvStylePreference(patch) {
   return data;
 }
 
+// The shared client's 15s default is tuned for ordinary CRUD calls — both of
+// these hit an LLM and have been observed taking 12-26s with slower models
+// (DeepSeek/Gemini) even on success, which raced the default timeout and
+// surfaced as a false "Can't reach the server" (axios sets err.request with
+// no err.response on a client-side timeout too — see utils/errors.js). This
+// override doesn't touch the client default used by every other endpoint.
+const AI_CALL_TIMEOUT_MS = 60000;
+
+// tailor/apply/ can silently retry once server-side on an empty LLM response
+// (cv.services.tailoring.auto_tailor_sections — a reasoning-heavy model
+// burning its whole token budget on hidden reasoning and returning nothing)
+// before giving up, live-verified to push total latency past 100s — well
+// past AI_CALL_TIMEOUT_MS. Without its own longer timeout this call hits the
+// exact false "Can't reach the server" failure AI_CALL_TIMEOUT_MS was
+// introduced to fix, just past a higher latency floor.
+const CV_AUTO_TAILOR_TIMEOUT_MS = 150000;
+
 export async function tailorCvToJob(id, jobDescription) {
-  const { data } = await client.post(`/api/cv/${id}/tailor/`, { job_description: jobDescription });
+  const { data } = await client.post(
+    `/api/cv/${id}/tailor/`,
+    { job_description: jobDescription },
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
+  return data;
+}
+
+export async function applyCvTailoring(id, suggestions, missingKeywords) {
+  const { data } = await client.post(
+    `/api/cv/${id}/tailor/apply/`,
+    { suggestions, missing_keywords: missingKeywords },
+    { timeout: CV_AUTO_TAILOR_TIMEOUT_MS }
+  );
   return data;
 }
 

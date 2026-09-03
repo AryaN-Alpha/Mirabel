@@ -56,7 +56,8 @@ _DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
     ),
     "spotify": (
         "spotify", "playlist", "song", "songs", "track", "album", "artist",
-        "play music", "currently playing", "now playing", "queue",
+        "play music", "currently playing", "now playing", "queue", "shuffle",
+        "repeat", "volume", "skip", "device", "follow", "liked songs",
     ),
 }
 

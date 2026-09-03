@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Outlet, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { disconnectClassroom, getClassroomStatus, classroomConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, accent, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton, TabLink } from "./homeWidgets";
+import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import ClassroomAssignmentsTab from "./classroom/ClassroomAssignmentsTab";
 import ClassroomDraftsTab from "./classroom/ClassroomDraftsTab";
 import ClassroomSettingsTab from "./classroom/ClassroomSettingsTab";
@@ -21,11 +21,24 @@ export const inputStyle = {
   outline: "none",
 };
 
-const TABS = [
-  { id: "assignments", label: "Assignments" },
-  { id: "drafts", label: "Drafts" },
-  { id: "settings", label: "Settings" },
-];
+// Sub-routes whose tab component needs data/callbacks owned by ClassroomPage
+// (connection-expired flag or a refetch trigger) pull them via outlet
+// context instead of props, matching the Outlook/LinkedIn sidebar-tree pattern.
+export function ClassroomAssignmentsRoute() {
+  const { expired } = useOutletContext();
+  const navigate = useNavigate();
+  return <ClassroomAssignmentsTab disabled={expired} onSolved={() => navigate("../drafts")} />;
+}
+
+export function ClassroomDraftsRoute() {
+  const { expired, onReload } = useOutletContext();
+  return <ClassroomDraftsTab disabled={expired} onChanged={onReload} />;
+}
+
+export function ClassroomSettingsRoute() {
+  const { status, onReload } = useOutletContext();
+  return <ClassroomSettingsTab status={status} onChanged={onReload} />;
+}
 
 export default function ClassroomPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,8 +48,6 @@ export default function ClassroomPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
-
-  const [activeTab, setActiveTab] = useState("assignments");
 
   const banner = searchParams.get("connected") ? "connected" : searchParams.get("error") ? "error" : null;
   const bannerError = searchParams.get("error");
@@ -190,14 +201,6 @@ export default function ClassroomPage() {
 
       {error && <p style={{ fontSize: 12, marginTop: space[3], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 
-      <div className="flex items-center" style={{ gap: space[6], marginTop: space[6], flexWrap: "wrap" }}>
-        {TABS.map(({ id, label }) => (
-          <TabLink key={id} active={activeTab === id} onClick={() => setActiveTab(id)}>
-            {label}
-          </TabLink>
-        ))}
-      </div>
-
       {expired && (
         <p style={{ fontSize: 13, marginTop: space[5], color: "rgba(224,140,140,0.85)" }}>
           Your Google Classroom connection has expired — reconnect above to fetch, solve, or turn in assignments.
@@ -205,15 +208,7 @@ export default function ClassroomPage() {
       )}
 
       <div style={{ marginTop: space[6] }}>
-        {activeTab === "assignments" && (
-          <ClassroomAssignmentsTab disabled={expired} onSolved={() => setActiveTab("drafts")} />
-        )}
-        {activeTab === "drafts" && (
-          <ClassroomDraftsTab disabled={expired} onChanged={() => setReloadToken((n) => n + 1)} />
-        )}
-        {activeTab === "settings" && (
-          <ClassroomSettingsTab status={status} onChanged={() => setReloadToken((n) => n + 1)} />
-        )}
+        <Outlet context={{ status, expired, onReload: () => setReloadToken((n) => n + 1) }} />
       </div>
     </div>
   );

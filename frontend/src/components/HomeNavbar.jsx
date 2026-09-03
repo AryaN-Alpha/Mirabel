@@ -14,14 +14,17 @@ export default function HomeNavbar({ title }) {
 
   return (
     <header
-      className="w-full flex items-start justify-between gap-6 px-6 md:px-8 pt-8"
+      className="w-full flex flex-wrap items-start justify-between gap-4 md:gap-6 px-4 md:px-8 pt-6 md:pt-8"
       style={{ animation: "home-rise 1.1s cubic-bezier(.2,.7,.2,1) both" }}
     >
       <div>
-        <div className="text-[11px] uppercase" style={{ letterSpacing: "0.2em", color: text.faint }}>
+        <div className="text-[10px] md:text-[11px] uppercase" style={{ letterSpacing: "0.2em", color: text.faint }}>
           {greetingLine()}
         </div>
-        <div style={{ fontFamily: fontHeading, fontSize: 26, fontStyle: "italic", color: text.base, marginTop: 9 }}>
+        <div
+          className="text-[21px] md:text-[26px]"
+          style={{ fontFamily: fontHeading, fontStyle: "italic", color: text.base, marginTop: 9 }}
+        >
           {title}
         </div>
       </div>

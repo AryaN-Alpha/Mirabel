@@ -1,9 +1,5 @@
-import { useState } from "react";
-import { Bot, Brain } from "lucide-react";
-import { fontHeading, accent, space, cream } from "./homeTheme";
-import { TabLink } from "./homeWidgets";
-import AgentMemoriesTab from "./agent/AgentMemoriesTab";
-import AgentTasksTab from "./agent/AgentTasksTab";
+import { Outlet, useLocation } from "react-router-dom";
+import { accent, fontHeading, space, cream } from "./homeTheme";
 
 const COPY = {
   memories: {
@@ -29,8 +25,8 @@ const COPY = {
 };
 
 export default function AgentPage() {
-  const [activeTab, setActiveTab] = useState("tasks");
-  const copy = COPY[activeTab];
+  const { pathname } = useLocation();
+  const copy = pathname.endsWith("/memories") ? COPY.memories : COPY.tasks;
 
   return (
     <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
@@ -52,18 +48,8 @@ export default function AgentPage() {
         </p>
       </div>
 
-      <div className="flex items-center" style={{ gap: space[6], marginTop: space[6] * 1.4, flexWrap: "wrap" }}>
-        <TabLink active={activeTab === "tasks"} onClick={() => setActiveTab("tasks")} icon={Bot}>
-          Tasks
-        </TabLink>
-        <TabLink active={activeTab === "memories"} onClick={() => setActiveTab("memories")} icon={Brain}>
-          Memories
-        </TabLink>
-      </div>
-
-      <div style={{ marginTop: space[6] }}>
-        {activeTab === "tasks" && <AgentTasksTab />}
-        {activeTab === "memories" && <AgentMemoriesTab />}
+      <div style={{ marginTop: space[6] * 1.4 }}>
+        <Outlet />
       </div>
     </div>
   );

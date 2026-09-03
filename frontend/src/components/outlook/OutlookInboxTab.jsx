@@ -81,7 +81,7 @@ export default function OutlookInboxTab({ defaultDomain }) {
           value={filterInput}
           onChange={(e) => setFilterInput(e.target.value)}
           placeholder={filterType === "sender" ? "someone@example.com" : "example.com"}
-          style={{ ...underlineInputStyle, width: 260, flex: "0 0 auto" }}
+          style={{ ...underlineInputStyle, width: "100%", maxWidth: 260, flex: "1 1 200px" }}
         />
         <GhostLink disabled={!filterInput.trim()} onClick={handleFilterSubmit} style={{ fontSize: 16 }}>
           Filter
@@ -208,10 +208,10 @@ function MailRow({ message: m, senderName, onOpen }) {
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="no-underline grid items-baseline"
+      className="no-underline flex flex-col sm:grid sm:items-baseline"
       style={{
         gridTemplateColumns: "10px minmax(200px,1fr) 2.2fr auto",
-        gap: space[5] ?? 23,
+        gap: space[2],
         padding: `${space[5] ?? 23}px ${space[3]}px`,
         paddingLeft: hovered ? space[3] + 10 : space[3],
         borderBottom: `1px solid ${cream(0.09)}`,
@@ -220,24 +220,28 @@ function MailRow({ message: m, senderName, onOpen }) {
         transition: "background 0.5s ease, padding-left 0.5s ease",
       }}
     >
-      <span
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: m.isRead ? "transparent" : accent[400],
-          marginTop: 8,
-        }}
-      />
-      <span>
-        <span style={{ display: "block", fontFamily: fontHeading, fontSize: 20, color: text.base, lineHeight: 1.3 }}>
-          {m.subject || "(no subject)"}
+      <div className="flex items-start gap-3 sm:contents">
+        <span
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            background: m.isRead ? "transparent" : accent[400],
+            marginTop: 8,
+            flexShrink: 0,
+          }}
+        />
+        <span className="min-w-0 flex-1">
+          <span style={{ display: "block", fontFamily: fontHeading, fontSize: 20, color: text.base, lineHeight: 1.3 }}>
+            {m.subject || "(no subject)"}
+          </span>
+          <span style={{ display: "block", marginTop: 4, fontSize: 13, letterSpacing: "0.04em", color: cream(0.5) }}>
+            {senderName}
+          </span>
         </span>
-        <span style={{ display: "block", marginTop: 4, fontSize: 13, letterSpacing: "0.04em", color: cream(0.5) }}>
-          {senderName}
-        </span>
-      </span>
+      </div>
       <span
+        className="pl-5 sm:pl-0"
         style={{
           fontSize: 14,
           lineHeight: 1.7,
@@ -250,7 +254,7 @@ function MailRow({ message: m, senderName, onOpen }) {
       >
         {m.bodyPreview}
       </span>
-      <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, color: cream(0.45), whiteSpace: "nowrap" }}>
+      <span className="pl-5 sm:pl-0" style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, color: cream(0.45), whiteSpace: "nowrap" }}>
         {formatDate(m.receivedDateTime)}
       </span>
     </a>

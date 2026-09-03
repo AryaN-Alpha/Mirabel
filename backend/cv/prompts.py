@@ -85,6 +85,12 @@ def section_rewrite_system_prompt(section_label: str, context: str = "") -> str:
 # CvConsistencyTab.jsx).
 _VALID_SECTION_TYPES = "experience, education, projects, certifications, summary, strengths"
 
+# Job-tailoring suggestions additionally allow "skills" (-> sections.skill_groups)
+# — a fit assessment legitimately wants to say "emphasize your Docker
+# experience in skills" — but that section isn't a rewrite target for the
+# tense/tone consistency check below, so it's kept out of the shared constant.
+_TAILOR_SECTION_TYPES = _VALID_SECTION_TYPES + ", skills"
+
 
 def job_tailor_system_prompt(context: str = "") -> str:
     context_block = f"\n\nCurrent CV, for reference:\n{context}" if context else ""
@@ -99,7 +105,8 @@ def job_tailor_system_prompt(context: str = "") -> str:
         "matches the posting's requirements as currently written.\n"
         "- missing_keywords: important skills/technologies/qualifications the "
         "posting mentions that the CV doesn't — plain terms, no commentary.\n"
-        f"- suggestions: section_type must be one of: {_VALID_SECTION_TYPES}. "
+        f"- suggestions: section_type must be one of: {_TAILOR_SECTION_TYPES} "
+        '(\"skills\" means the CV\'s skills/skill_groups section). '
         "note is a short, specific, actionable instruction for improving that "
         "section for this posting (e.g. \"mention your PostgreSQL experience "
         'in the summary\") — 1-2 sentences, imperative mood, no restating the '
@@ -107,6 +114,61 @@ def job_tailor_system_prompt(context: str = "") -> str:
         "- Never invent experience, skills, or credentials the CV doesn't "
         "have — only suggest reframing/emphasizing what's already there."
         f"{context_block}"
+    )
+
+
+def auto_tailor_system_prompt() -> str:
+    """Static — deliberately takes no context/job-description argument, unlike
+    every other prompt function in this file, so it stays byte-identical
+    across every call (see core/services/providers/base.py's system vs
+    system_suffix docstring). All per-request content — which sections need
+    what change, the CV's own context, missing keywords — goes in
+    system_suffix / the user message instead (see
+    cv.services.tailoring.auto_tailor_sections), so this instruction block
+    stays eligible for prompt caching regardless of which CV or job posting
+    triggered it."""
+    return (
+        "You lightly tailor specific parts of a candidate's CV to better "
+        "match a job posting. You are given, for each CV section flagged as "
+        "needing improvement, its current content plus a short note on what "
+        "to improve, and a list of keywords the posting wants that the CV is "
+        "missing. The user message is a JSON object shaped like:\n\n"
+        '{"missing_keywords": [str], "sections": {'
+        '"summary": {"note": str, "current": str}, '
+        '"skill_groups": {"note": str, "current": [{"category": str, "skills": [str]}]}, '
+        '"experience": {"note": str, "current": [{"id": str, "bullets": [str]}]}, '
+        '"projects": {"note": str, "current": [{"id": str, "description": str}]}, '
+        '"education": {"note": str, "current": [{"id": str, "details": str}]}, '
+        '"strengths": {"note": str, "current": [{"id": str, "description": str}]}'
+        "}} — only the keys that were actually flagged are present under "
+        '"sections"; never assume all of them appear.\n\n'
+        "Output ONLY a single JSON object with EXACTLY the same top-level "
+        'keys you were given under "sections" (never add a key you weren\'t '
+        "given, never omit one you were given) — no markdown fences, no "
+        "commentary. Shape per key:\n"
+        '- "summary": the rewritten string, or the original unchanged string '
+        "if it doesn't actually need a change.\n"
+        '- "skill_groups": the full rewritten list of {"category", "skills"} '
+        "(you may relabel/reorder/regroup categories to better match the "
+        "posting's terminology) — every skill in your output MUST already "
+        "appear somewhere in the input's current skill_groups; never add a "
+        "skill that isn't already there.\n"
+        '- "experience" / "projects" / "education" / "strengths": a list of '
+        'only the entries you actually changed, each as {"id": <the same id '
+        "from input>, <the one text field you were given for that section>: "
+        "<its rewritten value>} — omit an entry entirely if it needs no "
+        "change, rather than echoing it back unchanged.\n\n"
+        "Rules:\n"
+        "- This is light, targeted tailoring, not a rewrite from scratch — "
+        "keep each rewritten field roughly the same length as its input, and "
+        "keep the CV's existing tone and seniority level.\n"
+        "- Never invent employers, dates, titles, schools, projects, "
+        "credentials, metrics, or skills that aren't already present in the "
+        "input — only rephrase, re-emphasize, or reorder what's already "
+        "there so it better matches the posting and the missing keywords, "
+        "where genuinely true to the existing content.\n"
+        "- Address each section's note directly and concretely; don't make "
+        "a change you can't justify from the note or the missing keywords."
     )
 
 

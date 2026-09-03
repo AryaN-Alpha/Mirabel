@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Outlet, useOutletContext, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { disconnectLinkedIn, getLinkedInStatus, linkedinConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, accent, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton, TabLink } from "./homeWidgets";
+import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
 import LinkedInProfileTab from "./linkedin/LinkedInProfileTab";
 import LinkedInCreatePostTab from "./linkedin/LinkedInCreatePostTab";
 import LinkedInDraftsTab from "./linkedin/LinkedInDraftsTab";
 import LinkedInSettingsTab from "./linkedin/LinkedInSettingsTab";
-import LinkedInOverviewTab from "./linkedin/LinkedInOverviewTab";
-import LinkedInAutomationsTab from "./linkedin/LinkedInAutomationsTab";
-import LinkedInResearchTab from "./linkedin/LinkedInResearchTab";
 
 // Legacy underline input style, kept exported for the tab components below.
 export const inputStyle = {
@@ -25,15 +22,30 @@ export const inputStyle = {
   outline: "none",
 };
 
-const TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "profile", label: "Profile" },
-  { id: "create", label: "Create post" },
-  { id: "drafts", label: "Drafts" },
-  { id: "automations", label: "Automations" },
-  { id: "research", label: "AI Research" },
-  { id: "settings", label: "Settings" },
-];
+// Sub-routes whose tab component needs data/callbacks owned by LinkedInPage
+// (status, connection-expired flag, or a refetch trigger) pull them via
+// outlet context instead of props, since the sidebar tree now navigates
+// straight to these nested routes rather than the page switching a local
+// activeTab state.
+export function LinkedInProfileRoute() {
+  const { status } = useOutletContext();
+  return <LinkedInProfileTab status={status} />;
+}
+
+export function LinkedInCreatePostRoute() {
+  const { expired } = useOutletContext();
+  return <LinkedInCreatePostTab disabled={expired} />;
+}
+
+export function LinkedInDraftsRoute() {
+  const { expired, onReload } = useOutletContext();
+  return <LinkedInDraftsTab disabled={expired} onPublished={onReload} />;
+}
+
+export function LinkedInSettingsRoute() {
+  const { status, onReload } = useOutletContext();
+  return <LinkedInSettingsTab status={status} onChanged={onReload} />;
+}
 
 export default function LinkedInPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,8 +55,6 @@ export default function LinkedInPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
-
-  const [activeTab, setActiveTab] = useState("overview");
 
   const banner = searchParams.get("connected") ? "connected" : searchParams.get("error") ? "error" : null;
   const bannerError = searchParams.get("error");
@@ -156,14 +166,6 @@ export default function LinkedInPage() {
 
       {connected ? (
         <>
-          <div className="flex items-center" style={{ gap: space[6], marginTop: space[6], flexWrap: "wrap" }}>
-            {TABS.map(({ id, label }) => (
-              <TabLink key={id} active={activeTab === id} onClick={() => setActiveTab(id)}>
-                {label}
-              </TabLink>
-            ))}
-          </div>
-
           {expired && (
             <p style={{ fontSize: 13, marginTop: space[5], color: "rgba(224,140,140,0.85)" }}>
               Your LinkedIn connection has expired — reconnect above to publish, generate, or check drafts.
@@ -171,13 +173,7 @@ export default function LinkedInPage() {
           )}
 
           <div style={{ marginTop: space[6] }}>
-            {activeTab === "overview" && <LinkedInOverviewTab />}
-            {activeTab === "profile" && <LinkedInProfileTab status={status} />}
-            {activeTab === "create" && <LinkedInCreatePostTab disabled={expired} />}
-            {activeTab === "drafts" && <LinkedInDraftsTab disabled={expired} onPublished={() => setReloadToken((n) => n + 1)} />}
-            {activeTab === "automations" && <LinkedInAutomationsTab />}
-            {activeTab === "research" && <LinkedInResearchTab />}
-            {activeTab === "settings" && <LinkedInSettingsTab status={status} onChanged={() => setReloadToken((n) => n + 1)} />}
+            <Outlet context={{ status, expired, onReload: () => setReloadToken((n) => n + 1) }} />
           </div>
         </>
       ) : (

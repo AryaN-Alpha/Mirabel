@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bot, Check, Loader2, Send, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bot, Check, Eye, ExternalLink, Loader2, Send, X } from "lucide-react";
 
 // Theme-agnostic on purpose: this same panel renders inside the Agent tab
 // (home theme), text ChatScreen, and VoiceChatScreen — three different
@@ -75,6 +76,117 @@ function EditableField({ label, value, onChange, palette }) {
         />
       )}
     </label>
+  );
+}
+
+// Same-origin-only preview: opens task.result_links' internal `path` in an
+// iframe so the user can confirm the result without leaving this screen.
+// Never used for external `url` links — open.spotify.com/linkedin.com send
+// X-Frame-Options that would just fail silently in an iframe.
+function LinkPreviewModal({ link, onClose, onOpenFull, palette }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(10,8,7,0.6)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full flex flex-col overflow-hidden"
+        style={{
+          maxWidth: 720,
+          gap: 10,
+          padding: 16,
+          border: `1px solid ${palette.border}`,
+          borderRadius: 12,
+          background: "rgba(20,17,15,0.97)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span style={{ color: palette.text, fontSize: 14 }}>{link.label}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onOpenFull}
+              className="inline-flex items-center gap-1.5 border-none bg-transparent p-0"
+              style={{ color: palette.accent, fontSize: 12.5, cursor: "pointer" }}
+            >
+              Open in full page <ExternalLink size={12} />
+            </button>
+            <button
+              onClick={onClose}
+              className="inline-flex items-center border-none bg-transparent p-0"
+              style={{ color: palette.muted, cursor: "pointer" }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <iframe
+          src={window.location.origin + link.path}
+          title={link.label}
+          style={{ width: "100%", height: "70vh", border: "none", borderRadius: 8 }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ResultLinks({ links, palette }) {
+  const navigate = useNavigate();
+  const [previewLink, setPreviewLink] = useState(null);
+
+  if (!links?.length) return null;
+
+  const linkBtnStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    color: palette.accent,
+    fontSize: 13,
+    cursor: "pointer",
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-4 flex-wrap" style={{ marginTop: 10 }}>
+        {links.map((link, i) =>
+          link.url ? (
+            <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" style={linkBtnStyle}>
+              {link.label} <ExternalLink size={12} />
+            </a>
+          ) : (
+            <span key={i} className="inline-flex items-center gap-2">
+              <button onClick={() => navigate(link.path)} style={linkBtnStyle}>
+                {link.label} →
+              </button>
+              <button
+                onClick={() => setPreviewLink(link)}
+                title="Preview here"
+                className="inline-flex items-center border-none bg-transparent p-0"
+                style={{ color: palette.muted, cursor: "pointer" }}
+              >
+                <Eye size={13} />
+              </button>
+            </span>
+          )
+        )}
+      </div>
+      {previewLink && (
+        <LinkPreviewModal
+          link={previewLink}
+          palette={palette}
+          onClose={() => setPreviewLink(null)}
+          onOpenFull={() => {
+            navigate(previewLink.path);
+            setPreviewLink(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -188,7 +300,12 @@ export default function AgentTaskPanel({ task, busy, onApprove, onReject, onAnsw
   }
 
   if (task.status === "done") {
-    return <p style={{ color: palette.text, margin: 0 }}>{task.result_text}</p>;
+    return (
+      <div>
+        <p style={{ color: palette.text, margin: 0 }}>{task.result_text}</p>
+        <ResultLinks links={task.result_links} palette={palette} />
+      </div>
+    );
   }
   if (task.status === "failed") {
     return (

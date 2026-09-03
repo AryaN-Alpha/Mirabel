@@ -86,8 +86,10 @@ export default function CozyWave({ micAnalyser, playbackAnalyser, active, size =
     return () => cancelAnimationFrame(raf);
   }, [micAnalyser, playbackAnalyser, active]);
 
+  const dimension = `clamp(160px, 46vw, ${size}px)`;
+
   return (
-    <div className="relative grid place-items-center flex-shrink-0" style={{ width: size, height: size }}>
+    <div className="relative grid place-items-center flex-shrink-0" style={{ width: dimension, height: dimension }}>
       <div
         className="absolute rounded-full"
         style={{ inset: -16, background: "radial-gradient(circle, rgba(240,168,120,0.20), transparent 66%)", animation: "cz-breathe-slow 8s ease-in-out infinite" }}
@@ -101,7 +103,7 @@ export default function CozyWave({ micAnalyser, playbackAnalyser, active, size =
         }}
       />
       <div className="absolute rounded-full" style={{ inset: 58, border: "1px solid rgba(255,222,196,0.16)" }} />
-      <canvas ref={canvasRef} className="relative block" style={{ width: size, height: size }} />
+      <canvas ref={canvasRef} className="relative block" style={{ width: dimension, height: dimension }} />
     </div>
   );
 }

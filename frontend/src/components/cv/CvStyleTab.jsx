@@ -148,7 +148,7 @@ export default function CvStyleTab({ stylePref: pref, onSaveStylePref }) {
         <p style={{ fontSize: 12, marginTop: space[1], marginBottom: space[3], color: cream(0.45) }}>
           Drag to reorder each column.
         </p>
-        <div className="grid grid-cols-2" style={{ gap: space[5] ?? 23 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: space[5] ?? 23 }}>
           <ReorderColumn
             label="Main"
             keys={pref.section_order.main}

@@ -12,7 +12,7 @@ from cv.services.generation import generate_cover_letter, generate_project_descr
 from cv.services.parsing import MAX_EXTRACTED_CHARS, extract_hyperlinks, extract_text
 from cv.services.pdf_export import render_cover_letter_pdf, render_cv_pdf
 from cv.services.structuring import structure_cv
-from cv.services.tailoring import tailor_cv_to_job
+from cv.services.tailoring import auto_tailor_sections, tailor_cv_to_job
 from cv.style_catalog import FONTS, TEMPLATES, THEMES
 
 logger = logging.getLogger("cv.views")
@@ -282,6 +282,41 @@ def tailor_to_job(request: Request, cv_id: int) -> Response:
         return Response({"error": "job_description is required"}, status=400)
     result = tailor_cv_to_job(cv.sections, job_description)
     return Response(result)
+
+
+@api_view(["POST"])
+def apply_tailoring(request: Request, cv_id: int) -> Response:
+    """Takes a tailor_to_job result the frontend already has in state
+    (suggestions + missing_keywords) and creates a NEW CVProfile with only
+    the flagged sections rewritten — the original CV is never mutated. See
+    cv.services.tailoring.auto_tailor_sections for why this reuses the
+    already-paid-for suggestions instead of re-running the job-fit analysis
+    (and never re-sends the job description) — the client-supplied
+    suggestions are LLM output from moments ago in the same session, not
+    user-authored input, and this app has no auth/multi-user boundary for
+    them to cross (see CLAUDE.md's "no auth" gap)."""
+    cv = _get_cv(cv_id)
+    if cv is None:
+        return Response({"error": "CV not found."}, status=404)
+    suggestions = request.data.get("suggestions")
+    if not isinstance(suggestions, list):
+        return Response({"error": "suggestions must be a list"}, status=400)
+    missing_keywords = request.data.get("missing_keywords")
+    if not isinstance(missing_keywords, list):
+        missing_keywords = []
+
+    result = auto_tailor_sections(cv.sections, suggestions, missing_keywords)
+    new_cv = CVProfile.objects.create(name=f"{cv.name} — Tailored", sections=result["sections"])
+    return Response(
+        {
+            **_serialize(new_cv),
+            "changed_sections": result["changed_sections"],
+            "changes": result["changes"],
+            "error": result["error"],
+            "reason": result["reason"],
+        },
+        status=201,
+    )
 
 
 @api_view(["POST"])
