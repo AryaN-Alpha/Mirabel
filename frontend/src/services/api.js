@@ -92,6 +92,16 @@ export async function getMemoryStats() {
   return data;
 }
 
+export async function previewDeleteMemories(params) {
+  const { data } = await client.get("/api/memory/delete-preview/", { params });
+  return data;
+}
+
+export async function deleteMemories(params) {
+  const { data } = await client.delete("/api/memory/delete/", { params });
+  return data;
+}
+
 export async function listAgentTasks(params) {
   const { data } = await client.get("/api/agent/tasks/", { params });
   return data;

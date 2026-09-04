@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from memory.services import deletion
 from memory.services.chroma_client import collection_stats, list_memories
 
 logger = logging.getLogger(__name__)
@@ -110,3 +111,39 @@ def memory_stats(_request: Request) -> Response:
         logger.exception("memory stats failed: %s", exc)
         return Response({"total": 0, "mood_breakdown": {}, "oldest": None, "newest": None})
     return Response(stats)
+
+
+def _parse_deletion_params(request: Request) -> tuple[str, str | None, str | None, str | None]:
+    scope = (request.GET.get("scope") or "range").strip()
+    date_from = (request.GET.get("date_from") or "").strip() or None
+    date_to = (request.GET.get("date_to") or "").strip() or None
+    kind = (request.GET.get("kind") or "").strip() or None
+    if kind not in (None, "turn", "summary", "fact"):
+        kind = None
+    return scope, date_from, date_to, kind
+
+
+@api_view(["GET"])
+def memory_delete_preview(request: Request) -> Response:
+    """Dry-run count for the danger-zone delete UI — lets the frontend show
+    'Delete 42 memories?' before the user commits to the real DELETE call."""
+    scope, date_from, date_to, kind = _parse_deletion_params(request)
+    if scope == "all":
+        return Response({"count": deletion.count_all()})
+    if not date_from and not date_to and not kind:
+        return Response({"error": "Specify date_from, date_to, or kind, or scope=all."}, status=400)
+    return Response({"count": deletion.count_range(date_from=date_from, date_to=date_to, kind=kind)})
+
+
+@api_view(["DELETE"])
+def memory_delete(request: Request) -> Response:
+    """Hard-deletes memories from both Chroma and Postgres. scope=all wipes
+    the entire store; scope=range (default) requires at least one of
+    date_from/date_to/kind so an empty query can never delete everything
+    by accident."""
+    scope, date_from, date_to, kind = _parse_deletion_params(request)
+    if scope == "all":
+        return Response(deletion.delete_all())
+    if not date_from and not date_to and not kind:
+        return Response({"error": "Specify date_from, date_to, or kind, or scope=all."}, status=400)
+    return Response(deletion.delete_range(date_from=date_from, date_to=date_to, kind=kind))

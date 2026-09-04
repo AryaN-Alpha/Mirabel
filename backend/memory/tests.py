@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from core.models import Conversation, Message, ModelPreference
-from memory.models import MemoryFact
+from memory.models import MemoryFact, MemorySummary
+from memory.services import deletion
 from memory.services.facts import extract_facts, has_extractable_signal
 from memory.services.retrieval import retrieve_relevant_memories
 from memory.services.salience import calculate_salience, score_for_retrieval
@@ -407,3 +408,152 @@ class ExtractAndSupersedeFactsTaskTests(TestCase):
 
         mock_extract.assert_not_called()
         self.assertEqual(MemoryFact.objects.filter(source_message=msg).count(), 0)
+
+
+def _fake_collection(ids, metadatas):
+    """Stands in for chromadb.Collection — only .get(**kwargs) is exercised
+    by memory/services/deletion.py."""
+    collection = MagicMock()
+    collection.get.return_value = {"ids": ids, "metadatas": metadatas}
+    return collection
+
+
+class MemoryDeletionServiceTests(TestCase):
+    @patch("memory.services.deletion.delete_memories")
+    @patch("memory.services.deletion.get_collection")
+    def test_delete_range_requires_a_filter(self, mock_get_collection, mock_delete):
+        """Guards against an empty scope=range call silently wiping
+        everything — that's what scope=all / delete_all() is for."""
+        with self.assertRaises(ValueError):
+            deletion.delete_range()
+        mock_get_collection.assert_not_called()
+        mock_delete.assert_not_called()
+
+    @patch("memory.services.deletion.delete_memories")
+    @patch("memory.services.deletion.get_collection")
+    def test_delete_range_cascades_into_postgres(self, mock_get_collection, mock_delete):
+        fact = MemoryFact.objects.create(fact_text="Works at Acme", fact_type="biographical", chroma_id="fact_1")
+        summary = MemorySummary.objects.create(
+            period_start=datetime.now(timezone.utc),
+            period_end=datetime.now(timezone.utc),
+            summary_text="A week of things happened.",
+            chroma_id="summary_1",
+        )
+        mock_get_collection.return_value = _fake_collection(
+            ids=["msg_1", "fact_1", "summary_1"],
+            metadatas=[{"kind": "turn"}, {"kind": "fact"}, {"kind": "summary"}],
+        )
+
+        result = deletion.delete_range(date_from="2026-01-01")
+
+        mock_delete.assert_called_once_with(["msg_1", "fact_1", "summary_1"])
+        self.assertEqual(result, {"deleted": 3, "facts_deleted": 1, "summaries_deleted": 1})
+        self.assertFalse(MemoryFact.objects.filter(pk=fact.pk).exists())
+        self.assertFalse(MemorySummary.objects.filter(pk=summary.pk).exists())
+
+    @patch("memory.services.deletion.delete_memories")
+    @patch("memory.services.deletion.get_collection")
+    def test_postgres_delete_commits_even_if_chroma_delete_then_fails(self, mock_get_collection, mock_delete):
+        """Regression test for the Postgres-then-Chroma ordering in
+        _delete_rows: these are two separate systems with no shared
+        transaction, so if the Chroma call raises AFTER the Postgres delete
+        already committed, the Postgres rows must stay deleted (not roll
+        back) — a retry of the same filter is what cleans up the now-Chroma-
+        only leftovers, and that retry path only works if Postgres already
+        reflects the deletion. Deleting Chroma first would risk the opposite
+        failure: an orphaned Postgres row nothing would ever find again."""
+        fact = MemoryFact.objects.create(fact_text="Works at Acme", fact_type="biographical", chroma_id="fact_1")
+        mock_get_collection.return_value = _fake_collection(ids=["fact_1"], metadatas=[{"kind": "fact"}])
+        mock_delete.side_effect = RuntimeError("chroma unreachable")
+
+        with self.assertRaises(RuntimeError):
+            deletion.delete_range(kind="fact")
+
+        self.assertFalse(MemoryFact.objects.filter(pk=fact.pk).exists())
+
+    @patch("memory.services.deletion.delete_memories")
+    @patch("memory.services.deletion.get_collection")
+    def test_delete_range_kind_filter_only_touches_that_kind(self, mock_get_collection, mock_delete):
+        MemoryFact.objects.create(fact_text="Works at Acme", fact_type="biographical", chroma_id="fact_1")
+        mock_get_collection.return_value = _fake_collection(ids=["msg_1"], metadatas=[{"kind": "turn"}])
+
+        result = deletion.delete_range(kind="turn")
+
+        mock_get_collection.return_value.get.assert_called_once_with(
+            include=["metadatas"], where={"kind": "turn"}
+        )
+        self.assertEqual(result, {"deleted": 1, "facts_deleted": 0, "summaries_deleted": 0})
+        self.assertEqual(MemoryFact.objects.count(), 1)
+
+    @patch("memory.services.deletion.delete_memories")
+    @patch("memory.services.deletion.get_collection")
+    def test_delete_all_ignores_filters_and_wipes_everything(self, mock_get_collection, mock_delete):
+        MemoryFact.objects.create(fact_text="Works at Acme", fact_type="biographical", chroma_id="fact_1")
+        MemorySummary.objects.create(
+            period_start=datetime.now(timezone.utc),
+            period_end=datetime.now(timezone.utc),
+            summary_text="Summary",
+            chroma_id="summary_1",
+        )
+        mock_get_collection.return_value = _fake_collection(
+            ids=["msg_1", "fact_1", "summary_1"],
+            metadatas=[{"kind": "turn"}, {"kind": "fact"}, {"kind": "summary"}],
+        )
+
+        result = deletion.delete_all()
+
+        mock_delete.assert_called_once_with(["msg_1", "fact_1", "summary_1"])
+        self.assertEqual(result, {"deleted": 3, "facts_deleted": 1, "summaries_deleted": 1})
+        self.assertEqual(MemoryFact.objects.count(), 0)
+        self.assertEqual(MemorySummary.objects.count(), 0)
+
+    @patch("memory.services.deletion.get_collection")
+    def test_count_helpers_do_not_delete(self, mock_get_collection):
+        mock_get_collection.return_value = _fake_collection(
+            ids=["msg_1", "msg_2"], metadatas=[{"kind": "turn"}, {"kind": "turn"}]
+        )
+        self.assertEqual(deletion.count_range(kind="turn"), 2)
+        self.assertEqual(deletion.count_all(), 2)
+
+
+class MemoryDeletionViewTests(TestCase):
+    @patch("memory.views.deletion.count_range")
+    def test_preview_range_without_filter_is_a_400(self, mock_count):
+        response = self.client.get("/api/memory/delete-preview/")
+        self.assertEqual(response.status_code, 400)
+        mock_count.assert_not_called()
+
+    @patch("memory.views.deletion.count_all")
+    def test_preview_scope_all(self, mock_count):
+        mock_count.return_value = 7
+        response = self.client.get("/api/memory/delete-preview/", {"scope": "all"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"count": 7})
+
+    @patch("memory.views.deletion.count_range")
+    def test_preview_range_with_kind(self, mock_count):
+        mock_count.return_value = 3
+        response = self.client.get("/api/memory/delete-preview/", {"kind": "fact"})
+        self.assertEqual(response.status_code, 200)
+        mock_count.assert_called_once_with(date_from=None, date_to=None, kind="fact")
+
+    @patch("memory.views.deletion.delete_range")
+    def test_delete_without_filter_is_a_400_and_does_not_delete(self, mock_delete):
+        response = self.client.delete("/api/memory/delete/")
+        self.assertEqual(response.status_code, 400)
+        mock_delete.assert_not_called()
+
+    @patch("memory.views.deletion.delete_all")
+    def test_delete_scope_all(self, mock_delete):
+        mock_delete.return_value = {"deleted": 5, "facts_deleted": 1, "summaries_deleted": 1}
+        response = self.client.delete("/api/memory/delete/?scope=all")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"deleted": 5, "facts_deleted": 1, "summaries_deleted": 1})
+        mock_delete.assert_called_once()
+
+    @patch("memory.views.deletion.delete_range")
+    def test_delete_range_passes_through_date_filters(self, mock_delete):
+        mock_delete.return_value = {"deleted": 2, "facts_deleted": 0, "summaries_deleted": 0}
+        response = self.client.delete("/api/memory/delete/?date_from=2026-01-01&date_to=2026-01-31")
+        self.assertEqual(response.status_code, 200)
+        mock_delete.assert_called_once_with(date_from="2026-01-01", date_to="2026-01-31", kind=None)
