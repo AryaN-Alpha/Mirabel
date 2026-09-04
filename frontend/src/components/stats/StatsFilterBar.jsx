@@ -1,6 +1,6 @@
-import { RefreshCw, Download } from "lucide-react";
-import { fontHeading, cream, space } from "../homeTheme";
-import { labelStyle, underlineSelectStyle, GhostLink } from "../homeWidgets";
+import { RefreshCw, Download, Filter } from "lucide-react";
+import { fontHeading, fontMono, text, accent, cyan, cream, space, radius } from "../homeTheme";
+import { labelStyle, GhostLink } from "../homeWidgets";
 import { providerLabel } from "./format";
 
 export const PERIOD_OPTIONS = [
@@ -15,11 +15,29 @@ export const PERIOD_OPTIONS = [
   { id: "custom", label: "Custom Range" },
 ];
 
-function Select({ value, onChange, children, style }) {
+function FilterSelect({ label, value, onChange, disabled, children, minWidth = 150 }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...underlineSelectStyle, ...style }}>
-      {children}
-    </select>
+    <div style={{ minWidth, flex: "1 1 auto" }}>
+      <div style={labelStyle} className="mb-1.5">{label}</div>
+      <div className="relative">
+        <select
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer outline-none"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${cream(0.12)}`,
+            color: disabled ? cream(0.4) : text.bright,
+            fontFamily: fontHeading,
+            fontSize: 14,
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          {children}
+        </select>
+      </div>
+    </div>
   );
 }
 
@@ -34,102 +52,124 @@ export default function StatsFilterBar({ filters, onChange, meta, onRefresh, las
 
   return (
     <div
-      className="flex flex-col"
-      style={{ gap: space[3], padding: `${space[4]}px ${space[5] ?? 23}px`, border: `1px solid ${cream(0.1)}`, borderRadius: 6, background: "rgba(15,12,10,0.35)" }}
+      className="flex flex-col gap-4 p-5 rounded-2xl"
+      style={{
+        background: "linear-gradient(165deg, rgba(16,14,22,0.72) 0%, rgba(8,8,13,0.66) 100%)",
+        border: `1px solid ${cream(0.10)}`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        boxShadow: "0 10px 30px -15px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.05)",
+      }}
     >
-      <div className="flex items-end flex-wrap" style={{ gap: space[5] ?? 23 }}>
-        <div style={{ minWidth: 160 }}>
-          <div style={labelStyle}>Time period</div>
-          <Select value={filters.period} onChange={(v) => set({ period: v })}>
-            {PERIOD_OPTIONS.map((p) => (
-              <option key={p.id} value={p.id} style={{ color: "#000" }}>{p.label}</option>
-            ))}
-          </Select>
-        </div>
+      <div className="flex items-end flex-wrap gap-4">
+        <FilterSelect label="Time Period" value={filters.period} onChange={(v) => set({ period: v })} minWidth={160}>
+          {PERIOD_OPTIONS.map((p) => (
+            <option key={p.id} value={p.id} style={{ background: "#121016", color: "#fff" }}>{p.label}</option>
+          ))}
+        </FilterSelect>
 
         {filters.period === "custom" && (
           <>
             <div>
-              <div style={labelStyle}>Start</div>
+              <div style={labelStyle} className="mb-1.5">Start Date</div>
               <input
                 type="date"
                 value={filters.start_date ?? ""}
                 onChange={(e) => set({ start_date: e.target.value })}
-                style={{ ...underlineSelectStyle, colorScheme: "dark" }}
+                className="px-3 py-2 rounded-lg text-sm outline-none"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${cream(0.12)}`,
+                  color: text.bright,
+                  colorScheme: "dark",
+                  fontFamily: fontMono,
+                  fontSize: 13,
+                }}
               />
             </div>
             <div>
-              <div style={labelStyle}>End</div>
+              <div style={labelStyle} className="mb-1.5">End Date</div>
               <input
                 type="date"
                 value={filters.end_date ?? ""}
                 onChange={(e) => set({ end_date: e.target.value })}
-                style={{ ...underlineSelectStyle, colorScheme: "dark" }}
+                className="px-3 py-2 rounded-lg text-sm outline-none"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${cream(0.12)}`,
+                  color: text.bright,
+                  colorScheme: "dark",
+                  fontFamily: fontMono,
+                  fontSize: 13,
+                }}
               />
             </div>
           </>
         )}
 
-        <div style={{ minWidth: 150 }}>
-          <div style={labelStyle}>Provider</div>
-          <Select value={filters.provider} onChange={(v) => set({ provider: v, model: "" })}>
-            <option value="" style={{ color: "#000" }}>All Providers</option>
-            {providers.map((p) => (
-              <option key={p} value={p} style={{ color: "#000" }}>{providerLabel(p)}</option>
-            ))}
-          </Select>
-        </div>
+        <FilterSelect label="Provider" value={filters.provider} onChange={(v) => set({ provider: v, model: "" })} minWidth={150}>
+          <option value="" style={{ background: "#121016", color: "#fff" }}>All Providers</option>
+          {providers.map((p) => (
+            <option key={p} value={p} style={{ background: "#121016", color: "#fff" }}>{providerLabel(p)}</option>
+          ))}
+        </FilterSelect>
 
-        <div style={{ minWidth: 170 }}>
-          <div style={labelStyle}>Model</div>
-          <Select value={filters.model} onChange={(v) => set({ model: v })} style={{ opacity: filters.provider ? 1 : 0.4 }}>
-            <option value="" style={{ color: "#000" }}>All Models</option>
-            {modelsForProvider.map((m) => (
-              <option key={m} value={m} style={{ color: "#000" }}>{m}</option>
-            ))}
-          </Select>
-        </div>
+        <FilterSelect
+          label="Model"
+          value={filters.model}
+          disabled={!filters.provider}
+          onChange={(v) => set({ model: v })}
+          minWidth={170}
+        >
+          <option value="" style={{ background: "#121016", color: "#fff" }}>All Models</option>
+          {modelsForProvider.map((m) => (
+            <option key={m} value={m} style={{ background: "#121016", color: "#fff" }}>{m}</option>
+          ))}
+        </FilterSelect>
 
-        <div style={{ minWidth: 150 }}>
-          <div style={labelStyle}>Call Site</div>
-          <Select value={filters.call_site} onChange={(v) => set({ call_site: v })}>
-            <option value="" style={{ color: "#000" }}>All</option>
-            {callSites.map((c) => (
-              <option key={c} value={c} style={{ color: "#000" }}>{c}</option>
-            ))}
-          </Select>
-        </div>
+        <FilterSelect label="Call Site" value={filters.call_site} onChange={(v) => set({ call_site: v })} minWidth={150}>
+          <option value="" style={{ background: "#121016", color: "#fff" }}>All Sites</option>
+          {callSites.map((c) => (
+            <option key={c} value={c} style={{ background: "#121016", color: "#fff" }}>{c}</option>
+          ))}
+        </FilterSelect>
 
-        <div style={{ minWidth: 140 }}>
-          <div style={labelStyle}>Usage type</div>
-          <Select value={filters.estimated} onChange={(v) => set({ estimated: v })}>
-            <option value="" style={{ color: "#000" }}>Actual + Estimated</option>
-            <option value="false" style={{ color: "#000" }}>Actual only</option>
-            <option value="true" style={{ color: "#000" }}>Estimated only</option>
-          </Select>
-        </div>
+        <FilterSelect label="Usage Type" value={filters.estimated} onChange={(v) => set({ estimated: v })} minWidth={150}>
+          <option value="" style={{ background: "#121016", color: "#fff" }}>Actual + Estimated</option>
+          <option value="false" style={{ background: "#121016", color: "#fff" }}>Actual Only</option>
+          <option value="true" style={{ background: "#121016", color: "#fff" }}>Estimated Only</option>
+        </FilterSelect>
 
-        <div className="flex items-center" style={{ gap: space[4], marginLeft: "auto" }}>
+        <div className="flex items-center gap-4 ml-auto pt-2 sm:pt-0">
           {onExport && (
             <GhostLink onClick={onExport} muted>
-              <Download size={13} /> Export CSV
+              <Download size={14} /> Export CSV
             </GhostLink>
           )}
           <GhostLink onClick={onRefresh} disabled={refreshing}>
-            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /> Refresh
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
           </GhostLink>
         </div>
       </div>
 
-      {filters.period === "custom" && (!filters.start_date || !filters.end_date) ? (
-        <p style={{ fontSize: 11, color: cream(0.45), margin: 0, fontFamily: fontHeading }}>
-          Pick both a start and end date to apply the custom range.
-        </p>
-      ) : lastUpdated ? (
-        <p style={{ fontSize: 11, color: cream(0.35), margin: 0, fontFamily: fontHeading }}>
-          Last updated: {lastUpdated.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })}
-        </p>
-      ) : null}
+      <div className="flex items-center justify-between text-xs pt-2 border-t border-white/[0.04]">
+        {filters.period === "custom" && (!filters.start_date || !filters.end_date) ? (
+          <span style={{ color: "#facc15", fontFamily: fontMono }}>
+            ⚠ Select both start and end dates to apply custom range.
+          </span>
+        ) : (
+          <span style={{ color: text.secondary, fontFamily: fontMono }}>
+            Active Filter Scope
+          </span>
+        )}
+
+        {lastUpdated && (
+          <span style={{ color: text.secondary, fontFamily: fontMono }}>
+            Telemetry synced at {lastUpdated.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
+

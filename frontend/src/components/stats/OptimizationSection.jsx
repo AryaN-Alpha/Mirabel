@@ -5,18 +5,28 @@ import { formatInt, formatPct, formatTokens } from "./format";
 
 function StatRow({ label, value, estimate }) {
   return (
-    <div className="flex items-baseline justify-between" style={{ padding: `${space[2]}px 0`, borderBottom: `1px solid ${cream(0.07)}` }}>
-      <span style={{ fontSize: 13, color: cream(0.6) }}>{label}{estimate && <span style={{ color: cream(0.35) }}> (estimate)</span>}</span>
-      <span style={{ fontSize: 14, color: text.base, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+    <div className="flex items-baseline justify-between py-2 border-b border-white/[0.05]">
+      <span style={{ fontSize: 14, color: text.secondary }}>
+        {label}{estimate && <span style={{ color: text.muted }}> (est.)</span>}
+      </span>
+      <span style={{ fontSize: 14, fontWeight: 500, color: text.bright, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </span>
     </div>
   );
 }
 
 function SubCard({ title, children }) {
   return (
-    <div style={{ flex: "1 1 260px", minWidth: 240 }}>
-      <div style={{ ...labelStyle, marginBottom: space[2] }}>{title}</div>
-      {children}
+    <div
+      className="p-5 rounded-xl flex-1 min-w-[250px] flex flex-col"
+      style={{
+        background: "rgba(255,255,255,0.025)",
+        border: `1px solid ${cream(0.08)}`,
+      }}
+    >
+      <div style={{ ...labelStyle, marginBottom: space[3] }}>{title}</div>
+      <div className="flex flex-col">{children}</div>
     </div>
   );
 }

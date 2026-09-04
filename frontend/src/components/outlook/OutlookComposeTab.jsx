@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { generateOutlookCompose, scheduleOutlookMessage, sendOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, cream } from "../homeTheme";
+import { space, cream, text, glassBorder } from "../homeTheme";
 import { labelStyle, GhostLink, OutlineButton, TabLink, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
 export default function OutlookComposeTab() {
@@ -97,10 +97,10 @@ export default function OutlookComposeTab() {
       <div
         style={{
           marginTop: space[6],
-          padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
-          border: `1px solid ${cream(0.12)}`,
-          borderRadius: 4,
-          background: "rgba(15,12,10,0.35)",
+          padding: `${space[5]}px`,
+          border: `1px solid ${glassBorder}`,
+          borderRadius: 8,
+          background: "rgba(255,255,255,0.02)",
         }}
       >
         <textarea
@@ -109,7 +109,7 @@ export default function OutlookComposeTab() {
           placeholder="Write your email…"
           rows={9}
           className="w-full resize-y"
-          style={{ background: "transparent", border: 0, color: cream(1), fontSize: 16, lineHeight: 1.85, outline: "none" }}
+          style={{ background: "transparent", border: 0, color: text.bright, fontSize: 16, lineHeight: 1.85, outline: "none" }}
         />
       </div>
 

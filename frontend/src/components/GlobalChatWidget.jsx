@@ -8,11 +8,11 @@ import ChatInput from "./ChatInput";
 import { getErrorMessage } from "../utils/errors";
 
 const AGENT_PALETTE = {
-  text: "rgba(250,242,236,0.92)",
-  muted: "rgba(243,233,226,0.45)",
-  border: "rgba(243,233,226,0.16)",
-  accent: "#f0c9a2",
-  danger: "rgba(224,140,140,0.95)",
+  text: "rgba(250,248,255,0.95)",
+  muted: "rgba(246,248,255,0.72)",
+  border: "rgba(255,255,255,0.12)",
+  accent: "#ff9783",
+  danger: "#f87171",
 };
 
 // Portable version of VoiceChatScreen — reads the same shared session (see
@@ -116,8 +116,8 @@ export default function GlobalChatWidget() {
     <>
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.08, boxShadow: "0 16px 42px -4px rgba(0, 0, 0, 0.85), 0 0 32px -2px rgba(56, 189, 248, 0.6)" }}
+        whileTap={{ scale: 0.94 }}
         className="fixed border-none cursor-pointer grid place-items-center"
         style={{
           right: 24,
@@ -126,18 +126,27 @@ export default function GlobalChatWidget() {
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: "radial-gradient(circle at 46% 34%, rgba(255,228,205,0.30), rgba(30,22,22,0.92) 72%)",
-          border: "1px solid rgba(255,222,196,0.28)",
-          boxShadow: "0 12px 34px rgba(0,0,0,0.4)",
-          color: "#ffe7d5",
+          background: "linear-gradient(135deg, rgba(16, 24, 38, 0.95) 0%, rgba(8, 11, 20, 0.98) 100%)",
+          border: "1px solid rgba(56, 189, 248, 0.48)",
+          boxShadow: "0 12px 36px -4px rgba(0, 0, 0, 0.8), 0 0 24px -2px rgba(56, 189, 248, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2)",
+          color: "#38bdf8",
+          backdropFilter: "blur(12px)",
         }}
         aria-label={open ? "Close chat with Mirabel" : "Open chat with Mirabel"}
       >
-        {open ? <X size={22} strokeWidth={1.6} /> : <MessageCircle size={22} strokeWidth={1.6} />}
+        {open ? <X size={22} strokeWidth={1.8} color="#ffffff" /> : <MessageCircle size={22} strokeWidth={1.8} color="#38bdf8" />}
         {!open && connected && (
           <span
             className="absolute rounded-full"
-            style={{ top: 6, right: 6, width: 9, height: 9, background: "#8fd6a8", border: "2px solid rgba(30,22,22,0.92)" }}
+            style={{
+              top: 6,
+              right: 6,
+              width: 10,
+              height: 10,
+              background: "#34d399",
+              boxShadow: "0 0 8px #34d399",
+              border: "2px solid #0e0d14",
+            }}
           />
         )}
       </motion.button>
@@ -159,10 +168,11 @@ export default function GlobalChatWidget() {
               height: 580,
               maxHeight: "calc(100vh - 200px)",
               borderRadius: 24,
-              background: "rgba(21,16,14,0.97)",
-              border: "1px solid rgba(243,233,226,0.14)",
-              boxShadow: "0 26px 70px rgba(0,0,0,0.5)",
-              backdropFilter: "blur(20px)",
+              background: "linear-gradient(165deg, rgba(16, 14, 22, 0.96) 0%, rgba(8, 8, 14, 0.94) 100%)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 28px 75px -12px rgba(0, 0, 0, 0.8), 0 0 35px -10px rgba(255, 151, 131, 0.2)",
+              backdropFilter: "blur(24px) saturate(120%)",
+              WebkitBackdropFilter: "blur(24px) saturate(120%)",
               overflow: "hidden",
             }}
           >
@@ -302,13 +312,15 @@ export default function GlobalChatWidget() {
                     style={
                       agentModeOn
                         ? {
-                            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                            color: "#2c1c16",
+                            background: "linear-gradient(135deg, #ff9783 0%, #f0715d 100%)",
+                            color: "#08070d",
+                            fontWeight: 600,
+                            boxShadow: "0 0 14px rgba(255, 151, 131, 0.4)",
                           }
                         : {
-                            background: "rgba(243,233,226,0.06)",
-                            border: "1px solid rgba(243,233,226,0.11)",
-                            color: "rgba(243,233,226,0.58)",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.14)",
+                            color: "rgba(246,248,255,0.82)",
                           }
                     }
                     title="When on, what you send becomes a task Mirabel actually goes and does, instead of a reply."
@@ -322,13 +334,15 @@ export default function GlobalChatWidget() {
                     style={
                       recordingHotkey
                         ? {
-                            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                            color: "#2c1c16",
+                            background: "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)",
+                            color: "#08070d",
+                            fontWeight: 600,
+                            boxShadow: "0 0 14px rgba(56, 189, 248, 0.4)",
                           }
                         : {
-                            background: "rgba(243,233,226,0.06)",
-                            border: "1px solid rgba(243,233,226,0.11)",
-                            color: "rgba(243,233,226,0.58)",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.14)",
+                            color: "rgba(246,248,255,0.82)",
                           }
                     }
                     title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
@@ -342,11 +356,12 @@ export default function GlobalChatWidget() {
                   disabled={!connected}
                   className="flex-shrink-0 w-10 h-10 rounded-full border-none cursor-pointer grid place-items-center transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    border: "1px solid rgba(255,222,196,0.28)",
+                    border: micOn ? "1px solid rgba(255, 151, 131, 0.5)" : "1px solid rgba(255, 255, 255, 0.14)",
                     background: micOn
-                      ? "radial-gradient(circle at 46% 34%, rgba(255,228,205,0.35), rgba(30,22,22,0.85) 72%)"
-                      : "rgba(243,233,226,0.06)",
-                    color: "#ffe7d5",
+                      ? "radial-gradient(circle at 46% 34%, rgba(255, 151, 131, 0.35), rgba(18, 16, 26, 0.95) 72%)"
+                      : "rgba(255, 255, 255, 0.06)",
+                    color: micOn ? "#ff9783" : "rgba(246, 248, 255, 0.85)",
+                    boxShadow: micOn ? "0 0 16px rgba(255, 151, 131, 0.35)" : "none",
                   }}
                   aria-label={micOn ? "stop listening" : "start listening"}
                 >

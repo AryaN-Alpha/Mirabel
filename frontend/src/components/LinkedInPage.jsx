@@ -3,8 +3,9 @@ import { Outlet, useOutletContext, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { disconnectLinkedIn, getLinkedInStatus, linkedinConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, space, cream } from "./homeTheme";
+import { fontHeading, text, accent, cyan, space, cream, glassBorder } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import PageHeader from "./common/PageHeader";
 import LinkedInProfileTab from "./linkedin/LinkedInProfileTab";
 import LinkedInCreatePostTab from "./linkedin/LinkedInCreatePostTab";
 import LinkedInDraftsTab from "./linkedin/LinkedInDraftsTab";
@@ -16,8 +17,8 @@ export const inputStyle = {
   padding: `${space[2]}px 0`,
   background: "transparent",
   border: 0,
-  borderBottom: `1px solid ${cream(0.16)}`,
-  color: text.cream,
+  borderBottom: `1px solid ${glassBorder}`,
+  color: text.bright,
   fontSize: 15,
   outline: "none",
 };
@@ -115,52 +116,49 @@ export default function LinkedInPage() {
         <div
           className="flex items-center justify-between gap-4"
           style={{
-            marginTop: space[6],
+            marginTop: space[4],
+            marginBottom: space[2],
             padding: `${space[3]}px ${space[4]}px`,
-            borderLeft: `1px solid ${banner === "connected" ? "#8fd6a8" : "rgba(224,140,140,0.7)"}`,
-            fontSize: 13,
-            color: banner === "connected" ? "#8fd6a8" : "rgba(224,140,140,0.95)",
+            borderRadius: 6,
+            background: banner === "connected" ? "rgba(52, 211, 153, 0.1)" : "rgba(248, 113, 113, 0.1)",
+            border: `1px solid ${banner === "connected" ? "rgba(52, 211, 153, 0.3)" : "rgba(248, 113, 113, 0.3)"}`,
+            fontSize: 14,
+            color: banner === "connected" ? "#34d399" : "#fca5a5",
           }}
         >
-          <span>{banner === "connected" ? "LinkedIn connected." : `Couldn't connect LinkedIn: ${bannerError}`}</span>
+          <span>{banner === "connected" ? "LinkedIn connected successfully." : `Couldn't connect LinkedIn: ${bannerError}`}</span>
           <GhostLink onClick={dismissBanner} muted style={{ fontSize: 13 }}>
             Dismiss
           </GhostLink>
         </div>
       )}
 
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{
-          gap: space[6],
-          marginTop: space[8] * 1.5,
-          paddingBottom: space[5] ?? 23,
-          borderBottom: `1px solid ${accent[400]}73`,
-        }}
-      >
-        <div>
-          <div style={labelStyle}>{expired ? "Connection expired" : connected ? "Connected as" : "Not connected"}</div>
-          <div
-            style={{
-              fontFamily: fontHeading,
-              fontSize: "clamp(28px,3.2vw,42px)",
-              color: text.bright,
-              marginTop: space[2],
-            }}
-          >
-            {connected ? status.name || "Connected" : "LinkedIn"}
-          </div>
-        </div>
-        {connected ? (
-          <GhostLink onClick={handleDisconnect} disabled={busy} muted>
-            Disconnect
-          </GhostLink>
-        ) : (
-          <OutlineButton onClick={() => (window.location.href = linkedinConnectUrl())}>
-            Connect with LinkedIn
-          </OutlineButton>
-        )}
-      </div>
+      <PageHeader
+        category="PROFESSIONAL NETWORK"
+        subsystem="LINKEDIN INTEGRATION"
+        title="LinkedIn"
+        subtitle={connected ? `Synchronized profile: ${status.name || "Authenticated account"}` : "Professional profile health, automated posts, and drafts."}
+        badge={
+          connected ? (
+            <span style={{ color: expired ? "#f87171" : "#34d399", fontWeight: 600 }}>
+              {expired ? "● Expired" : "● Connected"}
+            </span>
+          ) : (
+            <span style={{ color: text.muted }}>Offline</span>
+          )
+        }
+        actions={
+          connected ? (
+            <GhostLink onClick={handleDisconnect} disabled={busy} muted>
+              Disconnect
+            </GhostLink>
+          ) : (
+            <OutlineButton onClick={() => (window.location.href = linkedinConnectUrl())}>
+              Connect with LinkedIn
+            </OutlineButton>
+          )
+        }
+      />
 
       {error && <p style={{ fontSize: 12, marginTop: space[3], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 

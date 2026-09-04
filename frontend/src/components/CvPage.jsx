@@ -12,8 +12,9 @@ import {
   updateCvStylePreference,
 } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, space, cream } from "./homeTheme";
+import { fontHeading, text, accent, cyan, space, cream, glassBorder } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import PageHeader from "./common/PageHeader";
 import ConfirmDialog from "./ConfirmDialog";
 import CvUploadPrompt from "./cv/CvUploadPrompt";
 import CvPreview from "./cv/CvPreview";
@@ -75,9 +76,9 @@ function uploadResultNotice(data) {
 function SaveIndicator({ state }) {
   if (state === "idle") return null;
   const label = state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Couldn't save";
-  const color = state === "error" ? "rgba(224,140,140,0.85)" : cream(0.4);
+  const color = state === "error" ? "#f87171" : text.muted;
   return (
-    <span style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color }}>{label}</span>
+    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color }}>{label}</span>
   );
 }
 
@@ -95,15 +96,15 @@ function SectionNavItem({ label, active, onClick }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         padding: `${space[3]}px 0`,
-        paddingLeft: active || hovered ? 6 : 0,
-        borderBottom: `1px solid ${cream(0.08)}`,
+        paddingLeft: active || hovered ? 8 : 0,
+        borderBottom: `1px solid ${glassBorder}`,
         fontFamily: fontHeading,
-        fontSize: 18,
-        color: active ? text.base : hovered ? text.base : cream(0.7),
-        transition: "color 0.4s ease, padding-left 0.4s ease",
+        fontSize: 17,
+        color: active ? text.bright : hovered ? text.bright : text.secondary,
+        transition: "color 0.25s ease, padding-left 0.25s ease",
       }}
     >
-      {label}
+      {active ? `▸ ${label}` : label}
     </a>
   );
 }
@@ -443,37 +444,27 @@ export default function CvPage() {
 
   return (
     <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
-      <div style={{ marginTop: space[8] * 1.5 }}>{versionTabs}</div>
-
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{
-          gap: space[6],
-          marginTop: space[6],
-          paddingBottom: space[5] ?? 23,
-          borderBottom: `1px solid ${accent[400]}73`,
-        }}
-      >
-        <div>
-          <div style={labelStyle}>{info.title || "CV & Résumé"}</div>
-          <div
-            style={{
-              fontFamily: fontHeading,
-              fontSize: "clamp(28px,3.2vw,42px)",
-              color: text.bright,
-              marginTop: space[2],
-            }}
-          >
-            {info.name || "Untitled CV"}
+      <PageHeader
+        category="CAREER ARCHITECTURE"
+        subsystem={info.title ? info.title.toUpperCase() : "CV & RÉSUMÉ"}
+        title="Curriculum Vitae"
+        subtitle={info.name ? `Profile document for ${info.name}` : "Professional biography, experience timeline, and tailored job applications."}
+        badge={
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>
+            {cvs.length} {cvs.length === 1 ? "version" : "versions"}
+          </span>
+        }
+        actions={
+          <div className="flex items-center flex-wrap" style={{ gap: space[4] }}>
+            <GhostLink onClick={handleReplaceClick} muted>
+              Replace PDF
+            </GhostLink>
+            <OutlineButton onClick={handleDownload}>Download PDF</OutlineButton>
           </div>
-        </div>
-        <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
-          <GhostLink onClick={handleReplaceClick} muted>
-            Replace PDF
-          </GhostLink>
-          <OutlineButton onClick={handleDownload}>Download PDF</OutlineButton>
-        </div>
-      </div>
+        }
+      />
+
+      <div style={{ marginTop: space[6] }}>{versionTabs}</div>
 
       {showReplace && (
         <div style={{ marginTop: space[6], maxWidth: 560 }}>
@@ -509,7 +500,7 @@ export default function CvPage() {
         )}
 
         <div>
-          <div className="flex items-center justify-between" style={{ paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>
+          <div className="flex items-center justify-between" style={{ paddingBottom: space[2], borderBottom: `1px solid ${glassBorder}` }}>
             <div style={labelStyle}>Sections</div>
             <SaveIndicator state={saveState} />
           </div>
@@ -520,7 +511,7 @@ export default function CvPage() {
           </div>
 
           {uploadNotice && (
-            <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,168,120,0.9)" }}>{uploadNotice}</p>
+            <p style={{ fontSize: 13, marginTop: space[4], color: "#fbbf24" }}>{uploadNotice}</p>
           )}
 
           <div style={{ marginTop: space[6] }}>
@@ -535,7 +526,7 @@ export default function CvPage() {
             />
           </div>
 
-          <p style={{ marginTop: space[6], fontSize: 13, lineHeight: 1.8, color: cream(0.45) }}>
+          <p style={{ marginTop: space[6], fontSize: 13, lineHeight: 1.8, color: text.muted }}>
             Edits save as you type. AI suggestions appear beside each section.
           </p>
         </div>

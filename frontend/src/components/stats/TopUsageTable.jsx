@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { space, cream } from "../homeTheme";
+import { space, cream, text, fontMono } from "../homeTheme";
 import { TabLink, GhostLink } from "../homeWidgets";
 import { SectionCard, SkeletonBlock } from "./SectionCard";
 import DataTable from "./DataTable";
@@ -90,14 +90,16 @@ export default function TopUsageTable({ filters }) {
               Responses") is actually selected. */}
           <DataTable columns={COLUMNS} rows={(data?.results ?? []).map((r, i) => ({ ...r, __key: i }))} defaultSort={null} />
           {count > PAGE_SIZE && (
-            <div className="flex items-center justify-between" style={{ marginTop: space[3] }}>
-              <span style={{ fontSize: 12, color: cream(0.4) }}>Page {page} of {pageCount} · {count} calls</span>
-              <div className="flex items-center" style={{ gap: space[3] }}>
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/[0.06]">
+              <span style={{ fontSize: 13, color: text.secondary, fontFamily: fontMono }}>
+                Page {page} of {pageCount} · {count} total calls
+              </span>
+              <div className="flex items-center gap-3">
                 <GhostLink onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))} disabled={offset === 0} muted>
-                  <ChevronLeft size={13} /> Prev
+                  <ChevronLeft size={14} /> Previous
                 </GhostLink>
                 <GhostLink onClick={() => setOffset((o) => o + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= count} muted>
-                  Next <ChevronRight size={13} />
+                  Next <ChevronRight size={14} />
                 </GhostLink>
               </div>
             </div>

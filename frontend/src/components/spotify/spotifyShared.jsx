@@ -79,47 +79,62 @@ export function TrackRow({ index, title, subtitle, image, durationMs, onPlay, on
   const [hovered, setHovered] = useState(false);
   return (
     <div
-      className="flex items-center gap-3"
-      style={{ padding: `${space[2]}px ${space[2]}px`, borderRadius: radius.sm }}
+      className="flex items-center gap-3.5 px-3 py-2.5 rounded-xl transition-colors duration-150"
+      style={{
+        background: active
+          ? "rgba(255,151,131,0.08)"
+          : hovered
+          ? "rgba(255,255,255,0.055)"
+          : "transparent",
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {(typeof index === "number" || onPlay) && (
         <span
           className="shrink-0 text-right"
-          style={{ width: 20, fontSize: 13, color: active ? accent[300] : cream(0.4), fontVariantNumeric: "tabular-nums" }}
+          style={{
+            width: 22,
+            fontSize: 13,
+            color: active ? accent[300] : text.secondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
         >
           {hovered && onPlay ? (
             <button
               type="button"
               onClick={onPlay}
-              className="border-none bg-transparent p-0"
+              className="border-none bg-transparent p-0 inline-flex items-center justify-center text-white"
               style={{ color: accent[300], cursor: "pointer" }}
               title="Play"
             >
-              <Play size={13} fill="currentColor" />
+              <Play size={14} fill="currentColor" />
             </button>
           ) : (
             typeof index === "number" && index + 1
           )}
         </span>
       )}
-      {image !== undefined && <Thumb src={image} size={40} />}
+      {image !== undefined && (
+        <div className="relative rounded-lg overflow-hidden shrink-0 border border-white/10">
+          <Thumb src={image} size={42} />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <div
-          className="truncate"
-          style={{ fontSize: 15, color: active ? accent[300] : text.base, fontFamily: fontHeading }}
+          className="truncate text-[15px] font-medium"
+          style={{ color: active ? accent[300] : text.bright, fontFamily: fontHeading }}
         >
           {title}
         </div>
         {subtitle && (
-          <div className="truncate" style={{ fontSize: 12.5, color: cream(0.5), marginTop: 1 }}>
+          <div className="truncate text-[14px]" style={{ color: text.secondary, marginTop: 1.5 }}>
             {subtitle}
           </div>
         )}
       </div>
       {durationMs !== undefined && (
-        <span style={{ fontSize: 12.5, color: cream(0.4), fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ fontSize: 13, color: text.secondary, fontVariantNumeric: "tabular-nums" }}>
           {formatDuration(durationMs)}
         </span>
       )}
@@ -127,11 +142,15 @@ export function TrackRow({ index, title, subtitle, image, durationMs, onPlay, on
         <button
           type="button"
           onClick={onAdd}
-          className="border-none bg-transparent p-1 shrink-0"
-          style={{ color: hovered ? accent[300] : cream(0.35), cursor: "pointer", opacity: hovered ? 1 : 0.6 }}
-          title="Add"
+          className="border-none bg-transparent p-1.5 shrink-0 rounded-md transition-colors"
+          style={{
+            color: hovered ? accent[300] : text.secondary,
+            background: hovered ? "rgba(255,255,255,0.06)" : "transparent",
+            cursor: "pointer",
+          }}
+          title="Add to queue"
         >
-          <Plus size={15} strokeWidth={1.8} />
+          <Plus size={16} strokeWidth={1.8} />
         </button>
       )}
       {trailing}
@@ -149,36 +168,41 @@ export function MediaCard({ image, title, subtitle, onClick, rounded = false }) 
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="flex flex-col items-start text-left border-none bg-transparent p-0"
-      style={{ width: 148, cursor: onClick ? "pointer" : "default", flexShrink: 0 }}
+      className="flex flex-col items-start text-left border-none bg-transparent p-0 transition-transform duration-200"
+      style={{
+        width: 154,
+        cursor: onClick ? "pointer" : "default",
+        flexShrink: 0,
+        transform: hovered ? "translateY(-3px)" : "translateY(0)",
+      }}
     >
       <div
+        className="w-full aspect-square border border-white/10 overflow-hidden"
         style={{
-          width: 148,
-          height: 148,
-          borderRadius: rounded ? "50%" : radius.md,
-          overflow: "hidden",
-          background: "rgba(255,255,255,0.05)",
-          boxShadow: hovered ? "0 10px 24px rgba(0,0,0,0.35)" : "none",
-          transition: "box-shadow 0.3s ease",
+          borderRadius: rounded ? "50%" : radius.lg,
+          background: "rgba(255,255,255,0.04)",
+          boxShadow: hovered
+            ? "0 14px 30px -10px rgba(0,0,0,0.7), 0 0 20px -8px rgba(255,151,131,0.25)"
+            : "0 6px 16px -8px rgba(0,0,0,0.5)",
+          transition: "box-shadow 0.25s ease",
         }}
       >
         {image ? (
-          <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={image} alt="" className="w-full h-full object-cover transition-transform duration-300" style={{ transform: hovered ? "scale(1.04)" : "scale(1)" }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Music size={40} strokeWidth={1.2} color={cream(0.25)} />
+            <Music size={40} strokeWidth={1.2} color={cream(0.35)} />
           </div>
         )}
       </div>
       <div
-        className="truncate w-full"
-        style={{ fontFamily: fontHeading, fontSize: 15, color: hovered ? accent[200] : text.base, marginTop: space[2] }}
+        className="truncate w-full text-[15px] font-medium"
+        style={{ fontFamily: fontHeading, color: hovered ? text.bright : text.base, marginTop: space[2] }}
       >
         {title}
       </div>
       {subtitle && (
-        <div className="truncate w-full" style={{ fontSize: 12.5, color: cream(0.5) }}>
+        <div className="truncate w-full text-[13.5px]" style={{ color: text.secondary, marginTop: 1 }}>
           {subtitle}
         </div>
       )}

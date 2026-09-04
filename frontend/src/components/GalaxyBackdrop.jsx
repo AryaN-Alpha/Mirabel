@@ -4,7 +4,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 const TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const SYS = 0.5; // how far off the system sits: smaller = further away
-const ACC = "236,48,19";
+const ACC = "56,189,248";
 const FONT = "Archivo, system-ui, sans-serif";
 
 const makeSprite = (size, fn) => {
@@ -705,27 +705,46 @@ function useGalaxyScene(canvasRef, propsRef) {
   }, []);
 }
 
-// Same knobs as the source design's editor panel — identical labels, ranges,
-// steps and defaults (speed 0-3 step 0.1, tilt 0.12-1 step 0.02, bloom 0-1
-// step 0.05, hud boolean). A small toggle FAB expands into the control row so
-// it has near-zero footprint the rest of the time (every screen corner is
-// already claimed by Sidebar/HomeNavbar/SpotifyNowPlayingBar/GlobalChatWidget).
+// step 0.05, hud boolean). A toggle button in the top-right toolbar expands
+// into the control row so it has minimal footprint while remaining easily accessible.
 function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, setHud }) {
   const [open, setOpen] = useState(false);
 
   return (
-    // bottom:100 matches GlobalChatWidget's FAB — already tuned to clear
-    // SpotifyNowPlayingBar's full-width bar at the true bottom of the layout.
-    <div className="fixed z-50" style={{ left: "50%", bottom: 100, transform: "translateX(-50%)" }}>
+    <div className="fixed z-50 flex flex-col items-end" style={{ top: 22, right: 24 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close galaxy background controls" : "Open galaxy background controls"}
+        className="grid place-items-center transition-all duration-200"
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: "50%",
+          border: open ? "1px solid rgba(56, 189, 248, 0.55)" : "1px solid rgba(255, 255, 255, 0.16)",
+          background: open ? "rgba(18, 24, 38, 0.95)" : "rgba(12, 11, 18, 0.88)",
+          color: open ? "#38bdf8" : "rgba(246, 248, 255, 0.85)",
+          boxShadow: open
+            ? "0 0 16px rgba(56, 189, 248, 0.35), 0 8px 24px -4px rgba(0, 0, 0, 0.7)"
+            : "0 8px 24px -4px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
+          cursor: "pointer",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        {open ? <X size={17} strokeWidth={1.8} /> : <SlidersHorizontal size={17} strokeWidth={1.8} />}
+      </button>
+
       {open && (
         <div
-          className="flex items-center flex-wrap justify-center gap-x-6 gap-y-3 mb-2"
+          className="mt-2.5 flex items-center flex-wrap justify-end gap-x-5 gap-y-2.5"
           style={{
-            background: "rgba(10,9,13,0.92)",
-            border: "1px solid rgba(246,248,255,0.12)",
-            borderRadius: 999,
-            padding: "10px 20px",
-            backdropFilter: "blur(8px)",
+            background: "linear-gradient(135deg, rgba(14, 15, 24, 0.96) 0%, rgba(8, 9, 15, 0.98) 100%)",
+            border: "1px solid rgba(56, 189, 248, 0.28)",
+            borderRadius: 20,
+            padding: "9px 18px",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.85), 0 0 25px -4px rgba(56, 189, 248, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.12)",
             fontFamily: FONT,
           }}
         >
@@ -733,7 +752,9 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
           <GalaxySlider label="tilt" value={tilt} min={0.12} max={1} step={0.02} onChange={setTilt} />
           <GalaxySlider label="bloom" value={bloom} min={0} max={1} step={0.05} onChange={setBloom} />
           <div className="flex items-center gap-2">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(246,248,255,0.75)" }}>hud</span>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(246,248,255,0.72)" }}>
+              hud
+            </span>
             <button
               type="button"
               role="switch"
@@ -741,14 +762,17 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
               aria-label="Toggle HUD"
               onClick={() => setHud((v) => !v)}
               style={{
-                width: 34,
-                height: 18,
+                width: 36,
+                height: 20,
                 borderRadius: 999,
                 border: "none",
                 cursor: "pointer",
-                background: hud ? "#ec3013" : "rgba(246,248,255,0.18)",
+                background: hud
+                  ? "linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)"
+                  : "rgba(255,255,255,0.14)",
+                boxShadow: hud ? "0 0 12px rgba(56, 189, 248, 0.45)" : "none",
                 position: "relative",
-                transition: "background 0.15s ease",
+                transition: "all 0.2s ease",
                 padding: 0,
               }}
             >
@@ -757,35 +781,18 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
                   position: "absolute",
                   top: 2,
                   left: hud ? 18 : 2,
-                  width: 14,
-                  height: 14,
+                  width: 16,
+                  height: 16,
                   borderRadius: "50%",
-                  background: "#fff",
-                  transition: "left 0.15s ease",
+                  background: "#ffffff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  transition: "left 0.2s ease",
                 }}
               />
             </button>
           </div>
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close galaxy background controls" : "Open galaxy background controls"}
-        className="grid place-items-center mx-auto"
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          border: "1px solid rgba(246,248,255,0.16)",
-          background: "rgba(10,9,13,0.92)",
-          color: "rgba(246,248,255,0.85)",
-          cursor: "pointer",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        {open ? <X size={17} strokeWidth={1.6} /> : <SlidersHorizontal size={17} strokeWidth={1.6} />}
-      </button>
     </div>
   );
 }
@@ -793,7 +800,9 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
 function GalaxySlider({ label, value, min, max, step, onChange }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(246,248,255,0.75)" }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(246,248,255,0.72)" }}>
+        {label}
+      </span>
       <input
         type="range"
         min={min}
@@ -801,9 +810,10 @@ function GalaxySlider({ label, value, min, max, step, onChange }) {
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: 90, accentColor: "#ec3013" }}
+        className="galaxy-slider-range"
+        style={{ width: 85, accentColor: "#38bdf8" }}
       />
-      <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "rgba(246,248,255,0.55)", minWidth: 28 }}>
+      <span style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", color: "#38bdf8", fontWeight: 600, minWidth: 28, textAlign: "right" }}>
         {value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "") || "0"}
       </span>
     </div>

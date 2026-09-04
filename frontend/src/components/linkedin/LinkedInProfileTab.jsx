@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getLinkedInProfile, getLinkedInProfileHistory, syncLinkedInProfile } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, cream } from "../homeTheme";
+import { fontHeading, text, accent, space, cream, glassBorder } from "../homeTheme";
 import { labelStyle, EmptyState, ErrorNote, GhostLink } from "../homeWidgets";
 
 function formatDate(iso) {
@@ -17,9 +17,9 @@ function formatDate(iso) {
 }
 
 const PRIORITY_COLOR = {
-  HIGH: "rgba(224,140,140,0.95)",
-  MEDIUM: "#f0c9a2",
-  LOW: cream(0.5),
+  HIGH: "#f87171",
+  MEDIUM: "#fbbf24",
+  LOW: text.muted,
 };
 
 export default function LinkedInProfileTab({ status }) {
@@ -91,7 +91,7 @@ export default function LinkedInProfileTab({ status }) {
       </div>
 
       <div style={{ marginTop: space[8] * 0.9 }}>
-        <div style={{ ...labelStyle, paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>Details</div>
+        <div style={{ ...labelStyle, paddingBottom: space[2], borderBottom: `1px solid ${glassBorder}` }}>Details</div>
         <div className="flex flex-col" style={{ marginTop: space[3], gap: space[3] }}>
           <Row label="Member URN" value={status?.member_urn || "—"} mono />
           <Row label="Scopes granted" value={status?.scope || "—"} />
@@ -100,14 +100,14 @@ export default function LinkedInProfileTab({ status }) {
         </div>
       </div>
 
-      <p style={{ fontSize: 12, marginTop: space[6], lineHeight: 1.7, color: cream(0.35) }}>
+      <p style={{ fontSize: 13, marginTop: space[6], lineHeight: 1.6, color: text.muted }}>
         Headline isn't shown here — LinkedIn's Sign In with OpenID Connect scopes (openid, profile, email) don't
         expose it; that requires a separate partner-approved product.
       </p>
 
       <div
         className="flex items-center justify-between"
-        style={{ marginTop: space[8] * 0.9, paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}
+        style={{ marginTop: space[8] * 0.9, paddingBottom: space[2], borderBottom: `1px solid ${glassBorder}` }}
       >
         <div style={labelStyle}>Profile health</div>
         <GhostLink onClick={handleSync} disabled={syncing} muted style={{ fontSize: 13 }}>
@@ -115,11 +115,11 @@ export default function LinkedInProfileTab({ status }) {
         </GhostLink>
       </div>
 
-      {syncNote && <p style={{ fontSize: 12, marginTop: space[2], color: "#8fd6a8" }}>{syncNote}</p>}
+      {syncNote && <p style={{ fontSize: 13, marginTop: space[2], color: "#34d399", fontWeight: 500 }}>{syncNote}</p>}
       <ErrorNote>{error}</ErrorNote>
 
       {loading ? (
-        <div className="flex items-center" style={{ gap: space[2], marginTop: space[4], color: cream(0.4) }}>
+        <div className="flex items-center" style={{ gap: space[2], marginTop: space[4], color: text.muted }}>
           <Loader2 size={16} className="animate-spin" />
         </div>
       ) : (
@@ -127,7 +127,7 @@ export default function LinkedInProfileTab({ status }) {
           <div style={{ marginTop: space[4] }}>
             <div className="flex items-baseline gap-3">
               <span style={{ fontFamily: fontHeading, fontSize: 36, color: text.bright }}>{health.score}</span>
-              <span style={{ fontSize: 14, color: cream(0.5) }}>/ 100</span>
+              <span style={{ fontSize: 14, color: text.muted }}>/ 100</span>
             </div>
 
             {health.recommendations.length > 0 ? (
@@ -135,33 +135,34 @@ export default function LinkedInProfileTab({ status }) {
                 {health.recommendations.map((rec) => (
                   <div key={rec.field} style={{ borderLeft: `2px solid ${PRIORITY_COLOR[rec.priority] || accent[400]}`, paddingLeft: space[3] }}>
                     <div className="flex items-center justify-between">
-                      <span style={{ fontFamily: fontHeading, fontSize: 17, color: text.base, textTransform: "capitalize" }}>
+                      <span style={{ fontFamily: fontHeading, fontSize: 17, color: text.bright, textTransform: "capitalize" }}>
                         {rec.field.replace("_", " ")}
                       </span>
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
+                          fontWeight: 600,
                           letterSpacing: "0.12em",
                           textTransform: "uppercase",
-                          color: PRIORITY_COLOR[rec.priority] || cream(0.5),
+                          color: PRIORITY_COLOR[rec.priority] || text.muted,
                         }}
                       >
                         {rec.priority}
                       </span>
                     </div>
-                    <p style={{ fontSize: 13.5, marginTop: 4, color: cream(0.65) }}>{rec.issue}</p>
-                    <p style={{ fontSize: 12.5, marginTop: 3, color: cream(0.45) }}>Why it matters: {rec.why_it_matters}</p>
-                    <p style={{ fontSize: 12.5, marginTop: 3, color: cream(0.45) }}>{rec.recommendation}</p>
+                    <p style={{ fontSize: 14, marginTop: 4, color: text.secondary }}>{rec.issue}</p>
+                    <p style={{ fontSize: 13, marginTop: 3, color: text.muted }}>Why it matters: {rec.why_it_matters}</p>
+                    <p style={{ fontSize: 13, marginTop: 3, color: text.muted }}>{rec.recommendation}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: 13.5, marginTop: space[3], color: cream(0.55) }}>
+              <p style={{ fontSize: 14, marginTop: space[3], color: text.secondary }}>
                 Every field this integration can see is filled in.
               </p>
             )}
 
-            <p style={{ fontSize: 11.5, marginTop: space[5], lineHeight: 1.6, color: cream(0.32) }}>
+            <p style={{ fontSize: 12, marginTop: space[5], lineHeight: 1.6, color: text.muted }}>
               {health.unscored_fields_note}
             </p>
           </div>
@@ -172,7 +173,7 @@ export default function LinkedInProfileTab({ status }) {
         style={{
           marginTop: space[8] * 0.9,
           paddingBottom: space[2],
-          borderBottom: `1px solid ${cream(0.14)}`,
+          borderBottom: `1px solid ${glassBorder}`,
           ...labelStyle,
         }}
       >
@@ -187,15 +188,15 @@ export default function LinkedInProfileTab({ status }) {
             {history.map((change, i) => (
               <div
                 key={i}
-                style={{ padding: `${space[3]}px 0`, borderBottom: `1px solid ${cream(0.08)}` }}
+                style={{ padding: `${space[3]}px 0`, borderBottom: `1px solid ${glassBorder}` }}
               >
                 <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 14, color: text.base, textTransform: "capitalize" }}>
+                  <span style={{ fontSize: 14, color: text.bright, textTransform: "capitalize", fontWeight: 500 }}>
                     {change.field.replace("_", " ")} changed
                   </span>
-                  <span style={{ fontSize: 12, color: cream(0.4) }}>{formatDate(change.detected_at)}</span>
+                  <span style={{ fontSize: 12, color: text.muted }}>{formatDate(change.detected_at)}</span>
                 </div>
-                <p style={{ fontSize: 12.5, marginTop: 3, color: cream(0.45) }}>
+                <p style={{ fontSize: 13, marginTop: 3, color: text.secondary }}>
                   {change.old_value || "(empty)"} → {change.new_value || "(empty)"}
                 </p>
               </div>
@@ -210,10 +211,10 @@ export default function LinkedInProfileTab({ status }) {
 function Row({ label, value, mono }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span style={{ fontSize: 13, color: cream(0.5) }}>{label}</span>
+      <span style={{ fontSize: 14, color: text.secondary }}>{label}</span>
       <span
         className={`truncate ${mono ? "font-mono" : ""}`}
-        style={{ fontSize: 13.5, maxWidth: "60%", color: text.cream }}
+        style={{ fontSize: 14, maxWidth: "60%", color: text.bright }}
       >
         {value}
       </span>

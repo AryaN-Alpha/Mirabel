@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 import { Loader2 } from "lucide-react";
 import { generateOutlookReply, getOutlookMessage, replyOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
+import { fontHeading, text, accent, space, cream, glassBorder, surface } from "../homeTheme";
 import { labelStyle, GhostLink, OutlineButton, ErrorNote, underlineInputStyle } from "../homeWidgets";
 
 function formatDate(iso) {
@@ -33,7 +33,7 @@ function ShadowEmail({ html }) {
     <div
       ref={containerRef}
       className="text-[15px] leading-relaxed overflow-x-auto"
-      style={{ color: cream(0.85), background: "transparent" }}
+      style={{ color: text.bright, background: "transparent" }}
     />
   );
 }
@@ -123,7 +123,7 @@ export default function OutlookMessageView({ messageId, onBack }) {
   }
 
   if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
+    return <p style={{ fontSize: 15, color: text.muted }}>Loading message…</p>;
   }
 
   return (
@@ -148,27 +148,30 @@ export default function OutlookMessageView({ messageId, onBack }) {
           </h3>
 
           {justSent && (
-            <p style={{ marginTop: space[3], fontSize: 13, color: "#8fd6a8" }}>Reply sent.</p>
+            <p style={{ marginTop: space[3], fontSize: 14, color: "#34d399", fontWeight: 600 }}>Reply sent successfully.</p>
           )}
 
           <div style={{ marginTop: space[6] }}>
             {(message.thread || [message]).map((item, i) => (
               <div
                 key={item.id}
-                style={{ paddingTop: i === 0 ? 0 : space[6], marginTop: i === 0 ? 0 : space[6], borderTop: i === 0 ? "none" : `1px solid ${cream(0.09)}` }}
+                style={{
+                  paddingTop: i === 0 ? 0 : space[6],
+                  marginTop: i === 0 ? 0 : space[6],
+                  borderTop: i === 0 ? "none" : `1px solid ${glassBorder}`,
+                }}
               >
-                <p style={{ fontSize: 13, marginBottom: space[2], color: cream(0.5) }}>
+                <p style={{ fontSize: 14, marginBottom: space[2], color: text.secondary, fontWeight: 500 }}>
                   {item.is_from_me ? "You" : item.from?.emailAddress?.name || item.from?.emailAddress?.address}
                   {" · "}
-                  {formatDate(item.receivedDateTime || item.sentDateTime)}
+                  <span style={{ color: text.muted }}>{formatDate(item.receivedDateTime || item.sentDateTime)}</span>
                 </p>
                 <ShadowEmail html={item.body?.content || ""} />
               </div>
             ))}
           </div>
 
-          <div style={{ marginTop: space[8], paddingTop: space[6], borderTop: `1px solid ${cream(0.1)}` }}>
-
+          <div style={{ marginTop: space[8], paddingTop: space[6], borderTop: `1px solid ${glassBorder}` }}>
             <div style={labelStyle}>{justSent ? "Write another reply" : "Reply"}</div>
 
             <div className="flex items-center flex-wrap" style={{ gap: space[4], marginTop: space[3] }}>
@@ -176,7 +179,7 @@ export default function OutlookMessageView({ messageId, onBack }) {
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 placeholder="Optional: what should the reply say? (leave blank for a general reply)"
-                style={{ ...underlineInputStyle, flex: 1, minWidth: 240 }}
+                style={{ ...underlineInputStyle, flex: 1, minWidth: 240, color: text.bright }}
               />
               <GhostLink disabled={generating} onClick={handleGenerate}>
                 {generating && <Loader2 size={13} className="animate-spin" />}
@@ -193,13 +196,13 @@ export default function OutlookMessageView({ messageId, onBack }) {
               className="w-full resize-y"
               style={{
                 marginTop: space[5] ?? 23,
-                padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
-                border: `1px solid ${cream(0.12)}`,
-                borderRadius: 4,
-                background: "rgba(15,12,10,0.35)",
-                color: cream(1),
-                fontSize: 16,
-                lineHeight: 1.85,
+                padding: `${space[5]}px`,
+                border: `1px solid ${glassBorder}`,
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.02)",
+                color: text.bright,
+                fontSize: 15,
+                lineHeight: 1.75,
                 outline: "none",
               }}
             />

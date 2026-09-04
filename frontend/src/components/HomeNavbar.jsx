@@ -18,12 +18,12 @@ export default function HomeNavbar({ title }) {
       style={{ animation: "home-rise 1.1s cubic-bezier(.2,.7,.2,1) both" }}
     >
       <div>
-        <div className="text-[10px] md:text-[11px] uppercase" style={{ letterSpacing: "0.2em", color: text.faint }}>
+        <div className="text-[11px] md:text-[12px] uppercase font-semibold" style={{ letterSpacing: "0.18em", color: text.secondary }}>
           {greetingLine()}
         </div>
         <div
-          className="text-[21px] md:text-[26px]"
-          style={{ fontFamily: fontHeading, fontStyle: "italic", color: text.base, marginTop: 9 }}
+          className="text-[22px] md:text-[28px]"
+          style={{ fontFamily: fontHeading, fontStyle: "italic", color: text.bright, marginTop: 6 }}
         >
           {title}
         </div>
@@ -32,20 +32,21 @@ export default function HomeNavbar({ title }) {
         to="/"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="no-underline inline-flex items-center gap-2 shrink-0"
+        className="no-underline inline-flex items-center gap-2 shrink-0 mr-12 md:mr-14"
         style={{
-          padding: "9px 18px",
-          border: `1px solid ${accent[400]}8c`,
-          borderRadius: 4,
+          padding: "9px 20px",
+          border: `1px solid ${hovered ? "#38bdf8" : "rgba(56, 189, 248, 0.38)"}`,
+          borderRadius: 6,
           fontFamily: fontHeading,
           fontSize: 15,
-          color: accent[200],
-          background: hovered ? `${accent[400]}1f` : "transparent",
-          borderColor: hovered ? accent[400] : `${accent[400]}8c`,
-          transition: "background 0.5s ease, border-color 0.5s ease",
+          fontWeight: 600,
+          color: text.bright,
+          background: hovered ? "rgba(56, 189, 248, 0.12)" : "rgba(255, 255, 255, 0.03)",
+          boxShadow: hovered ? "0 0 16px rgba(56, 189, 248, 0.25)" : "none",
+          transition: "background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         }}
       >
-        <MessageCircle size={15} strokeWidth={1.4} />
+        <MessageCircle size={15} strokeWidth={1.6} color="#38bdf8" />
         Open chat
       </Link>
     </header>

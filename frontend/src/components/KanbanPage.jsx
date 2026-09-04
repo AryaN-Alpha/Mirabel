@@ -23,8 +23,9 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, space, cream } from "./homeTheme";
+import { fontHeading, text, accent, cyan, space, cream, glassBorder } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import PageHeader from "./common/PageHeader";
 import KanbanColumn from "./kanban/KanbanColumn";
 import { KanbanCardUI } from "./kanban/KanbanCard";
 import TaskModal from "./kanban/TaskModal";
@@ -341,31 +342,30 @@ export default function KanbanPage() {
 
   return (
     <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{
-          gap: space[6],
-          marginTop: space[8] * 1.5,
-          paddingBottom: space[5] ?? 23,
-          borderBottom: `1px solid ${accent[400]}73`,
-        }}
-      >
-        <div>
-          <div style={labelStyle}>Task board · {selectedProject?.name || "—"}</div>
-          <div style={{ fontFamily: fontHeading, fontSize: "clamp(28px,3.2vw,42px)", color: text.bright, marginTop: space[2] }}>
-            Kanban
-          </div>
-        </div>
-        {selectedProjectId && (
-          <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
-            <GhostLink onClick={() => setProjectModal({})} muted>
-              New project
-            </GhostLink>
-            <GhostLink onClick={() => setShowBraindump((v) => !v)}>Brain dump</GhostLink>
-            <OutlineButton onClick={() => openNewCard("todo")}>New card</OutlineButton>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        category="TASK ORCHESTRATION"
+        subsystem={selectedProject?.name ? selectedProject.name.toUpperCase() : "SPRINT BOARD"}
+        title="Kanban"
+        subtitle="Agile task cards, sprint column stages, and drag-and-drop workflow tracking."
+        badge={
+          selectedProject ? (
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+            </span>
+          ) : null
+        }
+        actions={
+          selectedProjectId && (
+            <div className="flex items-center flex-wrap" style={{ gap: space[4] }}>
+              <GhostLink onClick={() => setProjectModal({})} muted>
+                New project
+              </GhostLink>
+              <GhostLink onClick={() => setShowBraindump((v) => !v)}>Brain dump</GhostLink>
+              <OutlineButton onClick={() => openNewCard("todo")}>New card</OutlineButton>
+            </div>
+          )
+        }
+      />
 
       <div style={{ marginTop: space[6] }}>
         <ProjectTabs
@@ -378,21 +378,59 @@ export default function KanbanPage() {
         />
       </div>
 
-      {error && <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
+      {error && (
+        <div
+          style={{
+            fontSize: 13,
+            marginTop: space[4],
+            padding: "10px 14px",
+            background: "rgba(248, 113, 113, 0.1)",
+            border: "1px solid rgba(248, 113, 113, 0.3)",
+            borderRadius: 6,
+            color: "#fca5a5",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {approachingTasks.length > 0 && (
         <div
+          className="flex items-start"
           style={{
-            marginTop: space[4],
-            padding: space[4],
-            background: "rgba(224,140,140,0.1)",
-            border: "1px solid rgba(224,140,140,0.3)",
-            borderRadius: 6,
-            color: "rgba(224,140,140,0.95)",
+            marginTop: space[5],
+            padding: "14px 18px",
+            background: "rgba(255, 151, 131, 0.08)",
+            border: "1px solid rgba(255, 151, 131, 0.3)",
+            borderRadius: 8,
+            color: text.bright,
             fontSize: 14,
+            lineHeight: 1.5,
+            gap: 12,
           }}
         >
-          <strong style={{ fontWeight: 600 }}>Reminder:</strong> You have {approachingTasks.length} task{approachingTasks.length > 1 ? "s" : ""} due in less than 2 hours: {approachingTasks.map(t => t.title).join(", ")}.
+          <div
+            style={{
+              padding: "2px 8px",
+              borderRadius: 4,
+              background: "rgba(255, 151, 131, 0.18)",
+              color: accent[400],
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Due Soon
+          </div>
+          <div>
+            <strong style={{ fontWeight: 600, color: accent[300] }}>Attention:</strong>{" "}
+            {approachingTasks.length} task{approachingTasks.length > 1 ? "s" : ""} due within 2 hours:{" "}
+            <span style={{ color: text.bright }}>
+              {approachingTasks.map((t) => t.title).join(", ")}
+            </span>
+          </div>
         </div>
       )}
 

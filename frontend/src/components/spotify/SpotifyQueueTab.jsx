@@ -1,10 +1,10 @@
-// Feature: Queue management (spec section 14/23).
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, Radio, ListMusic } from "lucide-react";
 import { addSpotifyQueue, getSpotifyQueue, searchSpotify, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { underlineInputStyle, GhostLink, EmptyState, ErrorNote } from "../homeWidgets";
+import { fontHeading, fontMono, text, accent, cyan, space, cream } from "../homeTheme";
+import { underlineInputStyle, GhostLink, EmptyState, ErrorNote, labelStyle } from "../homeWidgets";
+import SectionCard from "../common/SectionCard";
 import { TrackRow, artistNames, imageUrl, playbackErrorMessage, withPlaybackError } from "./spotifyShared";
 
 // Matches the render list below (queue.queue.slice(0, 20)) — kept as one
@@ -95,40 +95,53 @@ export default function SpotifyQueueTab() {
       )}
 
       {!loading && queue?.currently_playing && (
-        <>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42), marginTop: space[6] }}>
-            Now Playing
+        <div className="mb-6">
+          <div style={labelStyle} className="mb-2">Now Playing</div>
+          <div
+            className="p-2 rounded-xl"
+            style={{
+              background: "linear-gradient(165deg, rgba(22,19,28,0.7) 0%, rgba(12,11,16,0.6) 100%)",
+              border: `1px solid ${accent[400]}44`,
+              boxShadow: `0 8px 24px -10px ${accent[400]}33`,
+            }}
+          >
+            <TrackRow
+              image={imageUrl(queue.currently_playing.album?.images, 2)}
+              title={queue.currently_playing.name}
+              subtitle={artistNames(queue.currently_playing.artists)}
+              durationMs={queue.currently_playing.duration_ms}
+              active
+            />
           </div>
-          <TrackRow
-            image={imageUrl(queue.currently_playing.album?.images, 2)}
-            title={queue.currently_playing.name}
-            subtitle={artistNames(queue.currently_playing.artists)}
-            durationMs={queue.currently_playing.duration_ms}
-            active
-          />
-        </>
+        </div>
       )}
 
-      <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42), marginTop: space[6] }}>
-        Up Next
+      <div>
+        <div style={labelStyle} className="mb-2">Up Next in Queue</div>
+        {!loading && (visibleQueue.length ? (
+          <div
+            className="flex flex-col rounded-xl overflow-hidden"
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: `1px solid ${cream(0.08)}`,
+            }}
+          >
+            {visibleQueue.map((t, i) => (
+              <TrackRow
+                key={`${t.id}-${i}`}
+                index={i}
+                image={imageUrl(t.album?.images, 2)}
+                title={t.name}
+                subtitle={artistNames(t.artists)}
+                durationMs={t.duration_ms}
+                onPlay={() => playFromQueue(i)}
+              />
+            ))}
+          </div>
+        ) : (
+          !loading && <EmptyState>Nothing queued.</EmptyState>
+        ))}
       </div>
-      {!loading && (visibleQueue.length ? (
-        <div className="flex flex-col">
-          {visibleQueue.map((t, i) => (
-            <TrackRow
-              key={`${t.id}-${i}`}
-              index={i}
-              image={imageUrl(t.album?.images, 2)}
-              title={t.name}
-              subtitle={artistNames(t.artists)}
-              durationMs={t.duration_ms}
-              onPlay={() => playFromQueue(i)}
-            />
-          ))}
-        </div>
-      ) : (
-        !loading && <EmptyState>Nothing queued.</EmptyState>
-      ))}
     </div>
   );
 }

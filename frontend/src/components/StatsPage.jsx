@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fontHeading, text, cream, space } from "./homeTheme";
+import { fontHeading, text, cyan, cream, space } from "./homeTheme";
 import { GhostLink } from "./homeWidgets";
+import PageHeader from "./common/PageHeader";
 import StatsFilterBar from "./stats/StatsFilterBar";
 import KpiCards from "./stats/KpiCards";
 import BudgetPanel from "./stats/BudgetPanel";
@@ -135,17 +136,15 @@ export default function StatsPage() {
 
   return (
     <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both", paddingBottom: space[8] }}>
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{ gap: space[6], marginTop: space[8] * 1.2, paddingBottom: space[5] ?? 23 }}
-      >
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>Stats</div>
-          <div style={{ fontFamily: fontHeading, fontSize: "clamp(30px,3.2vw,42px)", lineHeight: 1.1, color: text.bright, marginTop: space[2] }}>
-            LLM Usage, Cost <em style={{ fontStyle: "italic", color: cream(0.6) }}>& Performance</em>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        category="Telemetry // Intelligence"
+        title={
+          <>
+            LLM Usage, Cost <em style={{ fontStyle: "italic", color: cyan[300] }}>& Performance</em>
+          </>
+        }
+        subtitle="Real-time telemetry, model benchmarks, caching efficiency, and spend forecasting across active AI providers."
+      />
 
       <div className="flex flex-col" style={{ gap: space[6] }}>
         <StatsFilterBar

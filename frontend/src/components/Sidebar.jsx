@@ -130,28 +130,44 @@ function NavRow({ icon: Icon, label, to, end, onNavigate }) {
     <NavLink
       to={to}
       end={end}
-      className="no-underline"
+      className="no-underline block"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onNavigate}
     >
       {({ isActive }) => (
         <span
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl relative"
           style={{
             fontFamily: fontHeading,
             fontSize: 15.5,
-            color: isActive ? text.bright : hovered ? text.base : text.muted,
+            fontWeight: isActive ? 600 : 500,
+            color: isActive ? "#ffffff" : hovered ? text.bright : text.secondary,
             background: isActive
-              ? `linear-gradient(90deg, ${accent[600]}2e 0%, ${accent[600]}0d 100%)`
+              ? "linear-gradient(90deg, rgba(56, 189, 248, 0.20) 0%, rgba(56, 189, 248, 0.05) 100%)"
               : hovered
-                ? cream(0.06)
+                ? "rgba(255, 255, 255, 0.05)"
                 : "transparent",
-            boxShadow: `inset 2px 0 0 0 ${isActive ? accent[400] : hovered ? accent[600] : "transparent"}`,
-            transition: "color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
+            border: isActive
+              ? "1px solid rgba(56, 189, 248, 0.40)"
+              : hovered
+                ? "1px solid rgba(255, 255, 255, 0.08)"
+                : "1px solid transparent",
+            boxShadow: isActive
+              ? "0 4px 20px -4px rgba(56, 189, 248, 0.30), inset 3px 0 0 0 #38bdf8"
+              : "none",
+            transition: "all 0.25s cubic-bezier(.2,.7,.2,1)",
           }}
         >
-          <Icon size={15} strokeWidth={1.6} color={isActive ? accent[400] : undefined} />
+          <Icon
+            size={16}
+            strokeWidth={1.8}
+            color={isActive ? "#38bdf8" : hovered ? text.bright : text.secondary}
+            style={{
+              filter: isActive ? "drop-shadow(0 0 8px rgba(56, 189, 248, 0.75))" : "none",
+              transition: "filter 0.25s ease, color 0.25s ease",
+            }}
+          />
           {label}
         </span>
       )}
@@ -172,14 +188,15 @@ function NavSubRow({ icon: Icon, label, to, onNavigate }) {
           className="flex items-center gap-2.5 pl-3 pr-3 py-1.5 rounded-lg"
           style={{
             fontFamily: fontHeading,
-            fontSize: 13.5,
-            color: isActive ? text.base : hovered ? text.base : text.faint,
-            background: isActive ? cream(0.07) : hovered ? cream(0.045) : "transparent",
-            boxShadow: `inset 2px 0 0 0 ${isActive ? accent[300] : hovered ? accent[600] : "transparent"}`,
-            transition: "color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
+            fontSize: 14,
+            color: isActive ? text.bright : hovered ? text.bright : text.secondary,
+            background: isActive ? "rgba(56, 189, 248, 0.15)" : hovered ? "rgba(255, 255, 255, 0.05)" : "transparent",
+            border: isActive ? "1px solid rgba(56, 189, 248, 0.35)" : "1px solid transparent",
+            boxShadow: `inset 2px 0 0 0 ${isActive ? "#38bdf8" : hovered ? "rgba(56, 189, 248, 0.4)" : "transparent"}`,
+            transition: "color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease",
           }}
         >
-          {Icon && <Icon size={12} strokeWidth={1.6} />}
+          {Icon && <Icon size={13} strokeWidth={1.6} color={isActive ? "#38bdf8" : undefined} />}
           {label}
         </span>
       )}
@@ -283,12 +300,12 @@ export default function Sidebar() {
         className="hidden md:flex relative flex-col shrink-0 w-[260px] m-4 px-5 py-7 overflow-y-auto rounded-[22px]"
         style={{
           background: "transparent",
-          border: `1px solid ${cream(0.04)}`,
+          border: "1px solid rgba(255, 255, 255, 0.04)",
           boxShadow: "none",
         }}
       >
         <SidebarBrand nameHidden={nameHidden} toggleNameHidden={toggleNameHidden} />
-        <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: "0.18em", color: text.faint }}>
+        <p className="text-[11px] uppercase mb-4" style={{ letterSpacing: "0.18em", color: text.secondary, fontWeight: 600 }}>
           General
         </p>
         <SidebarNav pathname={pathname} />
@@ -305,7 +322,7 @@ export default function Sidebar() {
             className="relative flex flex-col w-[82vw] max-w-[300px] my-3 ml-3 px-5 py-7 overflow-y-auto rounded-[22px]"
             style={{
               background: "linear-gradient(165deg, rgba(11,10,10,0.95) 0%, rgba(5,5,5,0.92) 100%)",
-              border: `1px solid ${cream(0.1)}`,
+              border: "1px solid rgba(255, 255, 255, 0.12)",
               boxShadow: "0 24px 60px -18px rgba(0,0,0,0.8), 0 0 46px -18px rgba(221,43,15,0.2)",
               backdropFilter: "blur(20px) saturate(108%)",
               WebkitBackdropFilter: "blur(20px) saturate(108%)",
@@ -317,7 +334,7 @@ export default function Sidebar() {
               onClick={() => setMobileOpen(false)}
               aria-label="Close navigation menu"
               className="absolute top-6 right-4 p-1.5 rounded-md hover:bg-white/5"
-              style={{ color: text.faint }}
+              style={{ color: text.secondary }}
             >
               <X size={18} strokeWidth={1.8} />
             </button>
@@ -326,7 +343,7 @@ export default function Sidebar() {
               toggleNameHidden={toggleNameHidden}
               onNavigate={() => setMobileOpen(false)}
             />
-            <p className="text-[10px] uppercase mb-4" style={{ letterSpacing: "0.18em", color: text.faint }}>
+            <p className="text-[11px] uppercase mb-4" style={{ letterSpacing: "0.18em", color: text.secondary, fontWeight: 600 }}>
               General
             </p>
             <SidebarNav pathname={pathname} onNavigate={() => setMobileOpen(false)} />

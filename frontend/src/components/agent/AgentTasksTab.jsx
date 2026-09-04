@@ -9,7 +9,7 @@ import {
   startAgentTask,
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream, accent } from "../homeTheme";
+import { fontHeading, text, space, cream, accent, glassBorder } from "../homeTheme";
 import { EmptyState, ErrorNote, GhostLink } from "../homeWidgets";
 import ChatInput from "../ChatInput";
 import AgentTaskPanel from "./AgentTaskPanel";
@@ -19,21 +19,21 @@ const PAGE_SIZE = 20;
 const NON_TERMINAL = new Set(["queued", "running", "awaiting_confirmation", "awaiting_clarification"]);
 
 const PANEL_PALETTE = {
-  text: text.base,
-  muted: cream(0.55),
-  border: cream(0.16),
+  text: text.bright,
+  muted: text.secondary,
+  border: glassBorder,
   accent: accent[400],
-  danger: "rgba(224,140,140,0.95)",
+  danger: "#f87171",
 };
 
 const STATUS_COLOR = {
-  queued: "#f0c9a2",
-  running: "#f0c9a2",
-  awaiting_confirmation: "#f0c9a2",
-  awaiting_clarification: "#f0c9a2",
-  done: "#8fd6a8",
-  failed: "rgba(224,140,140,0.95)",
-  cancelled: cream(0.5),
+  queued: "#fbbf24",
+  running: "#38bdf8",
+  awaiting_confirmation: "#fbbf24",
+  awaiting_clarification: "#fbbf24",
+  done: "#34d399",
+  failed: "#f87171",
+  cancelled: text.muted,
 };
 
 const STATUS_LABEL = {
@@ -155,17 +155,18 @@ export default function AgentTasksTab() {
           {tasks.map((task) => (
             <div
               key={task.id}
-              style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}` }}
+              style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${glassBorder}` }}
             >
               <div className="flex items-baseline justify-between gap-4 flex-wrap">
-                <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
+                <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.bright }}>{task.instruction}</span>
                 <span
                   className="flex items-center gap-1.5"
                   style={{
                     fontSize: 11,
+                    fontWeight: 600,
                     letterSpacing: "0.14em",
                     textTransform: "uppercase",
-                    color: STATUS_COLOR[task.status] || cream(0.5),
+                    color: STATUS_COLOR[task.status] || text.muted,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -173,7 +174,7 @@ export default function AgentTasksTab() {
                   {STATUS_LABEL[task.status] || task.status}
                 </span>
               </div>
-              <p style={{ fontSize: 13, marginTop: 4, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
+              <p style={{ fontSize: 13, marginTop: 4, color: text.muted, fontVariantNumeric: "tabular-nums" }}>
                 {formatDate(task.created_at)}
               </p>
 
@@ -184,12 +185,12 @@ export default function AgentTasksTab() {
                     padding: space[3],
                     border:
                       task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                        ? `1px solid ${cream(0.14)}`
+                        ? `1px solid ${glassBorder}`
                         : "none",
                     borderRadius: 8,
                     background:
                       task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                        ? "rgba(240,201,162,0.06)"
+                        ? "rgba(251,191,36,0.06)"
                         : "transparent",
                   }}
                 >
@@ -205,7 +206,7 @@ export default function AgentTasksTab() {
               )}
 
               {task.steps?.length > 0 && (
-                <p style={{ fontSize: 12, marginTop: space[2], color: cream(0.4) }}>
+                <p style={{ fontSize: 13, marginTop: space[2], color: text.muted }}>
                   {task.steps.length} step{task.steps.length === 1 ? "" : "s"} so far
                 </p>
               )}
@@ -230,7 +231,7 @@ export default function AgentTasksTab() {
           <GhostLink disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} muted={page <= 1}>
             ← Previous
           </GhostLink>
-          <span style={{ fontSize: 12, color: cream(0.4) }}>
+          <span style={{ fontSize: 13, color: text.muted }}>
             {total} task{total === 1 ? "" : "s"} · page {page} of {totalPages}
           </span>
           <GhostLink disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} muted={page >= totalPages}>

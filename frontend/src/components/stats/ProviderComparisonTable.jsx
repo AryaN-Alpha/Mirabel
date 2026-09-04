@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { space, cream } from "../homeTheme";
+import { space, cream, text } from "../homeTheme";
 import { TabLink } from "../homeWidgets";
 import { SectionCard, SkeletonBlock } from "./SectionCard";
 import DataTable from "./DataTable";
@@ -51,7 +51,7 @@ export default function ProviderComparisonTable({ providers, models, loading }) 
         <DataTable columns={MODEL_COLUMNS} rows={(models ?? []).map((r) => ({ ...r, __key: `${r.provider}/${r.model}` }))} defaultSort={{ key: "total_tokens", dir: "desc" }} />
       )}
       {!loading && (providers?.some((r) => r.cost === null) || models?.some((r) => r.cost === null)) && (
-        <p style={{ fontSize: 11, color: cream(0.32), marginTop: space[2] }}>
+        <p style={{ fontSize: 13, color: text.muted, marginTop: space[2] }}>
           "Cost unavailable" rows have no PricingConfig entry — configure pricing in /admin/ to populate them.
         </p>
       )}

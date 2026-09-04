@@ -38,16 +38,18 @@ export const CACHE_READ_COLOR = SERIES.gemini;
 export const CACHE_WRITE_COLOR = SERIES.deepseek;
 
 export const CHART_SURFACE = "rgba(255,255,255,0.03)";
-export const GRID_COLOR = "rgba(239,230,218,0.08)";
-export const AXIS_COLOR = "rgba(239,230,218,0.38)";
+export const GRID_COLOR = "rgba(246,248,255,0.08)";
+export const AXIS_COLOR = "rgba(246,248,255,0.68)";
 export const TOOLTIP_STYLE = {
   contentStyle: {
-    background: "rgba(24,19,15,0.96)",
-    border: "1px solid rgba(239,230,218,0.14)",
-    borderRadius: 6,
-    fontSize: 12,
-    color: "#f6efe4",
+    background: "linear-gradient(165deg, rgba(22,19,30,0.96) 0%, rgba(12,11,18,0.96) 100%)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    fontSize: 13,
+    color: "#f8faff",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.65)",
+    padding: "10px 14px",
   },
-  labelStyle: { color: "rgba(239,230,218,0.6)", marginBottom: 4 },
-  itemStyle: { padding: 0 },
+  labelStyle: { color: "rgba(246,248,255,0.85)", fontWeight: 600, marginBottom: 6, fontSize: 13 },
+  itemStyle: { padding: "2px 0", fontSize: 13 },
 };

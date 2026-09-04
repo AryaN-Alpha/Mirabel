@@ -241,16 +241,16 @@ export default function SpotifyNowPlayingBar() {
           <>
             <Thumb src={item.album?.images?.[2]?.url || item.album?.images?.[0]?.url} size={44} />
             <div className="min-w-0">
-              <div className="truncate" style={{ fontFamily: fontHeading, fontSize: 14, color: text.base }}>
+              <div className="truncate text-[14.5px] font-semibold" style={{ fontFamily: fontHeading, color: text.bright }}>
                 {item.name}
               </div>
-              <div className="truncate" style={{ fontSize: 12, color: cream(0.5) }}>
+              <div className="truncate text-[13px]" style={{ color: text.secondary, marginTop: 1 }}>
                 {(item.artists || []).map((a) => a.name).join(", ")}
               </div>
             </div>
           </>
         ) : (
-          <span style={{ fontSize: 13, color: cream(0.4) }}>Nothing playing</span>
+          <span style={{ fontSize: 13, color: text.muted }}>Nothing playing</span>
         )}
       </div>
 
@@ -258,7 +258,7 @@ export default function SpotifyNowPlayingBar() {
         <div className="flex sm:hidden items-center gap-2 min-w-0 shrink">
           <Thumb src={item.album?.images?.[2]?.url || item.album?.images?.[0]?.url} size={36} />
           <div className="min-w-0">
-            <div className="truncate" style={{ fontFamily: fontHeading, fontSize: 13, color: text.base }}>
+            <div className="truncate text-[13.5px] font-medium" style={{ fontFamily: fontHeading, color: text.bright }}>
               {item.name}
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function SpotifyNowPlayingBar() {
             disabled={busy}
             onClick={() => withBusy(() => spotifySetShuffle(!state?.shuffle_state, deviceId))}
             className="hidden sm:inline-flex"
-            style={{ background: "none", border: "none", cursor: "pointer", color: state?.shuffle_state ? accent[300] : cream(0.5) }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: state?.shuffle_state ? "#38bdf8" : cream(0.5) }}
             title="Shuffle"
           >
             <Shuffle size={15} strokeWidth={1.8} />
@@ -348,7 +348,7 @@ export default function SpotifyNowPlayingBar() {
             disabled={busy}
             onClick={() => withBusy(() => spotifySetRepeat(NEXT_REPEAT_STATE[state?.repeat_state] || "context", deviceId))}
             className="hidden sm:inline-flex"
-            style={{ background: "none", border: "none", cursor: "pointer", color: state?.repeat_state && state.repeat_state !== "off" ? accent[300] : cream(0.5) }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: state?.repeat_state && state.repeat_state !== "off" ? "#38bdf8" : cream(0.5) }}
             title={`Repeat: ${state?.repeat_state || "off"}`}
           >
             {state?.repeat_state === "track" ? (
@@ -383,20 +383,21 @@ export default function SpotifyNowPlayingBar() {
                 if (e.key === "ArrowLeft") withBusy(() => spotifySeek(Math.max(0, (state?.progress_ms || 0) - step), deviceId));
               }}
               className="flex-1"
-              style={{ height: 3, borderRadius: 2, background: cream(0.12), position: "relative", cursor: "pointer" }}
+              style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,0.12)", position: "relative", cursor: "pointer" }}
             >
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
                   width: `${item.duration_ms ? Math.min(100, ((state?.progress_ms || 0) / item.duration_ms) * 100) : 0}%`,
-                  background: accent[400],
-                  borderRadius: 2,
+                  background: "#38bdf8",
+                  boxShadow: "0 0 10px rgba(56, 189, 248, 0.65)",
+                  borderRadius: 999,
                   pointerEvents: "none",
                 }}
               />
             </div>
-            <span style={{ fontSize: 10.5, color: cream(0.4), fontVariantNumeric: "tabular-nums" }}>
+            <span style={{ fontSize: 12, color: text.secondary, fontVariantNumeric: "tabular-nums" }}>
               {formatDuration(item.duration_ms)}
             </span>
           </div>
@@ -419,8 +420,8 @@ export default function SpotifyNowPlayingBar() {
               withBusy(() => spotifySetVolume(Number(e.target.value), deviceId));
             }
           }}
-          className="hidden sm:block"
-          style={{ width: 80, accentColor: accent[400] }}
+          className="hidden sm:block galaxy-slider-range"
+          style={{ width: 80, accentColor: "#38bdf8" }}
         />
         <button
           type="button"
@@ -428,7 +429,7 @@ export default function SpotifyNowPlayingBar() {
             setShowDevices((v) => !v);
             if (!showDevices) loadDevices();
           }}
-          style={{ background: "none", border: "none", cursor: "pointer", color: state?.device ? accent[300] : cream(0.5) }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: state?.device ? "#38bdf8" : cream(0.5) }}
           title="Devices"
         >
           <DeviceIcon type={state?.device?.type} />

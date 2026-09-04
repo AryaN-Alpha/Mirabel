@@ -6,9 +6,9 @@ import { fontHeading, text, accent, accent2700, space, cream } from "../homeThem
 import { IconButton } from "../homeWidgets";
 
 const PRIORITY_COLOR = {
-  High: "rgba(224,140,140,0.95)",
-  Medium: "#f0c9a2",
-  Low: "#8fd6a8",
+  High: "#f87171",
+  Medium: "#facc15",
+  Low: "#4ade80",
 };
 
 function dueDateColor(dueDate) {
@@ -16,9 +16,9 @@ function dueDateColor(dueDate) {
   today.setHours(0, 0, 0, 0);
   const due = new Date(`${dueDate}T00:00:00`);
   const diffDays = Math.round((due - today) / 86400000);
-  if (diffDays < 0) return "rgba(224,140,140,0.95)";
-  if (diffDays <= 2) return "#f0c9a2";
-  return cream(0.45);
+  if (diffDays < 0) return "#f87171";
+  if (diffDays <= 2) return "#facc15";
+  return text.secondary;
 }
 
 export function KanbanCardUI({ task, onEdit, onDelete, isDragging, isOverlay, listeners, attributes, setNodeRef, style }) {
@@ -39,23 +39,23 @@ export function KanbanCardUI({ task, onEdit, onDelete, isDragging, isOverlay, li
         userSelect: "none",
         WebkitUserSelect: "none",
         touchAction: "none",
-        padding: `${space[5] ?? 23}px 16px`,
-        border: `1px solid ${isOverlay ? accent[400] : cream(0.12)}`,
-        borderRadius: 12,
+        padding: "16px 18px",
+        border: `1px solid ${isOverlay ? accent[400] : hovered ? cream(0.18) : cream(0.09)}`,
+        borderRadius: 14,
         background: isOverlay || isDragging 
-          ? "rgba(225,173,102,0.14)"
+          ? "rgba(225,173,102,0.18)"
           : hovered 
-            ? "rgba(255,255,255,0.06)" 
-            : "rgba(255,255,255,0.025)",
-        backdropFilter: "blur(12px)",
+            ? "linear-gradient(165deg, rgba(26,22,34,0.85) 0%, rgba(14,12,20,0.80) 100%)" 
+            : "linear-gradient(165deg, rgba(18,16,24,0.70) 0%, rgba(10,9,14,0.60) 100%)",
+        backdropFilter: "blur(16px)",
         boxShadow: isOverlay
-          ? "0 16px 36px rgba(0,0,0,0.5), 0 0 0 1px rgba(225,173,102,0.3)"
+          ? "0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(225,173,102,0.4)"
           : isDragging
             ? "none"
             : hovered 
-              ? "0 4px 12px rgba(0,0,0,0.15)" 
-              : "0 2px 6px rgba(0,0,0,0.1)",
-        transition: isDragging || isOverlay ? "none" : "background 0.2s ease, box-shadow 0.2s ease",
+              ? "0 10px 24px -10px rgba(0,0,0,0.6), inset 0 1px 0 0 rgba(255,255,255,0.06)" 
+              : "0 4px 12px -6px rgba(0,0,0,0.4), inset 0 1px 0 0 rgba(255,255,255,0.03)",
+        transition: isDragging || isOverlay ? "none" : "all 0.2s ease",
         marginBottom: isOverlay ? 0 : space[3],
         position: "relative",
         opacity: isDragging && !isOverlay ? 0.35 : 1,
@@ -64,15 +64,17 @@ export function KanbanCardUI({ task, onEdit, onDelete, isDragging, isOverlay, li
       onMouseLeave={() => setHovered(false)}
     >
       <div className="flex items-start justify-between gap-2 pointer-events-none">
-        <div className="flex items-start gap-2 min-w-0">
-          <div className="mt-1 opacity-40 shrink-0">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div className="mt-1 opacity-50 shrink-0 text-white">
             <GripVertical size={16} />
           </div>
-          <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base, lineHeight: 1.2, wordBreak: "break-word" }}>{task.title}</span>
+          <span style={{ fontFamily: fontHeading, fontSize: 17, fontWeight: 600, color: text.bright, lineHeight: 1.25, wordBreak: "break-word" }}>
+            {task.title}
+          </span>
         </div>
         <div
           className="flex items-center gap-1 shrink-0 pointer-events-auto"
-          style={{ opacity: hovered && !isDragging && !isOverlay ? 1 : 0, transition: "opacity 0.2s ease" }}
+          style={{ opacity: hovered && !isDragging && !isOverlay ? 1 : 0, transition: "opacity 0.15s ease" }}
         >
           <IconButton onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit card">
             <Pencil size={13} />
@@ -86,7 +88,7 @@ export function KanbanCardUI({ task, onEdit, onDelete, isDragging, isOverlay, li
       {task.description_markdown && (
         <p
           className="line-clamp-2 pointer-events-none"
-          style={{ marginTop: space[3], marginLeft: 24, fontSize: 13.5, lineHeight: 1.6, color: cream(0.62) }}
+          style={{ marginTop: 8, marginLeft: 26, fontSize: 14, lineHeight: 1.55, color: text.secondary }}
         >
           {task.description_markdown}
         </p>
@@ -94,16 +96,28 @@ export function KanbanCardUI({ task, onEdit, onDelete, isDragging, isOverlay, li
 
       <div
         className="flex items-center flex-wrap pointer-events-none"
-        style={{ gap: space[4], marginTop: space[4], marginLeft: 24, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: cream(0.45) }}
+        style={{ gap: 12, marginTop: 12, marginLeft: 26, fontSize: 12, letterSpacing: "0.06em" }}
       >
-        <span style={{ color: priorityColor }}>{task.priority}</span>
-        <span>{task.effort} effort</span>
+        <span
+          className="px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider"
+          style={{
+            color: priorityColor,
+            background: `${priorityColor}18`,
+            border: `1px solid ${priorityColor}33`,
+          }}
+        >
+          {task.priority}
+        </span>
+        <span style={{ color: text.secondary }}>{task.effort} effort</span>
         {task.due_date && (
-          <span style={{ fontVariantNumeric: "tabular-nums", color: dueDateColor(task.due_date) }}>{task.due_date}</span>
+          <span style={{ fontVariantNumeric: "tabular-nums", color: dueDateColor(task.due_date), fontWeight: 500 }}>
+            {task.due_date}
+          </span>
         )}
         {task.source === "ai" && (
-          <span className="ml-auto inline-flex items-center" title="Added from a brain dump">
-            <Bot size={13} style={{ color: cream(0.35) }} />
+          <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-[#38bdf8]" title="Added from a brain dump">
+            <Bot size={13} />
+            <span>AI</span>
           </span>
         )}
       </div>

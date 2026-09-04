@@ -27,7 +27,47 @@ html, body, #root {
 }
 
 ::selection {
-  background: rgba(236, 48, 19, 0.3);
+  background: rgba(56, 189, 248, 0.35);
+}
+
+/* Galaxy backdrop control range inputs */
+.galaxy-slider-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.galaxy-slider-range:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.galaxy-slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #08070d;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.75);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.galaxy-slider-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.95);
+}
+.galaxy-slider-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #08070d;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.75);
+  cursor: pointer;
 }
 
 /* Custom Scrollbar */
@@ -100,5 +140,37 @@ html, body, #root {
 @keyframes home-rule-in {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
+}
+
+/* Zero-gravity float — extremely subtle vertical drift for floating glass
+   panels (GlassPanel in homeWidgets.jsx). Three variants at different
+   amplitudes/durations so panels never bob in sync; each panel also gets a
+   distinct (often negative) animation-delay from its caller for the same
+   reason. Disabled entirely under reduced motion below. */
+@keyframes home-float-1 { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -5px, 0); } }
+@keyframes home-float-2 { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -8px, 0); } }
+@keyframes home-float-3 { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
+.home-float-1 { animation: home-float-1 9s ease-in-out infinite; }
+.home-float-2 { animation: home-float-2 11s ease-in-out infinite; }
+.home-float-3 { animation: home-float-3 7.5s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-float-1, .home-float-2, .home-float-3 {
+    animation: none !important;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Accent-colored keyboard focus ring, consistent across the redesigned
+   /home pages — replaces the browser default blue outline which clashed
+   with the galaxy palette. Only ever shown for keyboard/programmatic focus. */
+:focus-visible {
+  outline: 2px solid rgba(255, 151, 131, 0.85);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 

@@ -8,10 +8,27 @@ import { formatTokens, formatPct, formatBucketLabel, providerLabel } from "./for
 
 function Metric({ label, value, hint }) {
   return (
-    <div style={{ flex: "1 1 150px", minWidth: 130 }}>
+    <div
+      className="p-4 rounded-xl flex-1 min-w-[160px]"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${cream(0.08)}`,
+      }}
+    >
       <div style={labelStyle}>{label}</div>
-      <div style={{ fontFamily: fontHeading, fontSize: 24, color: text.base, marginTop: space[1] ?? 4 }}>{value}</div>
-      {hint && <div style={{ fontSize: 11, color: cream(0.35), marginTop: 2 }}>{hint}</div>}
+      <div
+        style={{
+          fontFamily: fontHeading,
+          fontSize: 24,
+          fontWeight: 600,
+          color: text.bright,
+          marginTop: space[1] ?? 4,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
+      {hint && <div style={{ fontSize: 12, color: text.secondary, marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }
@@ -29,7 +46,14 @@ const CAPABILITY_COLUMNS = [
   {
     key: "prompt_caching", label: "Prompt Caching",
     render: (r) => (
-      <span style={{ color: r.prompt_caching === "enabled" ? "#8fd6a8" : cream(0.4) }}>
+      <span
+        className="px-2 py-0.5 rounded text-xs font-medium"
+        style={{
+          color: r.prompt_caching === "enabled" ? "#4ade80" : text.muted,
+          background: r.prompt_caching === "enabled" ? "rgba(74,222,128,0.14)" : "rgba(255,255,255,0.04)",
+          border: `1px solid ${r.prompt_caching === "enabled" ? "rgba(74,222,128,0.28)" : cream(0.08)}`,
+        }}
+      >
         {r.prompt_caching === "enabled" ? "Enabled" : "Unavailable"}
       </span>
     ),

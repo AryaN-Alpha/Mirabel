@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMemoryStats, listMemories } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, cream } from "../homeTheme";
+import { fontHeading, text, accent, space, cream, glassBorder } from "../homeTheme";
 import { GhostLink, EmptyState, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
 
 const PAGE_SIZE = 20;
@@ -20,13 +20,15 @@ function formatDate(iso) {
 function Stat({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: text.secondary }}>
+        {label}
+      </div>
       <div
         style={{
           fontFamily: fontHeading,
-          fontSize: 38,
+          fontSize: 34,
           fontVariantNumeric: "tabular-nums",
-          color: value === "—" ? cream(0.4) : accent[300],
+          color: value === "—" ? text.muted : accent[300],
           marginTop: space[2],
         }}
       >
@@ -46,13 +48,15 @@ function MoodChip({ mood, active, onToggle }) {
       }}
       className="no-underline inline-flex items-center"
       style={{
-        padding: "3px 13px",
-        border: `1px solid ${active ? accent[400] : cream(0.16)}`,
-        borderRadius: 4,
+        padding: "4px 14px",
+        border: `1px solid ${active ? accent[400] : glassBorder}`,
+        background: active ? "rgba(255, 151, 131, 0.12)" : "rgba(255, 255, 255, 0.02)",
+        borderRadius: 999,
         fontSize: 12,
+        fontWeight: 500,
         letterSpacing: "0.04em",
-        color: active ? accent[200] : cream(0.55),
-        transition: "color 0.3s ease, border-color 0.3s ease",
+        color: active ? accent[300] : text.secondary,
+        transition: "color 0.25s ease, border-color 0.25s ease, background 0.25s ease",
       }}
     >
       {mood}
@@ -63,26 +67,26 @@ function MoodChip({ mood, active, onToggle }) {
 function MemoryRow({ memory }) {
   const isSummary = memory.kind === "summary";
   return (
-    <div style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}` }}>
+    <div style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${glassBorder}` }}>
       <div className="flex items-center flex-wrap" style={{ gap: space[3], marginBottom: space[2] }}>
         {isSummary && (
-          <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "#f0b8b8" }}>
-            Summary
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#f87171" }}>
+            [Summary]
           </span>
         )}
         {memory.mood && (
-          <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: accent[300] }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: accent[300] }}>
             {memory.mood}
           </span>
         )}
         {typeof memory.salience === "number" && (
-          <span style={{ fontSize: 11, color: cream(0.4) }}>salience {memory.salience.toFixed(2)}</span>
+          <span style={{ fontSize: 12, color: text.muted }}>salience {memory.salience.toFixed(2)}</span>
         )}
-        <span style={{ fontSize: 11, color: cream(0.4), marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ fontSize: 12, color: text.muted, marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
           {formatDate(memory.created_at)}
         </span>
       </div>
-      <p style={{ fontSize: 15, lineHeight: 1.75, color: text.cream }}>{memory.text}</p>
+      <p style={{ fontSize: 15, lineHeight: 1.75, color: text.bright }}>{memory.text}</p>
     </div>
   );
 }
@@ -163,10 +167,10 @@ export default function AgentMemoriesTab() {
           className="flex flex-wrap"
           style={{
             gap: space[8] * 1.4,
-            marginTop: space[8] * 1.2,
-            padding: `${space[6]}px 0`,
-            borderTop: `1px solid ${accent[400]}66`,
-            borderBottom: `1px solid ${cream(0.12)}`,
+            marginTop: space[6],
+            padding: `${space[5]}px 0`,
+            borderTop: `1px solid ${accent[400]}40`,
+            borderBottom: `1px solid ${glassBorder}`,
           }}
         >
           <Stat label="Total memories" value={stats.total} />
@@ -189,7 +193,7 @@ export default function AgentMemoriesTab() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search memory text…"
-          style={{ ...underlineInputStyle, flex: 1, minWidth: 220, fontFamily: fontHeading, fontSize: 20, color: text.base }}
+          style={{ ...underlineInputStyle, flex: 1, minWidth: 220, fontFamily: fontHeading, fontSize: 20, color: text.bright }}
         />
         <select value={kind} onChange={(e) => setKind(e.target.value)} style={underlineSelectStyle}>
           <option value="all">All kinds</option>
@@ -204,15 +208,15 @@ export default function AgentMemoriesTab() {
 
       <div className="flex items-center flex-wrap" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>
         <label className="flex items-center" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 12, color: cream(0.45) }}>From</span>
+          <span style={{ fontSize: 13, color: text.secondary }}>From</span>
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ ...underlineInputStyle, width: "auto", colorScheme: "dark" }} />
         </label>
         <label className="flex items-center" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 12, color: cream(0.45) }}>To</span>
+          <span style={{ fontSize: 13, color: text.secondary }}>To</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ ...underlineInputStyle, width: "auto", colorScheme: "dark" }} />
         </label>
         <label className="flex items-center" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 12, color: cream(0.45) }}>Min salience</span>
+          <span style={{ fontSize: 13, color: text.secondary }}>Min salience</span>
           <input
             type="number"
             min="0"

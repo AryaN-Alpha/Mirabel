@@ -7,9 +7,26 @@ import { formatMs, formatInt, formatPct, formatRate, providerLabel } from "./for
 
 function Metric({ label, value }) {
   return (
-    <div style={{ flex: "1 1 140px", minWidth: 120 }}>
+    <div
+      className="p-4 rounded-xl flex-1 min-w-[140px]"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: `1px solid ${cream(0.08)}`,
+      }}
+    >
       <div style={labelStyle}>{label}</div>
-      <div style={{ fontFamily: fontHeading, fontSize: 22, color: text.base, marginTop: space[1] ?? 4 }}>{value}</div>
+      <div
+        style={{
+          fontFamily: fontHeading,
+          fontSize: 22,
+          fontWeight: 600,
+          color: text.bright,
+          marginTop: space[1] ?? 4,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -41,20 +58,21 @@ export default function PerformanceSection({ performance, loading }) {
   return (
     <SectionCard
       title="LLM Performance Analytics"
-      subtitle="Cheap but slow, expensive but fast, or high-error — broken down by provider/model/call site."
+      subtitle="Response latency distributions, throughput rate, and reliability metrics across call sites."
     >
-      <div className="flex flex-wrap" style={{ gap: space[6], rowGap: space[6], marginBottom: space[5] ?? 23 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <Metric label="Avg Latency" value={formatMs(performance.avg_latency_ms)} />
         <Metric label="P50 Latency" value={formatMs(performance.p50_latency_ms)} />
         <Metric label="P95 Latency" value={formatMs(performance.p95_latency_ms)} />
-        <Metric label="Requests / Minute" value={formatRate(performance.requests_per_minute)} />
+        <Metric label="Requests / Min" value={formatRate(performance.requests_per_minute)} />
         <Metric label="Error Rate" value={formatPct(performance.error_rate)} />
       </div>
 
       {performance.slowest_request && (
-        <p style={{ fontSize: 12, color: cream(0.45), marginBottom: space[5] ?? 23 }}>
-          Slowest request: {providerLabel(performance.slowest_request.provider)} / {performance.slowest_request.model} on{" "}
-          {performance.slowest_request.call_site} — {formatMs(performance.slowest_request.latency_ms)}
+        <p style={{ fontSize: 13, color: text.secondary, marginBottom: space[4] }}>
+          Slowest observed request: <span style={{ color: text.bright, fontWeight: 500 }}>{providerLabel(performance.slowest_request.provider)} / {performance.slowest_request.model}</span> on{" "}
+          <span style={{ color: text.bright, fontWeight: 500 }}>{performance.slowest_request.call_site}</span> —{" "}
+          <span style={{ color: "#fb923c", fontVariantNumeric: "tabular-nums" }}>{formatMs(performance.slowest_request.latency_ms)}</span>
         </p>
       )}
 

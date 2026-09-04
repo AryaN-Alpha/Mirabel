@@ -3,8 +3,9 @@ import { Outlet, useOutletContext, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { disconnectSpotify, getSpotifyStatus, spotifyConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, space, cream } from "./homeTheme";
+import { fontHeading, fontMono, text, cyan, space, cream } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import PageHeader from "./common/PageHeader";
 import SpotifyHomeTab from "./spotify/SpotifyHomeTab";
 import SpotifySearchTab from "./spotify/SpotifySearchTab";
 import SpotifyLibraryTab from "./spotify/SpotifyLibraryTab";
@@ -145,42 +146,50 @@ export default function SpotifyPage() {
         </div>
       )}
 
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{
-          gap: space[6],
-          marginTop: space[8] * 1.5,
-          paddingBottom: space[5] ?? 23,
-          borderBottom: `1px solid ${cream(0.16)}`,
-        }}
-      >
-        <div>
-          <div style={labelStyle}>Spotify</div>
-          <div
-            style={{
-              fontFamily: fontHeading,
-              fontSize: "clamp(26px,3.2vw,42px)",
-              color: text.bright,
-              marginTop: space[2],
-              wordBreak: "break-word",
-            }}
-          >
-            {status?.connected ? status.display_name || "Connected" : "Not connected"}
-          </div>
-          {status?.connected && !status.is_premium && (
-            <p style={{ fontSize: 12.5, color: cream(0.45), marginTop: space[1] }}>
-              Free account — playback control needs Spotify Premium and an already-open Spotify device.
-            </p>
-          )}
-        </div>
-        {status?.connected ? (
-          <GhostLink onClick={handleDisconnect} disabled={busy} muted>
-            Disconnect
-          </GhostLink>
-        ) : (
-          <OutlineButton onClick={() => (window.location.href = spotifyConnectUrl())}>Connect Spotify</OutlineButton>
-        )}
-      </div>
+      <PageHeader
+        category="Audio // Spotify"
+        title={status?.connected ? status.display_name || "Connected" : "Spotify"}
+        subtitle={
+          status?.connected ? (
+            !status.is_premium ? (
+              <span style={{ color: "#facc15" }}>
+                Free account — full playback control requires Spotify Premium and an open Spotify device.
+              </span>
+            ) : (
+              "Personalized music streams, algorithmic recommendations, library navigation, and AI queue control."
+            )
+          ) : (
+            "Connect your Spotify account to unlock personalized search, playlists, library navigation, and AI playback control."
+          )
+        }
+        badge={
+          status?.connected ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
+              style={{
+                background: "rgba(74,222,128,0.12)",
+                color: "#4ade80",
+                border: "1px solid rgba(74,222,128,0.3)",
+                fontFamily: fontMono,
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
+              {status.is_premium ? "Premium" : "Connected"}
+            </span>
+          ) : null
+        }
+        actions={
+          status?.connected ? (
+            <GhostLink onClick={handleDisconnect} disabled={busy} muted>
+              Disconnect
+            </GhostLink>
+          ) : (
+            <OutlineButton onClick={() => (window.location.href = spotifyConnectUrl())}>
+              Connect Spotify
+            </OutlineButton>
+          )
+        }
+      />
 
       {error && <p style={{ fontSize: 12, marginTop: space[3], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 
