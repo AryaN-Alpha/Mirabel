@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Mail } from "lucide-react";
 import {
   coverLetterExportUrl,
   createCoverLetter,
@@ -10,7 +10,8 @@ import {
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, IconButton, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { GhostLink, OutlineButton, IconButton, ErrorNote, PanelEyebrow } from "../homeWidgets";
+import { fieldStyle, textareaFieldStyle } from "./cvFieldStyle";
 
 export default function CvCoverLetterTab({ cvId }) {
   const [letters, setLetters] = useState([]);
@@ -105,17 +106,18 @@ export default function CvCoverLetterTab({ cvId }) {
   return (
     <div className="flex flex-col" style={{ gap: space[5] ?? 23 }}>
       <div className="flex flex-col" style={{ gap: space[3] }}>
+        <PanelEyebrow icon={Mail}>Generate a cover letter</PanelEyebrow>
         <input
           value={jobTitle}
           onChange={(e) => setJobTitle(e.target.value)}
           placeholder="Job title (optional)"
-          style={underlineInputStyle}
+          style={fieldStyle}
         />
         <input
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           placeholder="Company (optional)"
-          style={underlineInputStyle}
+          style={fieldStyle}
         />
         <textarea
           value={jobDescription}
@@ -123,7 +125,7 @@ export default function CvCoverLetterTab({ cvId }) {
           rows={5}
           placeholder="Paste the job description…"
           className="w-full resize-y"
-          style={underlineInputStyle}
+          style={textareaFieldStyle}
         />
         <GhostLink onClick={handleGenerate} disabled={generating || !jobDescription.trim()}>
           {generating && <Loader2 size={13} className="animate-spin" />}
@@ -138,12 +140,20 @@ export default function CvCoverLetterTab({ cvId }) {
             Past letters
           </span>
           {letters.map((l) => (
-            <div key={l.id} className="flex items-center justify-between">
+            <div
+              key={l.id}
+              className="flex items-center justify-between"
+              style={{
+                padding: `${space[2]}px ${space[2]}px`,
+                borderRadius: 6,
+                background: l.id === selectedId ? "rgba(255,151,131,0.06)" : "transparent",
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setSelectedId(l.id)}
                 className="border-none bg-transparent cursor-pointer text-left"
-                style={{ fontSize: 13, padding: `${space[1]}px 0`, color: l.id === selectedId ? cream(0.95) : cream(0.6) }}
+                style={{ fontSize: 13, color: l.id === selectedId ? cream(0.95) : cream(0.6) }}
               >
                 {l.job_title || "Untitled"}
                 {l.company_name ? ` — ${l.company_name}` : ""}
@@ -173,7 +183,7 @@ export default function CvCoverLetterTab({ cvId }) {
             onChange={(e) => handleTextChange(e.target.value)}
             rows={12}
             className="w-full resize-y"
-            style={underlineInputStyle}
+            style={textareaFieldStyle}
           />
           <div style={{ marginTop: space[2] }}>
             <OutlineButton onClick={() => window.open(coverLetterExportUrl(cvId, letter.id), "_blank")}>

@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { disconnectSpotify, getSpotifyStatus, spotifyConnectUrl } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, text, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import { labelStyle, GhostLink, OutlineButton, GlassPanel, StatusDot } from "./homeWidgets";
 import SpotifyHomeTab from "./spotify/SpotifyHomeTab";
 import SpotifySearchTab from "./spotify/SpotifySearchTab";
 import SpotifyLibraryTab from "./spotify/SpotifyLibraryTab";
@@ -155,7 +155,10 @@ export default function SpotifyPage() {
         }}
       >
         <div>
-          <div style={labelStyle}>Spotify</div>
+          <div className="flex items-center gap-2" style={{ marginBottom: space[1] }}>
+            {status?.connected && <StatusDot />}
+            <span style={labelStyle}>Spotify</span>
+          </div>
           <div
             style={{
               fontFamily: fontHeading,
@@ -193,19 +196,21 @@ export default function SpotifyPage() {
           {!overlayOpen && <Outlet context={{ status, openAlbum, openArtist, openPlaylist }} />}
         </div>
       ) : (
-        <p
-          style={{
-            maxWidth: "58ch",
-            marginTop: space[6],
-            fontSize: 17,
-            lineHeight: 1.85,
-            textAlign: "justify",
-            color: cream(0.7),
-          }}
-        >
-          Connect your Spotify account to unlock your personalized music experience — search, playlists, your library,
-          playback control, and an AI playlist generator, right from here.
-        </p>
+        <div style={{ marginTop: space[6], animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+          <GlassPanel glow style={{ padding: `${space[6]}px ${space[7]}px`, maxWidth: 640 }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 17,
+                lineHeight: 1.85,
+                color: cream(0.7),
+              }}
+            >
+              Connect your Spotify account to unlock your personalized music experience — search, playlists, your
+              library, playback control, and an AI playlist generator, right from here.
+            </p>
+          </GlassPanel>
+        </div>
       )}
     </div>
   );

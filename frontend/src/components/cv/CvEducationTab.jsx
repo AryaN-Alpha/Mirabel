@@ -3,7 +3,8 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space } from "../homeTheme";
-import { GhostLink, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
+import { GhostLink, IconButton, ErrorNote, entryCardStyle } from "../homeWidgets";
+import { fieldStyle, textareaFieldStyle } from "./cvFieldStyle";
 
 function emptyEducation() {
   return { id: crypto.randomUUID(), school: "", degree: "", location: "", start_date: "", end_date: "", details: "" };
@@ -45,13 +46,13 @@ function EducationEntry({ cvId, entry, onChange, onRemove }) {
               value={entry.degree}
               onChange={(e) => onChange({ degree: e.target.value })}
               placeholder="Degree"
-              style={{ ...underlineInputStyle, flex: 1 }}
+              style={{ ...fieldStyle, flex: 1 }}
             />
             <input
               value={entry.school}
               onChange={(e) => onChange({ school: e.target.value })}
               placeholder="School"
-              style={{ ...underlineInputStyle, flex: 1 }}
+              style={{ ...fieldStyle, flex: 1 }}
             />
           </div>
           <div className="flex" style={{ gap: space[4] }}>
@@ -59,19 +60,19 @@ function EducationEntry({ cvId, entry, onChange, onRemove }) {
               value={entry.location}
               onChange={(e) => onChange({ location: e.target.value })}
               placeholder="Location"
-              style={{ ...underlineInputStyle, flex: 1 }}
+              style={{ ...fieldStyle, flex: 1 }}
             />
             <input
               value={entry.start_date}
               onChange={(e) => onChange({ start_date: e.target.value })}
               placeholder="Start"
-              style={{ ...underlineInputStyle, width: 90, flex: "0 0 auto" }}
+              style={{ ...fieldStyle, width: 100, flex: "0 0 auto" }}
             />
             <input
               value={entry.end_date}
               onChange={(e) => onChange({ end_date: e.target.value })}
               placeholder="End"
-              style={{ ...underlineInputStyle, width: 90, flex: "0 0 auto" }}
+              style={{ ...fieldStyle, width: 100, flex: "0 0 auto" }}
             />
           </div>
         </div>
@@ -85,13 +86,13 @@ function EducationEntry({ cvId, entry, onChange, onRemove }) {
         placeholder="Details, honors, coursework…"
         rows={3}
         className="w-full resize-y"
-        style={{ ...underlineInputStyle, marginTop: space[4] }}
+        style={{ ...textareaFieldStyle, marginTop: space[4] }}
       />
       <input
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Optional instructions for the rewrite…"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...fieldStyle, marginTop: space[3] }}
       />
       <div style={{ marginTop: space[3] }}>
         <GhostLink onClick={handleRewrite} disabled={busy || !entry.details.trim()}>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { fontHeading, text, accent, space, cream } from "../homeTheme";
-import { IconButton } from "../homeWidgets";
+import { IconButton, GhostLink } from "../homeWidgets";
 
 export default function CvVersionTabs({ cvs, selectedId, onSelect, onNew, onEdit, onDelete }) {
   const [hoveredId, setHoveredId] = useState(null);
@@ -50,15 +50,10 @@ export default function CvVersionTabs({ cvs, selectedId, onSelect, onNew, onEdit
           </div>
         );
       })}
-      <button
-        onClick={onNew}
-        type="button"
-        className="inline-flex items-center gap-1 border-none bg-transparent cursor-pointer"
-        style={{ fontFamily: fontHeading, fontSize: 16, color: cream(0.45), paddingBottom: space[2] }}
-      >
+      <GhostLink onClick={onNew} muted style={{ fontSize: 16, paddingBottom: space[2] }}>
         <Plus size={13} strokeWidth={1.8} />
         New CV
-      </button>
+      </GhostLink>
     </div>
   );
 }

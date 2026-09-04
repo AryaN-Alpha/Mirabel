@@ -1,18 +1,11 @@
 import { useState } from "react";
-import { fontHeading, text, cream, space } from "../homeTheme";
-import { labelStyle, TabLink } from "../homeWidgets";
-import { SectionCard, SkeletonBlock } from "./SectionCard";
+import { cream, space } from "../homeTheme";
+import { TabLink, StatTile } from "../homeWidgets";
+import { SectionCard } from "./SectionCard";
 import DataTable from "./DataTable";
 import { formatMs, formatInt, formatPct, formatRate, providerLabel } from "./format";
 
-function Metric({ label, value }) {
-  return (
-    <div style={{ flex: "1 1 140px", minWidth: 120 }}>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ fontFamily: fontHeading, fontSize: 22, color: text.base, marginTop: space[1] ?? 4 }}>{value}</div>
-    </div>
-  );
-}
+const gridStyle = { display: "grid", gap: space[3], gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" };
 
 function columnsFor(dimension) {
   return [
@@ -27,31 +20,22 @@ function columnsFor(dimension) {
 
 export default function PerformanceSection({ performance, loading }) {
   const [dimension, setDimension] = useState("provider");
-
-  if (loading || !performance) {
-    return (
-      <SectionCard title="LLM Performance Analytics">
-        <SkeletonBlock rows={4} />
-      </SectionCard>
-    );
-  }
-
-  const rows = { provider: performance.by_provider, model: performance.by_model, call_site: performance.by_call_site }[dimension];
+  const rows = performance ? { provider: performance.by_provider, model: performance.by_model, call_site: performance.by_call_site }[dimension] : [];
 
   return (
     <SectionCard
       title="LLM Performance Analytics"
       subtitle="Cheap but slow, expensive but fast, or high-error — broken down by provider/model/call site."
     >
-      <div className="flex flex-wrap" style={{ gap: space[6], rowGap: space[6], marginBottom: space[5] ?? 23 }}>
-        <Metric label="Avg Latency" value={formatMs(performance.avg_latency_ms)} />
-        <Metric label="P50 Latency" value={formatMs(performance.p50_latency_ms)} />
-        <Metric label="P95 Latency" value={formatMs(performance.p95_latency_ms)} />
-        <Metric label="Requests / Minute" value={formatRate(performance.requests_per_minute)} />
-        <Metric label="Error Rate" value={formatPct(performance.error_rate)} />
+      <div style={{ ...gridStyle, marginBottom: space[5] ?? 23 }}>
+        <StatTile label="Avg Latency" value={performance ? formatMs(performance.avg_latency_ms) : "—"} />
+        <StatTile label="P50 Latency" value={performance ? formatMs(performance.p50_latency_ms) : "—"} />
+        <StatTile label="P95 Latency" value={performance ? formatMs(performance.p95_latency_ms) : "—"} />
+        <StatTile label="Requests / Minute" value={performance ? formatRate(performance.requests_per_minute) : "—"} />
+        <StatTile label="Error Rate" value={performance ? formatPct(performance.error_rate) : "—"} />
       </div>
 
-      {performance.slowest_request && (
+      {performance?.slowest_request && (
         <p style={{ fontSize: 12, color: cream(0.45), marginBottom: space[5] ?? 23 }}>
           Slowest request: {providerLabel(performance.slowest_request.provider)} / {performance.slowest_request.model} on{" "}
           {performance.slowest_request.call_site} — {formatMs(performance.slowest_request.latency_ms)}
@@ -67,6 +51,7 @@ export default function PerformanceSection({ performance, loading }) {
         columns={columnsFor(dimension)}
         rows={rows.map((r) => ({ ...r, __key: r[dimension] }))}
         defaultSort={{ key: "calls", dir: "desc" }}
+        loading={loading || !performance}
       />
     </SectionCard>
   );

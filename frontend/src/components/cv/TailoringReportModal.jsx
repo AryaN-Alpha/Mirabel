@@ -1,5 +1,6 @@
+import { X } from "lucide-react";
 import { ModalShell, GhostLink } from "../homeWidgets";
-import { fontHeading, text, space, cream } from "../homeTheme";
+import { fontHeading, text, space, cream, danger, success } from "../homeTheme";
 
 const SECTION_LABELS = {
   summary: "Summary",
@@ -19,13 +20,27 @@ function fieldLabel(label) {
 function TextDiff({ before, after }) {
   return (
     <div className="flex flex-col" style={{ gap: space[2] }}>
-      <div>
+      <div
+        style={{
+          padding: space[3],
+          borderRadius: 6,
+          borderLeft: `2px solid ${danger[600]}`,
+          background: "rgba(224,140,140,0.06)",
+        }}
+      >
         {fieldLabel("Before")}
-        <p style={{ fontSize: 13, color: cream(0.5), marginTop: space[1], textDecoration: "line-through", textDecorationColor: cream(0.25) }}>
+        <p style={{ fontSize: 13, color: cream(0.55), marginTop: space[1], textDecoration: "line-through", textDecorationColor: cream(0.25) }}>
           {before || "(empty)"}
         </p>
       </div>
-      <div>
+      <div
+        style={{
+          padding: space[3],
+          borderRadius: 6,
+          borderLeft: `2px solid ${success[600]}`,
+          background: "rgba(143,214,168,0.06)",
+        }}
+      >
         {fieldLabel("After")}
         <p style={{ fontSize: 13, color: cream(0.92), marginTop: space[1] }}>{after || "(empty)"}</p>
       </div>
@@ -49,11 +64,25 @@ function SkillsDiff({ before, after }) {
     );
   return (
     <div className="flex flex-col" style={{ gap: space[2] }}>
-      <div>
+      <div
+        style={{
+          padding: space[3],
+          borderRadius: 6,
+          borderLeft: `2px solid ${danger[600]}`,
+          background: "rgba(224,140,140,0.06)",
+        }}
+      >
         {fieldLabel("Before")}
         <div style={{ marginTop: space[1] }}>{render(before)}</div>
       </div>
-      <div>
+      <div
+        style={{
+          padding: space[3],
+          borderRadius: 6,
+          borderLeft: `2px solid ${success[600]}`,
+          background: "rgba(143,214,168,0.06)",
+        }}
+      >
         {fieldLabel("After")}
         <div style={{ marginTop: space[1] }}>{render(after)}</div>
       </div>
@@ -73,7 +102,7 @@ export default function TailoringReportModal({ report, onClose }) {
       <div className="flex items-center justify-between">
         <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.bright }}>What changed in "{name}"</span>
         <GhostLink onClick={onClose} muted style={{ fontSize: 14 }}>
-          ✕
+          <X size={16} strokeWidth={1.8} />
         </GhostLink>
       </div>
 

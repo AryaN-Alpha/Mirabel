@@ -1,6 +1,6 @@
 // Feature: Playlist page + track CRUD + custom cover (spec sections 14/15/16).
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronUp, ExternalLink, ImagePlus, Loader2, Play, Search, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronUp, ExternalLink, ImagePlus, ListMusic, Loader2, Play, Search, X } from "lucide-react";
 import {
   addSpotifyPlaylistTracks,
   getSpotifyPlaylist,
@@ -14,9 +14,9 @@ import {
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, accent, space, cream } from "../homeTheme";
-import { underlineInputStyle, GhostLink, OutlineButton, ModalShell, EmptyState, ErrorNote } from "../homeWidgets";
+import { underlineInputStyle, GhostLink, OutlineButton, ModalShell, EmptyState, ErrorNote, GlassPanel } from "../homeWidgets";
 import { IconButton } from "../homeWidgets";
-import { Thumb, TrackRow, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
+import { Thumb, TrackRow, artistNames, imageUrl, fieldStyle, Section, withPlaybackError } from "./spotifyShared";
 
 const MAX_COVER_BYTES = 256 * 1024;
 
@@ -88,7 +88,7 @@ function AddTracksModal({ playlistId, onClose, onAdded }) {
           <X size={16} />
         </IconButton>
       </div>
-      <div className="flex items-center gap-2" style={{ borderBottom: `1px solid ${cream(0.16)}` }}>
+      <div className="flex items-center gap-2" style={fieldStyle}>
         <Search size={14} color={cream(0.4)} />
         <input
           type="text"
@@ -96,7 +96,8 @@ function AddTracksModal({ playlistId, onClose, onAdded }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tracks…"
           autoFocus
-          style={{ ...underlineInputStyle, borderBottom: "none" }}
+          className="flex-1"
+          style={{ background: "transparent", border: 0, outline: "none", color: cream(0.9), fontSize: 15 }}
         />
         {loading && <Loader2 size={14} className="animate-spin" color={cream(0.4)} />}
       </div>
@@ -222,100 +223,104 @@ export default function SpotifyPlaylistDetail({ playlistId, onBack }) {
   if (!playlist) return <ErrorNote>{error}</ErrorNote>;
 
   return (
-    <div>
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
       <GhostLink onClick={onBack} muted style={{ fontSize: 13 }}>
         <ChevronLeft size={14} /> Back
       </GhostLink>
 
       <ErrorNote>{error}</ErrorNote>
 
-      <div className="flex items-end gap-6 flex-wrap" style={{ marginTop: space[6] }}>
-        <div className="relative group" style={{ width: 180, height: 180 }}>
-          <Thumb src={imageUrl(playlist.images, 1)} size={180} />
-          <button
-            type="button"
-            onClick={() => coverInputRef.current?.click()}
-            className="absolute inset-0 flex items-center justify-center border-none"
-            style={{ background: "rgba(0,0,0,0.45)", opacity: 0, cursor: "pointer", transition: "opacity 0.25s ease" }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
-            title="Change cover"
-          >
-            <ImagePlus size={26} color={text.bright} />
-          </button>
-          <input ref={coverInputRef} type="file" accept="image/jpeg" hidden onChange={handleCoverFile} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>
-            Playlist
-          </div>
-          <h1 style={{ fontFamily: fontHeading, fontSize: "clamp(26px,3vw,40px)", color: text.bright, margin: `${space[2]}px 0` }}>
-            {playlist.name}
-          </h1>
-          {editingDescription ? (
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                style={{ ...underlineInputStyle, fontSize: 14 }}
-              />
-              <GhostLink onClick={saveDescription}>Save</GhostLink>
-            </div>
-          ) : (
-            <p
-              onClick={() => setEditingDescription(true)}
-              style={{ fontSize: 14, color: cream(0.55), cursor: "pointer", maxWidth: "60ch" }}
-              title="Click to edit"
+      <GlassPanel elevated glow style={{ padding: `${space[6]}px ${space[6]}px`, marginTop: space[6] }}>
+        <div className="flex items-end gap-6 flex-wrap">
+          <div className="relative group" style={{ width: 180, height: 180 }}>
+            <Thumb src={imageUrl(playlist.images, 1)} size={180} />
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              className="absolute inset-0 flex items-center justify-center border-none"
+              style={{ background: "rgba(0,0,0,0.45)", opacity: 0, cursor: "pointer", transition: "opacity 0.25s ease" }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = 1)}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = 0)}
+              title="Change cover"
             >
-              {playlist.description || "Add a description…"}
-            </p>
-          )}
-          <div style={{ fontSize: 13, color: cream(0.45) }}>
-            {playlist.owner?.display_name} • {tracks.length} tracks
+              <ImagePlus size={26} color={text.bright} />
+            </button>
+            <input ref={coverInputRef} type="file" accept="image/jpeg" hidden onChange={handleCoverFile} />
           </div>
-          <div className="flex items-center gap-4" style={{ marginTop: space[4] }}>
-            <OutlineButton onClick={() => withPlaybackError(spotifyPlay({ contextUri: playlist.uri }), setError)}>
-              <Play size={14} fill="currentColor" style={{ marginRight: 6 }} />
-              Play
-            </OutlineButton>
-            <GhostLink onClick={() => setShowAdd(true)}>+ Add to Playlist</GhostLink>
-            {playlist.external_urls?.spotify && (
-              <GhostLink muted onClick={() => window.open(playlist.external_urls.spotify, "_blank")}>
-                <ExternalLink size={13} /> Open in Spotify
-              </GhostLink>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>
+              Playlist
+            </div>
+            <h1 style={{ fontFamily: fontHeading, fontSize: "clamp(26px,3vw,40px)", color: text.bright, margin: `${space[2]}px 0` }}>
+              {playlist.name}
+            </h1>
+            {editingDescription ? (
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{ ...underlineInputStyle, fontSize: 14 }}
+                />
+                <GhostLink onClick={saveDescription}>Save</GhostLink>
+              </div>
+            ) : (
+              <p
+                onClick={() => setEditingDescription(true)}
+                style={{ fontSize: 14, color: cream(0.55), cursor: "pointer", maxWidth: "60ch" }}
+                title="Click to edit"
+              >
+                {playlist.description || "Add a description…"}
+              </p>
             )}
+            <div style={{ fontSize: 13, color: cream(0.45) }}>
+              {playlist.owner?.display_name} • {tracks.length} tracks
+            </div>
+            <div className="flex items-center gap-4 flex-wrap" style={{ marginTop: space[4] }}>
+              <OutlineButton onClick={() => withPlaybackError(spotifyPlay({ contextUri: playlist.uri }), setError)}>
+                <Play size={14} fill="currentColor" style={{ marginRight: 6 }} />
+                Play
+              </OutlineButton>
+              <GhostLink onClick={() => setShowAdd(true)}>+ Add to Playlist</GhostLink>
+              {playlist.external_urls?.spotify && (
+                <GhostLink muted onClick={() => window.open(playlist.external_urls.spotify, "_blank")}>
+                  <ExternalLink size={13} /> Open in Spotify
+                </GhostLink>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </GlassPanel>
 
-      <div className="flex flex-col" style={{ marginTop: space[8] }}>
-        {tracks.length === 0 && <EmptyState>No tracks yet. Use "Add to Playlist" to get started.</EmptyState>}
-        {tracks.map(({ track }, i) => (
-          <TrackRow
-            key={`${track.id}-${i}`}
-            index={i}
-            image={imageUrl(track.album?.images, 2)}
-            title={track.name}
-            subtitle={`${artistNames(track.artists)} • ${track.album?.name || ""}`}
-            durationMs={track.duration_ms}
-            onPlay={() => withPlaybackError(spotifyPlay({ contextUri: playlist.uri, offset: { uri: track.uri } }), setError)}
-            trailing={
-              <div className="flex items-center" style={{ gap: 2 }}>
-                <IconButton disabled={i === 0} onClick={() => move(i, -1)} title="Move up">
-                  <ChevronUp size={14} />
-                </IconButton>
-                <IconButton disabled={i === tracks.length - 1} onClick={() => move(i, 1)} title="Move down">
-                  <ChevronDown size={14} />
-                </IconButton>
-                <IconButton danger onClick={() => setPendingRemove(track)} title="Remove">
-                  <X size={14} />
-                </IconButton>
-              </div>
-            }
-          />
-        ))}
-      </div>
+      <Section title="Tracks" icon={ListMusic}>
+        <div className="flex flex-col">
+          {tracks.length === 0 && <EmptyState>No tracks yet. Use "Add to Playlist" to get started.</EmptyState>}
+          {tracks.map(({ track }, i) => (
+            <TrackRow
+              key={`${track.id}-${i}`}
+              index={i}
+              image={imageUrl(track.album?.images, 2)}
+              title={track.name}
+              subtitle={`${artistNames(track.artists)} • ${track.album?.name || ""}`}
+              durationMs={track.duration_ms}
+              onPlay={() => withPlaybackError(spotifyPlay({ contextUri: playlist.uri, offset: { uri: track.uri } }), setError)}
+              trailing={
+                <div className="flex items-center" style={{ gap: 2 }}>
+                  <IconButton disabled={i === 0} onClick={() => move(i, -1)} title="Move up">
+                    <ChevronUp size={14} />
+                  </IconButton>
+                  <IconButton disabled={i === tracks.length - 1} onClick={() => move(i, 1)} title="Move down">
+                    <ChevronDown size={14} />
+                  </IconButton>
+                  <IconButton danger onClick={() => setPendingRemove(track)} title="Remove">
+                    <X size={14} />
+                  </IconButton>
+                </div>
+              }
+            />
+          ))}
+        </div>
+      </Section>
 
       {pendingRemove && (
         <RemoveConfirmModal

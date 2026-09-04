@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fontHeading, text, cream, space } from "./homeTheme";
+import { fontHeading, text, cream, space, danger, radius } from "./homeTheme";
 import { GhostLink } from "./homeWidgets";
 import StatsFilterBar from "./stats/StatsFilterBar";
 import KpiCards from "./stats/KpiCards";
@@ -66,7 +66,7 @@ export default function StatsPage() {
   }, [filters]);
 
   useEffect(() => {
-    getStatsMeta().then(setMeta).catch(() => {});
+    getStatsMeta().then(setMeta).catch(() => { });
   }, [reloadToken]);
 
   const load = useCallback(async (isRefresh) => {
@@ -159,7 +159,7 @@ export default function StatsPage() {
         />
 
         {error && (
-          <div style={{ padding: space[3], border: "1px solid rgba(224,140,140,0.4)", borderRadius: 6, color: "rgba(224,140,140,0.95)", fontSize: 13 }}>
+          <div style={{ padding: `${space[3]}px ${space[4]}px`, border: `1px solid ${danger[600]}66`, borderRadius: radius.md, background: "rgba(192,90,90,0.08)", color: danger[300], fontSize: 13 }}>
             {error} <GhostLink onClick={() => load(false)} muted>Retry</GhostLink>
           </div>
         )}

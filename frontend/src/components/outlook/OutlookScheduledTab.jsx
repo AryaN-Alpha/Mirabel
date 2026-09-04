@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { cancelOutlookScheduled, getOutlookScheduled } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, EmptyState, ErrorNote } from "../homeWidgets";
+import { fontHeading, fontMono, text, warning, success, danger, space, radius, cream } from "../homeTheme";
+import { GhostLink, GlassPanel, PanelEyebrow, EmptyState, ErrorNote } from "../homeWidgets";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -16,9 +16,9 @@ function formatDate(iso) {
 }
 
 const STATUS_COLOR = {
-  pending: "#f0c9a2",
-  sent: "#8fd6a8",
-  failed: "rgba(224,140,140,0.95)",
+  pending: warning[400],
+  sent: success[400],
+  failed: danger[400],
 };
 
 export default function OutlookScheduledTab() {
@@ -59,67 +59,70 @@ export default function OutlookScheduledTab() {
     }
   }
 
-  if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
-  }
-
-  if (error) {
-    return (
-      <EmptyState>
-        {error}
-        <br />
-        <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
-      </EmptyState>
-    );
-  }
-
-  if (!items || items.length === 0) {
-    return (
-      <EmptyState>
-        <Clock size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
-        No scheduled emails yet.
-      </EmptyState>
-    );
-  }
-
   return (
-    <div className="flex flex-col">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-start justify-between gap-4"
-          style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}` }}
-        >
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline justify-between gap-4">
-              <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>
-                {item.subject || "(no subject)"}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: STATUS_COLOR[item.status] || STATUS_COLOR.pending,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {item.status}
-              </span>
-            </div>
-            <p style={{ fontSize: 13, marginTop: 4, color: cream(0.5) }}>To: {(item.to || []).join(", ")}</p>
-            <p style={{ fontSize: 13, marginTop: 2, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
-              {formatDate(item.send_at)}
-            </p>
-            {item.status === "failed" && item.error_message && <ErrorNote>{item.error_message}</ErrorNote>}
-          </div>
-          {item.status === "pending" && (
-            <GhostLink danger disabled={cancellingId === item.id} onClick={() => handleCancel(item.id)}>
-              {cancellingId === item.id ? "Cancelling…" : "Cancel"}
-            </GhostLink>
-          )}
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+      <PanelEyebrow icon={Clock}>Scheduled</PanelEyebrow>
+
+      {loading ? (
+        <div className="w-full flex items-center justify-center" style={{ padding: `${space[7]}px 0`, color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
         </div>
-      ))}
-    </div>
+      ) : error ? (
+        <EmptyState>
+          {error}
+          <br />
+          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+        </EmptyState>
+      ) : !items || items.length === 0 ? (
+        <EmptyState>
+          <Clock size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+          No scheduled emails yet.
+        </EmptyState>
+      ) : (
+        <div className="flex flex-col">
+          {items.map((item, i) => (
+            <div
+              key={item.id}
+              className="flex items-start justify-between gap-4"
+              style={{
+                padding: `${space[4]}px ${space[3]}px`,
+                borderRadius: radius.sm,
+                borderBottom: `1px solid ${cream(0.09)}`,
+                background: i % 2 === 1 ? cream(0.025) : "transparent",
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>
+                    {item.subject || "(no subject)"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: STATUS_COLOR[item.status] || STATUS_COLOR.pending,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, marginTop: 4, color: cream(0.5) }}>To: {(item.to || []).join(", ")}</p>
+                <p style={{ fontFamily: fontMono, fontSize: 13, marginTop: 2, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
+                  {formatDate(item.send_at)}
+                </p>
+                {item.status === "failed" && item.error_message && <ErrorNote>{item.error_message}</ErrorNote>}
+              </div>
+              {item.status === "pending" && (
+                <GhostLink danger disabled={cancellingId === item.id} onClick={() => handleCancel(item.id)}>
+                  {cancellingId === item.id ? "Cancelling…" : "Cancel"}
+                </GhostLink>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </GlassPanel>
   );
 }

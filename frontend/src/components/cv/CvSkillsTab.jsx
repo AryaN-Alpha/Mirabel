@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { space } from "../homeTheme";
-import { GhostLink, IconButton, Tag, entryCardStyle, underlineInputStyle } from "../homeWidgets";
+import { GhostLink, IconButton, Tag, entryCardStyle } from "../homeWidgets";
+import { fieldStyle } from "./cvFieldStyle";
 
 function emptyGroup() {
   return { id: crypto.randomUUID(), category: "", skills: [] };
@@ -35,7 +36,7 @@ function SkillGroup({ group, onChange, onRemove }) {
           value={group.category}
           onChange={(e) => onChange({ category: e.target.value })}
           placeholder="Category (e.g. Front-End)"
-          style={{ ...underlineInputStyle, flex: 1 }}
+          style={{ ...fieldStyle, flex: 1 }}
         />
         <IconButton onClick={onRemove} title="Remove category" danger>
           <Trash2 size={15} />
@@ -47,7 +48,7 @@ function SkillGroup({ group, onChange, onRemove }) {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add a skill and press Enter…"
-          style={{ ...underlineInputStyle, flex: 1 }}
+          style={{ ...fieldStyle, flex: 1 }}
         />
         <GhostLink disabled={!draft.trim()} onClick={addSkill}>
           Add

@@ -3,7 +3,8 @@
 // composes its layout from these so hover/underline/link behavior stays
 // pixel-identical across pages instead of being redefined per file.
 import { useState } from "react";
-import { fontHeading, text, accent, space, radius, cream } from "./homeTheme";
+import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { fontHeading, fontMono, text, accent, success, danger, space, radius, cream, surface, glassBorder, blur, elevation, motion } from "./homeTheme";
 
 export const labelStyle = {
   fontSize: 11,
@@ -251,6 +252,238 @@ export function EmptyState({ children, dot = false }) {
         {children}
       </p>
     </div>
+  );
+}
+
+// Floating glass card — the base surface for every redesigned page's content
+// blocks. Two nested elements on purpose: the outer div owns the ambient
+// zero-gravity float (a CSS animation, which fully controls `transform` for
+// its whole duration and would silently clobber an inline hover-lift style
+// set on the same element), the inner div owns the glass fill/border/hover
+// elevation. `float` (1|2|3) picks a home-float-N variant from index.css;
+// `delay` is seconds (negative values start the loop already in progress,
+// which is what keeps same-variant panels from ever bobbing in sync).
+export function GlassPanel({
+  children,
+  elevated = false,
+  glow = false,
+  float,
+  delay = 0,
+  hoverLift = true,
+  className = "",
+  style,
+  ...rest
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div className={float ? `home-float-${float}` : undefined} style={{ animationDelay: `${delay}s` }}>
+      <div
+        className={className}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          position: "relative",
+          borderRadius: radius.panel,
+          border: `1px solid ${hovered ? glassBorder.medium : glassBorder.soft}`,
+          background: elevated ? surface.raised : surface.panel,
+          backdropFilter: `blur(${blur.lg})`,
+          WebkitBackdropFilter: `blur(${blur.lg})`,
+          boxShadow: hovered
+            ? `${elevation.floating}${glow ? `, 0 0 60px -28px ${accent[400]}` : ""}`
+            : elevation.raised,
+          transform: hoverLift && hovered ? "translateY(-3px)" : "translateY(0)",
+          transition: `transform ${motion.hover}, box-shadow ${motion.hover}, border-color ${motion.hover}`,
+          ...style,
+        }}
+        {...rest}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Uppercase HUD-style eyebrow used to head every glass panel — an icon chip
+// plus a tracked-out label, echoing the canvas's own reticle labels ("SOL",
+// "G2V / ANCHOR").
+export function PanelEyebrow({ icon: Icon, children }) {
+  return (
+    <div className="flex items-center gap-2" style={{ marginBottom: space[4] }}>
+      {Icon && (
+        <span
+          className="inline-flex items-center justify-center shrink-0"
+          style={{ width: 22, height: 22, borderRadius: radius.sm, border: `1px solid ${accent[400]}55`, color: accent[300] }}
+        >
+          <Icon size={12} strokeWidth={1.8} />
+        </span>
+      )}
+      <span style={labelStyle}>{children}</span>
+    </div>
+  );
+}
+
+// Small breathing dot — "this is live/active". Reuses the existing
+// home-breathe keyframe (already used by EmptyState) instead of adding a
+// near-duplicate animation.
+export function StatusDot({ color = accent[400], size = 8 }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block rounded-full shrink-0"
+      style={{ width: size, height: size, background: color, animation: "home-breathe 4.5s ease-in-out infinite" }}
+    />
+  );
+}
+
+// Read-only metric card — a label, a large monospace figure, and an optional
+// delta/sub/hint line. The Stats dashboard's stat-card primitive (KPIs,
+// efficiency/cache/performance sub-metrics used to each define a near-
+// identical local "Metric"/"Tile" component; this replaces all of them so
+// the numeric type scale and delta treatment can't drift between sections).
+// `delta` is a {sign, label} pair (see format.js's formatDelta) — direction
+// is conveyed by BOTH an icon and a color, never color alone. `deltaInvert`
+// flips which direction counts as "good" (down is good by default, e.g.
+// cost/latency; pass deltaInvert for a metric where up is the win).
+export function StatTile({ label, value, sub, delta, deltaInvert = false, hint, size = "md" }) {
+  const DeltaIcon = !delta ? null : delta.sign === "flat" ? Minus : delta.sign === "up" ? ArrowUp : ArrowDown;
+  const deltaGood = delta && (deltaInvert ? delta.sign === "up" : delta.sign === "down");
+  const deltaColor = !delta ? null : delta.sign === "flat" ? cream(0.45) : deltaGood ? success[400] : danger[400];
+  return (
+    <div
+      style={{
+        flex: "1 1 160px",
+        minWidth: 150,
+        padding: `${space[4]}px ${space[4]}px`,
+        borderRadius: radius.md,
+        border: `1px solid ${glassBorder.soft}`,
+        background: surface.sunken,
+      }}
+    >
+      <div style={labelStyle}>{label}</div>
+      <div
+        style={{
+          fontFamily: fontMono,
+          fontWeight: 500,
+          fontSize: size === "lg" ? "clamp(22px,2.2vw,30px)" : 20,
+          color: text.bright,
+          marginTop: space[2],
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: 12, color: cream(0.5), marginTop: 4 }}>{sub}</div>}
+      {delta && (
+        <div className="inline-flex items-center" style={{ gap: 3, fontSize: 12, marginTop: 4, color: deltaColor }}>
+          <DeltaIcon size={11} strokeWidth={2.4} />
+          {delta.label} vs previous period
+        </div>
+      )}
+      {hint && <div style={{ fontSize: 11, color: cream(0.35), marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+// Labeled numeric field with a right-aligned, tabular-numeral, monospace
+// value — the redesign's standard shape for a single-number setting (token
+// limits, temperature, counts). Native <input type="number"> under the
+// hood, so it keeps normal keyboard/stepper/validation semantics.
+export function NumberField({ label, hint, value, onChange, min, max, step, suffix, error, valueColor }) {
+  return (
+    <div style={{ padding: `${space[4]}px 0`, borderBottom: `1px solid ${cream(0.1)}` }}>
+      <label className="flex items-baseline justify-between gap-6">
+        <span>
+          <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>{label}</span>
+          {hint && (
+            <span style={{ fontSize: 12, color: cream(0.45), display: "block", marginTop: space[1] ?? 4, maxWidth: 440 }}>
+              {hint}
+            </span>
+          )}
+        </span>
+        <span className="flex items-baseline gap-1.5 shrink-0">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            style={{
+              width: 84,
+              textAlign: "right",
+              background: "transparent",
+              border: 0,
+              outline: "none",
+              fontFamily: fontMono,
+              fontVariantNumeric: "tabular-nums",
+              fontSize: 19,
+              color: valueColor ?? accent[300],
+            }}
+          />
+          {suffix && <span style={{ fontSize: 12, color: cream(0.4) }}>{suffix}</span>}
+        </span>
+      </label>
+      <ErrorNote>{error}</ErrorNote>
+    </div>
+  );
+}
+
+// Toggle switch for a boolean setting — visually matches GalaxyBackdrop's
+// own HUD toggle (GalaxyControls' hud switch) so page chrome and background
+// controls read as the same instrument language. A real checkbox sits under
+// the visual track (opacity 0, not display:none) so focus/keyboard/screen
+// reader semantics stay native; the label wraps both for implicit
+// association.
+export function ToggleSwitch({ checked, onChange, label, description, disabled }) {
+  return (
+    <label
+      className="flex items-center justify-between gap-6"
+      style={{ cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}
+    >
+      <span>
+        {label && <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base, display: "block" }}>{label}</span>}
+        {description && (
+          <span style={{ fontSize: 12, color: cream(0.45), display: "block", marginTop: space[1] ?? 4, maxWidth: 440 }}>
+            {description}
+          </span>
+        )}
+      </span>
+      <span className="relative inline-flex items-center shrink-0" style={{ width: 40, height: 23 }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange?.(e.target.checked)}
+          className="absolute inset-0 m-0 cursor-pointer"
+          style={{ opacity: 0, width: "100%", height: "100%" }}
+        />
+        <span
+          aria-hidden="true"
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: 999,
+            background: checked ? accent[600] : cream(0.14),
+            border: `1px solid ${checked ? accent[400] : cream(0.2)}`,
+            transition: "background 0.25s ease, border-color 0.25s ease",
+          }}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute"
+          style={{
+            top: 3,
+            left: checked ? 20 : 3,
+            width: 17,
+            height: 17,
+            borderRadius: "50%",
+            background: "#fff",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+            transition: "left 0.25s cubic-bezier(.2,.7,.2,1)",
+          }}
+        />
+      </span>
+    </label>
   );
 }
 

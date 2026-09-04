@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fontHeading, text, cream, space, radius } from "../homeTheme";
+import { fontHeading, fontMono, text, cream, space, radius, danger } from "../homeTheme";
 import { labelStyle, GhostLink, underlineInputStyle } from "../homeWidgets";
 import { SectionCard, SkeletonBlock } from "./SectionCard";
 import { STATUS } from "./chartTheme";
@@ -9,7 +9,7 @@ function CostRow({ label, value }) {
   return (
     <div className="flex items-baseline justify-between" style={{ padding: `${space[2]}px 0`, borderBottom: `1px solid ${cream(0.08)}` }}>
       <span style={{ fontSize: 14, color: cream(0.65) }}>{label}</span>
-      <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 14, color: text.base }}>{value}</span>
+      <span style={{ fontVariantNumeric: "tabular-nums", fontFamily: fontMono, fontSize: 14, color: text.base }}>{value}</span>
     </div>
   );
 }
@@ -67,7 +67,7 @@ export default function BudgetPanel({ overview, budget, loading, onSaveBudget })
             </p>
           ) : (
             <>
-              <div style={{ fontFamily: fontHeading, fontSize: 32, color: text.base, marginTop: space[1] ?? 4 }}>
+              <div style={{ fontFamily: fontMono, fontSize: 32, color: text.bright, marginTop: space[1] ?? 4 }}>
                 {formatCost(cost.total)}
               </div>
               <div style={{ marginTop: space[3] }}>
@@ -119,12 +119,12 @@ export default function BudgetPanel({ overview, budget, loading, onSaveBudget })
           ) : (
             <>
               <div className="flex items-baseline justify-between" style={{ marginTop: space[3] }}>
-                <span style={{ fontFamily: fontHeading, fontSize: 22, color: text.base }}>
+                <span style={{ fontFamily: fontMono, fontSize: 22, color: text.bright }}>
                   {formatCost(budget.current_spend_usd)} <span style={{ color: cream(0.4), fontSize: 16 }}>/ {formatCost(budget.monthly_budget_usd)}</span>
                 </span>
                 <span style={{ fontSize: 13, color: barColor }}>{formatPct(usedPct)} used</span>
               </div>
-              <div style={{ height: 8, borderRadius: radius.sm, background: "rgba(255,255,255,0.06)", marginTop: space[2], overflow: "hidden" }}>
+              <div style={{ height: 8, borderRadius: radius.sm, background: cream(0.07), marginTop: space[2], overflow: "hidden" }}>
                 <div style={{ width: `${pctClamped}%`, height: "100%", background: barColor, transition: "width 0.4s ease" }} />
               </div>
               <div className="flex items-center justify-between" style={{ marginTop: space[2], fontSize: 12, color: cream(0.45) }}>
@@ -145,7 +145,7 @@ export default function BudgetPanel({ overview, budget, loading, onSaveBudget })
               )}
             </>
           )}
-          {error && <p style={{ fontSize: 12, color: "rgba(224,140,140,0.9)", marginTop: space[2] }}>{error}</p>}
+          {error && <p style={{ fontSize: 12, color: danger[400], marginTop: space[2] }}>{error}</p>}
         </div>
       </div>
     </SectionCard>

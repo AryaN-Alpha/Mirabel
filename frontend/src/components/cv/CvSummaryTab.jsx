@@ -3,7 +3,8 @@ import { Loader2 } from "lucide-react";
 import { regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space } from "../homeTheme";
-import { GhostLink, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { GhostLink, ErrorNote } from "../homeWidgets";
+import { fieldStyle, textareaFieldStyle } from "./cvFieldStyle";
 
 export default function CvSummaryTab({ cvId, sections, updateSections }) {
   const [instructions, setInstructions] = useState("");
@@ -44,13 +45,13 @@ export default function CvSummaryTab({ cvId, sections, updateSections }) {
         rows={6}
         placeholder="A short professional summary…"
         className="w-full resize-y"
-        style={underlineInputStyle}
+        style={textareaFieldStyle}
       />
       <input
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Optional instructions for the rewrite…"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...fieldStyle, marginTop: space[3] }}
       />
       <div style={{ marginTop: space[4] }}>
         <GhostLink onClick={handleRewrite} disabled={busy || !sections.summary.trim()}>

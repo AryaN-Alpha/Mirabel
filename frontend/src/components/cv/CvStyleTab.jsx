@@ -1,9 +1,26 @@
 import { useState } from "react";
 import { Reorder } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, Type, Palette, LayoutGrid, GripVertical, ChevronDown, ListOrdered } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream, radius } from "../homeTheme";
-import { labelStyle, ErrorNote, underlineSelectStyle } from "../homeWidgets";
+import { labelStyle, ErrorNote, PanelEyebrow } from "../homeWidgets";
+import { selectFieldStyle } from "./cvFieldStyle";
+
+function SelectField({ value, onChange, options }) {
+  return (
+    <div className="relative">
+      <select value={value} onChange={onChange} style={{ ...selectFieldStyle, paddingRight: space[8] }}>
+        {options}
+      </select>
+      <ChevronDown
+        size={15}
+        strokeWidth={1.8}
+        className="absolute pointer-events-none"
+        style={{ right: space[4], top: "50%", transform: "translateY(-50%)", color: cream(0.4) }}
+      />
+    </div>
+  );
+}
 
 const SECTION_LABELS = {
   summary: "Summary",
@@ -51,8 +68,9 @@ function ReorderColumn({ label, keys, onReorder }) {
           <Reorder.Item
             key={key}
             value={key}
-            className="cursor-grab active:cursor-grabbing"
+            className="cursor-grab active:cursor-grabbing flex items-center"
             style={{
+              gap: space[2],
               padding: `${space[2]}px ${space[3]}px`,
               border: `1px solid ${cream(0.12)}`,
               borderRadius: radius.sm,
@@ -62,6 +80,7 @@ function ReorderColumn({ label, keys, onReorder }) {
               userSelect: "none",
             }}
           >
+            <GripVertical size={12} style={{ color: cream(0.3), flexShrink: 0 }} />
             {SECTION_LABELS[key] || key}
           </Reorder.Item>
         ))}
@@ -103,23 +122,21 @@ export default function CvStyleTab({ stylePref: pref, onSaveStylePref }) {
   return (
     <div className="flex flex-col" style={{ gap: space[6] }}>
       <div>
-        <div style={labelStyle}>Font</div>
-        <select
+        <PanelEyebrow icon={Type}>Font</PanelEyebrow>
+        <SelectField
           value={pref.font_choice}
           onChange={(e) => save({ font_choice: e.target.value })}
-          style={{ ...underlineSelectStyle, marginTop: space[2] }}
-        >
-          {Object.entries(fonts).map(([key, font]) => (
+          options={Object.entries(fonts).map(([key, font]) => (
             <option key={key} value={key} style={{ background: "#1c1712" }}>
               {font.label}
             </option>
           ))}
-        </select>
+        />
       </div>
 
       <div>
-        <div style={labelStyle}>Theme</div>
-        <div className="flex items-center" style={{ gap: space[2], marginTop: space[2] }}>
+        <PanelEyebrow icon={Palette}>Theme</PanelEyebrow>
+        <div className="flex items-center" style={{ gap: space[2] }}>
           {Object.entries(themes).map(([key, theme]) => (
             <ThemeSwatch key={key} theme={theme} active={pref.theme_choice === key} onClick={() => save({ theme_choice: key })} />
           ))}
@@ -128,24 +145,22 @@ export default function CvStyleTab({ stylePref: pref, onSaveStylePref }) {
 
       {Object.keys(templates).length > 1 && (
         <div>
-          <div style={labelStyle}>Layout</div>
-          <select
+          <PanelEyebrow icon={LayoutGrid}>Layout</PanelEyebrow>
+          <SelectField
             value={pref.template_choice}
             onChange={(e) => save({ template_choice: e.target.value })}
-            style={{ ...underlineSelectStyle, marginTop: space[2] }}
-          >
-            {Object.entries(templates).map(([key, template]) => (
+            options={Object.entries(templates).map(([key, template]) => (
               <option key={key} value={key} style={{ background: "#1c1712" }}>
                 {template.label}
               </option>
             ))}
-          </select>
+          />
         </div>
       )}
 
       <div>
-        <div style={labelStyle}>Section order</div>
-        <p style={{ fontSize: 12, marginTop: space[1], marginBottom: space[3], color: cream(0.45) }}>
+        <PanelEyebrow icon={ListOrdered}>Section order</PanelEyebrow>
+        <p style={{ fontSize: 12, marginTop: -space[2], marginBottom: space[3], color: cream(0.45) }}>
           Drag to reorder each column.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: space[5] ?? 23 }}>

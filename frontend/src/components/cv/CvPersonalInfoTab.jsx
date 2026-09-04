@@ -1,13 +1,14 @@
 import { Link2, ExternalLink } from "lucide-react";
 import { normalizeUrl, isLikelyValidUrl } from "../../utils/url";
-import { space, cream } from "../homeTheme";
-import { labelStyle, GhostLink, IconButton, underlineInputStyle } from "../homeWidgets";
+import { space, cream, danger } from "../homeTheme";
+import { labelStyle, GhostLink, IconButton } from "../homeWidgets";
+import { fieldStyle } from "./cvFieldStyle";
 
 function Field({ label, value, onChange }) {
   return (
     <div>
       <div style={labelStyle}>{label}</div>
-      <input value={value} onChange={(e) => onChange(e.target.value)} style={{ ...underlineInputStyle, marginTop: space[2] }} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} style={{ ...fieldStyle, marginTop: space[2] }} />
     </div>
   );
 }
@@ -63,13 +64,21 @@ export default function CvPersonalInfoTab({ sections, updateSections }) {
               !!dedupeKey &&
               info.links.slice(0, i).some((other) => other.url.trim().toLowerCase().replace(/\/+$/, "") === dedupeKey);
             return (
-              <div key={i} style={{ paddingBottom: space[3], borderBottom: `1px solid ${cream(0.08)}` }}>
+              <div
+                key={i}
+                style={{
+                  padding: space[3],
+                  borderRadius: 6,
+                  border: `1px solid ${cream(0.08)}`,
+                  background: "rgba(7,6,8,0.25)",
+                }}
+              >
                 <div className="flex items-center" style={{ gap: space[3] }}>
                   <input
                     value={link.label}
                     onChange={(e) => setLink(i, "label", e.target.value)}
                     placeholder="Label"
-                    style={{ ...underlineInputStyle, width: 110, flex: "0 0 auto" }}
+                    style={{ ...fieldStyle, width: 110, flex: "0 0 auto" }}
                   />
                   <div className="flex-1 min-w-0 flex items-center" style={{ gap: space[2] }}>
                     <Link2 size={13} style={{ color: url ? "rgba(224,168,120,0.85)" : cream(0.3), flexShrink: 0 }} />
@@ -78,11 +87,11 @@ export default function CvPersonalInfoTab({ sections, updateSections }) {
                       onChange={(e) => setLink(i, "url", e.target.value)}
                       placeholder="https://…"
                       style={{
-                        ...underlineInputStyle,
-                        color: url ? "rgba(224,168,120,0.95)" : underlineInputStyle.color,
+                        ...fieldStyle,
+                        color: url ? "rgba(224,168,120,0.95)" : fieldStyle.color,
                         textDecoration: url && valid ? "underline" : "none",
                         textDecorationColor: "rgba(224,168,120,0.4)",
-                        borderBottomColor: url && !valid ? "rgba(224,140,140,0.6)" : undefined,
+                        borderColor: url && !valid ? "rgba(224,140,140,0.5)" : fieldStyle.border.split(" ").pop(),
                       }}
                     />
                   </div>
@@ -98,12 +107,12 @@ export default function CvPersonalInfoTab({ sections, updateSections }) {
                   </IconButton>
                 </div>
                 {url && !valid && (
-                  <p style={{ fontSize: 11, marginTop: space[2], color: "rgba(224,140,140,0.85)" }}>
+                  <p style={{ fontSize: 11, marginTop: space[2], color: danger[300] }}>
                     Doesn't look like a valid URL — it'll still be saved as plain text.
                   </p>
                 )}
                 {isDuplicate && (
-                  <p style={{ fontSize: 11, marginTop: space[2], color: "rgba(224,140,140,0.85)" }}>
+                  <p style={{ fontSize: 11, marginTop: space[2], color: danger[300] }}>
                     Same URL as another link above — only the first will be saved.
                   </p>
                 )}

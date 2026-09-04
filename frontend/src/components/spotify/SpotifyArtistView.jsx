@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ExternalLink, Loader2, Play } from "lucide-react";
+import { ChevronLeft, ExternalLink, Flame, Disc3, Loader2, Play } from "lucide-react";
 import { addSpotifyQueue, followSpotifyArtists, getSpotifyArtist, spotifyPlay, unfollowSpotifyArtists } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, ErrorNote } from "../homeWidgets";
-import { MediaCard, Thumb, TrackRow, imageUrl, SectionHeading, withPlaybackError } from "./spotifyShared";
+import { GhostLink, OutlineButton, ErrorNote, GlassPanel } from "../homeWidgets";
+import { MediaCard, Thumb, TrackRow, imageUrl, Section, withPlaybackError } from "./spotifyShared";
 
 export default function SpotifyArtistView({ artistId, onBack, onOpenAlbum }) {
   const [artist, setArtist] = useState(null);
@@ -57,55 +57,57 @@ export default function SpotifyArtistView({ artistId, onBack, onOpenAlbum }) {
       <ErrorNote>{error}</ErrorNote>
 
       {artist && (
-        <>
-          <div className="flex items-end gap-6 flex-wrap" style={{ marginTop: space[6] }}>
-            <Thumb src={imageUrl(artist.images, 1)} size={180} rounded />
-            <div>
-              <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>
-                Artist
-              </div>
-              <h1 style={{ fontFamily: fontHeading, fontSize: "clamp(26px,3vw,40px)", color: text.bright, margin: `${space[2]}px 0` }}>
-                {artist.name}
-              </h1>
-              <div style={{ fontSize: 14, color: cream(0.5) }}>
-                {(artist.followers?.total || 0).toLocaleString()} followers
-                {artist.genres?.length > 0 && ` • ${artist.genres.slice(0, 3).join(", ")}`}
-              </div>
-              <div className="flex items-center gap-4" style={{ marginTop: space[4] }}>
-                <OutlineButton onClick={() => withPlaybackError(spotifyPlay({ contextUri: artist.uri }), setError)}>
-                  <Play size={14} fill="currentColor" style={{ marginRight: 6 }} />
-                  Play
-                </OutlineButton>
-                <OutlineButton disabled={busy} onClick={toggleFollow}>
-                  {following === null ? "Follow" : following ? "Following" : "Follow"}
-                </OutlineButton>
-                {artist.external_urls?.spotify && (
-                  <GhostLink muted onClick={() => window.open(artist.external_urls.spotify, "_blank")}>
-                    <ExternalLink size={13} /> Open in Spotify
-                  </GhostLink>
-                )}
+        <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+          <GlassPanel elevated glow style={{ padding: `${space[6]}px ${space[6]}px`, marginTop: space[6] }}>
+            <div className="flex items-end gap-6 flex-wrap">
+              <Thumb src={imageUrl(artist.images, 1)} size={180} rounded />
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42) }}>
+                  Artist
+                </div>
+                <h1 style={{ fontFamily: fontHeading, fontSize: "clamp(26px,3vw,40px)", color: text.bright, margin: `${space[2]}px 0` }}>
+                  {artist.name}
+                </h1>
+                <div style={{ fontSize: 14, color: cream(0.5) }}>
+                  {(artist.followers?.total || 0).toLocaleString()} followers
+                  {artist.genres?.length > 0 && ` • ${artist.genres.slice(0, 3).join(", ")}`}
+                </div>
+                <div className="flex items-center gap-4" style={{ marginTop: space[4] }}>
+                  <OutlineButton onClick={() => withPlaybackError(spotifyPlay({ contextUri: artist.uri }), setError)}>
+                    <Play size={14} fill="currentColor" style={{ marginRight: 6 }} />
+                    Play
+                  </OutlineButton>
+                  <OutlineButton disabled={busy} onClick={toggleFollow}>
+                    {following === null ? "Follow" : following ? "Following" : "Follow"}
+                  </OutlineButton>
+                  {artist.external_urls?.spotify && (
+                    <GhostLink muted onClick={() => window.open(artist.external_urls.spotify, "_blank")}>
+                      <ExternalLink size={13} /> Open in Spotify
+                    </GhostLink>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          </GlassPanel>
 
-          <SectionHeading>Popular</SectionHeading>
-          <div className="flex flex-col">
-            {(artist.top_tracks || []).slice(0, 10).map((t, i) => (
-              <TrackRow
-                key={t.id}
-                index={i}
-                image={imageUrl(t.album?.images, 2)}
-                title={t.name}
-                durationMs={t.duration_ms}
-                onPlay={() => withPlaybackError(spotifyPlay({ uris: [t.uri] }), setError)}
-                onAdd={() => withPlaybackError(addSpotifyQueue(t.uri), setError, "Couldn't add that to the queue.")}
-              />
-            ))}
-          </div>
+          <Section title="Popular" icon={Flame}>
+            <div className="flex flex-col">
+              {(artist.top_tracks || []).slice(0, 10).map((t, i) => (
+                <TrackRow
+                  key={t.id}
+                  index={i}
+                  image={imageUrl(t.album?.images, 2)}
+                  title={t.name}
+                  durationMs={t.duration_ms}
+                  onPlay={() => withPlaybackError(spotifyPlay({ uris: [t.uri] }), setError)}
+                  onAdd={() => withPlaybackError(addSpotifyQueue(t.uri), setError, "Couldn't add that to the queue.")}
+                />
+              ))}
+            </div>
+          </Section>
 
           {artist.albums?.length > 0 && (
-            <>
-              <SectionHeading>Discography</SectionHeading>
+            <Section title="Discography" icon={Disc3}>
               <div className="flex flex-wrap" style={{ gap: space[4] }}>
                 {artist.albums.slice(0, 10).map((a) => (
                   <MediaCard
@@ -117,9 +119,9 @@ export default function SpotifyArtistView({ artistId, onBack, onOpenAlbum }) {
                   />
                 ))}
               </div>
-            </>
+            </Section>
           )}
-        </>
+        </div>
       )}
     </div>
   );

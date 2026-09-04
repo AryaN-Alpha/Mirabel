@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, Keyboard, Mic, MicOff, MessageCircle, SquarePen, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
-import CozyWave from "./CozyWave";
+
 import AgentTaskPanel from "./agent/AgentTaskPanel";
 import ChatInput from "./ChatInput";
 import { getErrorMessage } from "../utils/errors";
@@ -126,10 +126,13 @@ export default function GlobalChatWidget() {
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: "radial-gradient(circle at 46% 34%, rgba(255,228,205,0.30), rgba(30,22,22,0.92) 72%)",
-          border: "1px solid rgba(255,222,196,0.28)",
-          boxShadow: "0 12px 34px rgba(0,0,0,0.4)",
-          color: "#ffe7d5",
+          background: open
+            ? "rgba(10,9,13,0.95)"
+            : "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.55), rgba(10,9,13,0.95) 70%)",
+          border: "1px solid rgba(236,48,19,0.35)",
+          boxShadow: "0 12px 34px rgba(0,0,0,0.5), 0 0 18px rgba(236,48,19,0.15)",
+          color: "rgba(246,248,255,0.90)",
+          backdropFilter: "blur(8px)",
         }}
         aria-label={open ? "Close chat with Mirabel" : "Open chat with Mirabel"}
       >
@@ -137,7 +140,7 @@ export default function GlobalChatWidget() {
         {!open && connected && (
           <span
             className="absolute rounded-full"
-            style={{ top: 6, right: 6, width: 9, height: 9, background: "#8fd6a8", border: "2px solid rgba(30,22,22,0.92)" }}
+            style={{ top: 7, right: 7, width: 9, height: 9, background: "#ec3013", border: "2px solid rgba(10,9,13,0.95)", boxShadow: "0 0 6px rgba(236,48,19,0.6)" }}
           />
         )}
       </motion.button>
@@ -159,22 +162,22 @@ export default function GlobalChatWidget() {
               height: 580,
               maxHeight: "calc(100vh - 200px)",
               borderRadius: 24,
-              background: "rgba(21,16,14,0.97)",
-              border: "1px solid rgba(243,233,226,0.14)",
-              boxShadow: "0 26px 70px rgba(0,0,0,0.5)",
-              backdropFilter: "blur(20px)",
+              background: "rgba(8,7,12,0.97)",
+              border: "1px solid rgba(236,48,19,0.20)",
+              boxShadow: "0 26px 70px rgba(0,0,0,0.6), 0 0 40px rgba(236,48,19,0.06)",
+              backdropFilter: "blur(24px)",
               overflow: "hidden",
             }}
           >
             <div
               className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 flex-shrink-0"
-              style={{ borderBottom: "1px solid rgba(243,233,226,0.10)" }}
+              style={{ borderBottom: "1px solid rgba(236,48,19,0.15)" }}
             >
               <div className="min-w-0">
-                <div className="font-serif text-[19px]" style={{ color: "#fbf1ea" }}>
+                <div className="font-serif text-[19px]" style={{ color: "rgba(246,248,255,0.95)" }}>
                   Mirabel
                 </div>
-                <div className="mt-1 text-[12.5px] font-light leading-[1.5]" style={{ color: "rgba(243,233,226,0.55)" }}>
+                <div className="mt-1 text-[12.5px] font-light leading-[1.5]" style={{ color: "rgba(246,248,255,0.45)" }}>
                   {subline}
                 </div>
               </div>
@@ -182,7 +185,7 @@ export default function GlobalChatWidget() {
                 <button
                   onClick={startNewChat}
                   className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer"
-                  style={{ background: "rgba(243,233,226,0.07)", color: "rgba(243,233,226,0.6)" }}
+                  style={{ background: "rgba(246,248,255,0.06)", color: "rgba(246,248,255,0.55)" }}
                   aria-label="Start a new chat"
                   title="Start a new chat"
                 >
@@ -191,7 +194,7 @@ export default function GlobalChatWidget() {
                 <button
                   onClick={() => setOpen(false)}
                   className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer"
-                  style={{ background: "rgba(243,233,226,0.07)", color: "rgba(243,233,226,0.6)" }}
+                  style={{ background: "rgba(246,248,255,0.06)", color: "rgba(246,248,255,0.55)" }}
                   aria-label="Close chat"
                 >
                   <X size={15} strokeWidth={1.8} />
@@ -199,9 +202,6 @@ export default function GlobalChatWidget() {
               </div>
             </div>
 
-            <div className="flex justify-center py-3 flex-shrink-0">
-              <CozyWave micAnalyser={micAnalyserRef} playbackAnalyser={playbackAnalyserRef} active={micOn} size={110} />
-            </div>
 
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 px-4 py-1">
               <AnimatePresence>
@@ -293,7 +293,7 @@ export default function GlobalChatWidget() {
               </AnimatePresence>
             </div>
 
-            <div className="flex-shrink-0 px-4 pt-3 pb-4 flex flex-col gap-3" style={{ borderTop: "1px solid rgba(243,233,226,0.08)" }}>
+            <div className="flex-shrink-0 px-4 pt-3 pb-4 flex flex-col gap-3" style={{ borderTop: "1px solid rgba(236,48,19,0.12)" }}>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                   <button
@@ -342,11 +342,12 @@ export default function GlobalChatWidget() {
                   disabled={!connected}
                   className="flex-shrink-0 w-10 h-10 rounded-full border-none cursor-pointer grid place-items-center transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    border: "1px solid rgba(255,222,196,0.28)",
+                    border: micOn ? "1px solid rgba(236,48,19,0.50)" : "1px solid rgba(246,248,255,0.12)",
                     background: micOn
-                      ? "radial-gradient(circle at 46% 34%, rgba(255,228,205,0.35), rgba(30,22,22,0.85) 72%)"
-                      : "rgba(243,233,226,0.06)",
-                    color: "#ffe7d5",
+                      ? "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.45), rgba(10,9,13,0.90) 70%)"
+                      : "rgba(246,248,255,0.05)",
+                    color: "rgba(246,248,255,0.85)",
+                    boxShadow: micOn ? "0 0 14px rgba(236,48,19,0.25)" : "none",
                   }}
                   aria-label={micOn ? "stop listening" : "start listening"}
                 >

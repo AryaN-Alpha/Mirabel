@@ -4,7 +4,26 @@
 import { useState } from "react";
 import { Music, Play, Plus } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, radius, cream } from "../homeTheme";
+import { fontHeading, text, accent, space, radius, cream, surface, glassBorder, motion } from "../homeTheme";
+import { GlassPanel, PanelEyebrow } from "../homeWidgets";
+
+// Sunken glass field — mirrors AIModelPage.jsx's local `fieldStyle` (depth
+// layer: canvas → panel → field) so every Spotify text/search input matches
+// the rest of the redesigned app instead of the old baseline-underline-only
+// look. Exported here (rather than duplicated per tab) since Search, Queue,
+// Playlists (create/add-tracks modals), Playlist detail (description edit),
+// and the AI Playlist form all need the same recessed field.
+export const fieldStyle = {
+  width: "100%",
+  padding: `${space[3]}px ${space[4]}px`,
+  background: surface.sunken,
+  border: `1px solid ${glassBorder.soft}`,
+  borderRadius: radius.md,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
+  transition: `border-color ${motion.hover}, background ${motion.hover}`,
+};
 
 // Every inline "play"/"add to queue" affordance across the Spotify tabs
 // fires a request whose most common real-world failure is entirely
@@ -61,7 +80,7 @@ export function Thumb({ src, size = 44, rounded = false }) {
         height: size,
         borderRadius: rounded ? "50%" : radius.sm,
         overflow: "hidden",
-        background: "rgba(255,255,255,0.05)",
+        background: cream(0.05),
       }}
     >
       {src ? (
@@ -80,7 +99,12 @@ export function TrackRow({ index, title, subtitle, image, durationMs, onPlay, on
   return (
     <div
       className="flex items-center gap-3"
-      style={{ padding: `${space[2]}px ${space[2]}px`, borderRadius: radius.sm }}
+      style={{
+        padding: `${space[2]}px ${space[2]}px`,
+        borderRadius: radius.sm,
+        background: hovered ? "rgba(255,151,131,0.07)" : "transparent",
+        transition: "background 0.15s ease",
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -158,7 +182,7 @@ export function MediaCard({ image, title, subtitle, onClick, rounded = false }) 
           height: 148,
           borderRadius: rounded ? "50%" : radius.md,
           overflow: "hidden",
-          background: "rgba(255,255,255,0.05)",
+          background: cream(0.05),
           boxShadow: hovered ? "0 10px 24px rgba(0,0,0,0.35)" : "none",
           transition: "box-shadow 0.3s ease",
         }}
@@ -186,21 +210,35 @@ export function MediaCard({ image, title, subtitle, onClick, rounded = false }) 
   );
 }
 
-export function HorizontalShelf({ title, children }) {
+// A horizontally-scrolling shelf of MediaCards (Home dashboard's "Continue
+// Listening", "Your Top Artists", ...) — wrapped in the same floating
+// GlassPanel + PanelEyebrow language as every other redesigned page instead
+// of a bare heading, so the Spotify tabs read as an extension of
+// AIModelPage.jsx rather than a separate product.
+export function HorizontalShelf({ title, icon, children }) {
   return (
-    <section style={{ marginTop: space[8] }}>
-      <h2 style={{ fontFamily: fontHeading, fontSize: 22, color: text.base, marginBottom: space[4] }}>{title}</h2>
-      <div className="flex overflow-x-auto" style={{ gap: space[4], paddingBottom: space[2] }}>
-        {children}
-      </div>
+    <section style={{ marginTop: space[6] }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px` }}>
+        <PanelEyebrow icon={icon}>{title}</PanelEyebrow>
+        <div className="flex overflow-x-auto" style={{ gap: space[4], paddingBottom: space[2] }}>
+          {children}
+        </div>
+      </GlassPanel>
     </section>
   );
 }
 
-export function SectionHeading({ children }) {
+// Same GlassPanel + PanelEyebrow treatment as HorizontalShelf, for a
+// vertical list/grid section instead of a horizontal-scroll shelf (Search
+// results by category, Statistics' ranked lists, an artist's Popular
+// tracks/Discography). Replaces the old bare `<h2>` SectionHeading.
+export function Section({ title, icon, children, style }) {
   return (
-    <h2 style={{ fontFamily: fontHeading, fontSize: 22, color: text.base, marginTop: space[8], marginBottom: space[4] }}>
-      {children}
-    </h2>
+    <section style={{ marginTop: space[6] }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px`, ...style }}>
+        <PanelEyebrow icon={icon}>{title}</PanelEyebrow>
+        {children}
+      </GlassPanel>
+    </section>
   );
 }

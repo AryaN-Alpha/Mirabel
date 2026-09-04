@@ -1,12 +1,12 @@
 // Feature: Spotify search (spec section 11) — debounced, cached per-query
 // within the session, loading/empty/error states.
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Users, Disc3, Music, ListMusic } from "lucide-react";
 import { addSpotifyQueue, searchSpotify, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
-import { underlineInputStyle, EmptyState, ErrorNote } from "../homeWidgets";
-import { MediaCard, TrackRow, SectionHeading, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
+import { EmptyState, ErrorNote } from "../homeWidgets";
+import { MediaCard, TrackRow, Section, fieldStyle, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
 
 const DEBOUNCE_MS = 400;
 const SEARCH_CACHE = new Map(); // query -> results, cleared on full page reload only
@@ -54,8 +54,8 @@ export default function SpotifySearchTab({ onOpenAlbum, onOpenArtist }) {
   const hasAny = artists.length || albums.length || tracks.length || playlists.length;
 
   return (
-    <div>
-      <div className="flex items-center gap-3" style={{ borderBottom: `1px solid ${cream(0.16)}`, paddingBottom: space[2] }}>
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+      <div className="flex items-center gap-3" style={fieldStyle}>
         <Search size={16} strokeWidth={1.8} color={cream(0.45)} />
         <input
           type="text"
@@ -63,7 +63,8 @@ export default function SpotifySearchTab({ onOpenAlbum, onOpenArtist }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search Spotify…"
           autoFocus
-          style={{ ...underlineInputStyle, borderBottom: "none", padding: `${space[1]}px 0` }}
+          className="flex-1"
+          style={{ background: "transparent", border: 0, outline: "none", color: cream(0.9), fontSize: 15 }}
         />
         {loading && <Loader2 size={15} className="animate-spin" color={cream(0.4)} />}
       </div>
@@ -75,30 +76,27 @@ export default function SpotifySearchTab({ onOpenAlbum, onOpenArtist }) {
       {query.trim() && !loading && results && !hasAny && <EmptyState>No results for "{query}".</EmptyState>}
 
       {artists.length > 0 && (
-        <>
-          <SectionHeading>Artists</SectionHeading>
+        <Section title="Artists" icon={Users}>
           <div className="flex flex-wrap" style={{ gap: space[4] }}>
             {artists.slice(0, 8).map((a) => (
               <MediaCard key={a.id} rounded image={imageUrl(a.images)} title={a.name} subtitle="Artist" onClick={() => onOpenArtist?.(a.id)} />
             ))}
           </div>
-        </>
+        </Section>
       )}
 
       {albums.length > 0 && (
-        <>
-          <SectionHeading>Albums</SectionHeading>
+        <Section title="Albums" icon={Disc3}>
           <div className="flex flex-wrap" style={{ gap: space[4] }}>
             {albums.slice(0, 8).map((a) => (
               <MediaCard key={a.id} image={imageUrl(a.images)} title={a.name} subtitle={artistNames(a.artists)} onClick={() => onOpenAlbum?.(a.id)} />
             ))}
           </div>
-        </>
+        </Section>
       )}
 
       {tracks.length > 0 && (
-        <>
-          <SectionHeading>Tracks</SectionHeading>
+        <Section title="Tracks" icon={Music}>
           <div className="flex flex-col">
             {tracks.slice(0, 15).map((t) => (
               <TrackRow
@@ -112,18 +110,17 @@ export default function SpotifySearchTab({ onOpenAlbum, onOpenArtist }) {
               />
             ))}
           </div>
-        </>
+        </Section>
       )}
 
       {playlists.length > 0 && (
-        <>
-          <SectionHeading>Playlists</SectionHeading>
+        <Section title="Playlists" icon={ListMusic}>
           <div className="flex flex-wrap" style={{ gap: space[4] }}>
             {playlists.slice(0, 8).map((p) => (
               <MediaCard key={p.id} image={imageUrl(p.images)} title={p.name} subtitle={p.owner?.display_name} />
             ))}
           </div>
-        </>
+        </Section>
       )}
     </div>
   );

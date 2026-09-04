@@ -1,4 +1,4 @@
-import { SectionCard, SkeletonBlock } from "./SectionCard";
+import { SectionCard } from "./SectionCard";
 import DataTable from "./DataTable";
 import { formatTokens, formatCost, formatMs, formatPct } from "./format";
 
@@ -16,15 +16,12 @@ const COLUMNS = [
 export default function CallSiteTable({ callSites, loading }) {
   return (
     <SectionCard title="Call-Site Analytics" subtitle="Which application feature is actually consuming the budget.">
-      {loading ? (
-        <SkeletonBlock rows={4} />
-      ) : (
-        <DataTable
-          columns={COLUMNS}
-          rows={(callSites ?? []).map((r) => ({ ...r, __key: r.call_site }))}
-          defaultSort={{ key: "total_tokens", dir: "desc" }}
-        />
-      )}
+      <DataTable
+        columns={COLUMNS}
+        rows={(callSites ?? []).map((r) => ({ ...r, __key: r.call_site }))}
+        defaultSort={{ key: "total_tokens", dir: "desc" }}
+        loading={loading}
+      />
     </SectionCard>
   );
 }

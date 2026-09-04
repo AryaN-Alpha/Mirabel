@@ -714,19 +714,37 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
   const [open, setOpen] = useState(false);
 
   return (
-    // bottom:100 matches GlobalChatWidget's FAB — already tuned to clear
-    // SpotifyNowPlayingBar's full-width bar at the true bottom of the layout.
-    <div className="fixed z-50" style={{ left: "50%", bottom: 100, transform: "translateX(-50%)" }}>
+    // top-right corner — clear of Sidebar (left) and GlobalChatWidget FAB (bottom-right)
+    <div className="fixed z-50" style={{ top: 16, right: 80 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close galaxy background controls" : "Open galaxy background controls"}
+        className="grid place-items-center"
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          border: "1px solid rgba(246,248,255,0.16)",
+          background: "rgba(10,9,13,0.92)",
+          color: "rgba(246,248,255,0.85)",
+          cursor: "pointer",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        {open ? <X size={17} strokeWidth={1.6} /> : <SlidersHorizontal size={17} strokeWidth={1.6} />}
+      </button>
       {open && (
         <div
-          className="flex items-center flex-wrap justify-center gap-x-6 gap-y-3 mb-2"
+          className="flex items-center flex-wrap justify-center gap-x-6 gap-y-3 mt-2"
           style={{
             background: "rgba(10,9,13,0.92)",
             border: "1px solid rgba(246,248,255,0.12)",
-            borderRadius: 999,
+            borderRadius: 16,
             padding: "10px 20px",
             backdropFilter: "blur(8px)",
             fontFamily: FONT,
+            whiteSpace: "nowrap",
           }}
         >
           <GalaxySlider label="speed" value={speed} min={0} max={3} step={0.1} onChange={setSpeed} />
@@ -768,24 +786,6 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
           </div>
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close galaxy background controls" : "Open galaxy background controls"}
-        className="grid place-items-center mx-auto"
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          border: "1px solid rgba(246,248,255,0.16)",
-          background: "rgba(10,9,13,0.92)",
-          color: "rgba(246,248,255,0.85)",
-          cursor: "pointer",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        {open ? <X size={17} strokeWidth={1.6} /> : <SlidersHorizontal size={17} strokeWidth={1.6} />}
-      </button>
     </div>
   );
 }

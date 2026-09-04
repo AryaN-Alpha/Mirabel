@@ -3,8 +3,9 @@ import DOMPurify from "dompurify";
 import { Loader2 } from "lucide-react";
 import { generateOutlookReply, getOutlookMessage, replyOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
+import { fontHeading, fontMono, text, success, space, cream } from "../homeTheme";
 import { labelStyle, GhostLink, OutlineButton, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { fieldStyle } from "../OutlookPage";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -123,7 +124,11 @@ export default function OutlookMessageView({ messageId, onBack }) {
   }
 
   if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
+    return (
+      <div className="w-full flex items-center justify-center" style={{ padding: `${space[7]}px 0`, color: cream(0.4) }}>
+        <Loader2 size={20} className="animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -148,7 +153,7 @@ export default function OutlookMessageView({ messageId, onBack }) {
           </h3>
 
           {justSent && (
-            <p style={{ marginTop: space[3], fontSize: 13, color: "#8fd6a8" }}>Reply sent.</p>
+            <p style={{ marginTop: space[3], fontSize: 13, color: success[400] }}>Reply sent.</p>
           )}
 
           <div style={{ marginTop: space[6] }}>
@@ -160,7 +165,9 @@ export default function OutlookMessageView({ messageId, onBack }) {
                 <p style={{ fontSize: 13, marginBottom: space[2], color: cream(0.5) }}>
                   {item.is_from_me ? "You" : item.from?.emailAddress?.name || item.from?.emailAddress?.address}
                   {" · "}
-                  {formatDate(item.receivedDateTime || item.sentDateTime)}
+                  <span style={{ fontFamily: fontMono, fontVariantNumeric: "tabular-nums" }}>
+                    {formatDate(item.receivedDateTime || item.sentDateTime)}
+                  </span>
                 </p>
                 <ShadowEmail html={item.body?.content || ""} />
               </div>
@@ -192,15 +199,11 @@ export default function OutlookMessageView({ messageId, onBack }) {
               rows={7}
               className="w-full resize-y"
               style={{
+                ...fieldStyle,
                 marginTop: space[5] ?? 23,
-                padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
-                border: `1px solid ${cream(0.12)}`,
-                borderRadius: 4,
-                background: "rgba(15,12,10,0.35)",
-                color: cream(1),
+                padding: `${space[5] ?? 23}px ${space[6]}px`,
                 fontSize: 16,
                 lineHeight: 1.85,
-                outline: "none",
               }}
             />
 

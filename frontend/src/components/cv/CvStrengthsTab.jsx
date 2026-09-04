@@ -3,7 +3,8 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space } from "../homeTheme";
-import { GhostLink, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
+import { GhostLink, IconButton, ErrorNote, entryCardStyle } from "../homeWidgets";
+import { fieldStyle, textareaFieldStyle } from "./cvFieldStyle";
 
 function emptyStrength() {
   return { id: crypto.randomUUID(), title: "", description: "" };
@@ -43,7 +44,7 @@ function StrengthEntry({ cvId, entry, onChange, onRemove }) {
           value={entry.title}
           onChange={(e) => onChange({ title: e.target.value })}
           placeholder="Strength (e.g. Analytical & Problem-Solving)"
-          style={{ ...underlineInputStyle, flex: 1 }}
+          style={{ ...fieldStyle, flex: 1 }}
         />
         <IconButton onClick={onRemove} title="Remove strength" danger>
           <Trash2 size={15} />
@@ -55,13 +56,13 @@ function StrengthEntry({ cvId, entry, onChange, onRemove }) {
         placeholder="A short line backing this up…"
         rows={2}
         className="w-full resize-y"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...textareaFieldStyle, marginTop: space[3] }}
       />
       <input
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Optional instructions for the rewrite…"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...fieldStyle, marginTop: space[3] }}
       />
       <div style={{ marginTop: space[3] }}>
         <GhostLink onClick={handleRewrite} disabled={busy || !entry.description.trim()}>

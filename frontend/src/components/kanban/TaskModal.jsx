@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, ErrorNote, ModalShell, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
+import { fontHeading, text, space, cream, surface, glassBorder, radius, motion } from "../homeTheme";
+import { GhostLink, OutlineButton, ErrorNote, ModalShell, labelStyle } from "../homeWidgets";
 
 const STATUS_OPTIONS = [
   { value: "todo", label: "To do" },
@@ -11,6 +11,21 @@ const STATUS_OPTIONS = [
 ];
 const PRIORITY_OPTIONS = ["High", "Medium", "Low"];
 const EFFORT_OPTIONS = ["High", "Medium", "Low"];
+
+// Sunken glass field — same recipe as AIModelPage's `fieldStyle` (depth
+// layer: canvas → panel → field), used here for the title/description/date
+// inputs instead of the plain baseline-underline style.
+const fieldStyle = {
+  width: "100%",
+  padding: `${space[3]}px ${space[4]}px`,
+  background: surface.sunken,
+  border: `1px solid ${glassBorder.soft}`,
+  borderRadius: radius.md,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
+  transition: `border-color ${motion.hover}, background ${motion.hover}`,
+};
 
 export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
   const isEdit = Boolean(task.id);
@@ -59,7 +74,7 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title"
         maxLength={200}
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
       <textarea
         value={description}
@@ -67,13 +82,13 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
         placeholder="Description (Markdown supported)"
         rows={4}
         className="w-full resize-y"
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: space[4] }}>
         <label className="flex flex-col" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Status</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={underlineSelectStyle}>
+          <span style={labelStyle}>Status</span>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} style={fieldStyle}>
             {STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -83,27 +98,27 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
         </label>
         <div className="grid grid-cols-2" style={{ gap: space[2] }}>
           <label className="flex flex-col" style={{ gap: space[2] }}>
-            <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Due date</span>
+            <span style={labelStyle}>Due date</span>
             <input
               type="date"
               value={dueDate || ""}
               onChange={(e) => setDueDate(e.target.value)}
-              style={{ ...underlineInputStyle, colorScheme: "dark" }}
+              style={{ ...fieldStyle, colorScheme: "dark" }}
             />
           </label>
           <label className="flex flex-col" style={{ gap: space[2] }}>
-            <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Due time</span>
+            <span style={labelStyle}>Due time</span>
             <input
               type="time"
               value={dueTime || ""}
               onChange={(e) => setDueTime(e.target.value)}
-              style={{ ...underlineInputStyle, colorScheme: "dark" }}
+              style={{ ...fieldStyle, colorScheme: "dark" }}
             />
           </label>
         </div>
         <label className="flex flex-col" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Priority</span>
-          <select value={priority} onChange={(e) => setPriority(e.target.value)} style={underlineSelectStyle}>
+          <span style={labelStyle}>Priority</span>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)} style={fieldStyle}>
             {PRIORITY_OPTIONS.map((o) => (
               <option key={o} value={o}>
                 {o}
@@ -112,8 +127,8 @@ export default function TaskModal({ task, defaultStatus, onClose, onSave }) {
           </select>
         </label>
         <label className="flex flex-col" style={{ gap: space[2] }}>
-          <span style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: cream(0.45) }}>Effort</span>
-          <select value={effort} onChange={(e) => setEffort(e.target.value)} style={underlineSelectStyle}>
+          <span style={labelStyle}>Effort</span>
+          <select value={effort} onChange={(e) => setEffort(e.target.value)} style={fieldStyle}>
             {EFFORT_OPTIONS.map((o) => (
               <option key={o} value={o}>
                 {o}

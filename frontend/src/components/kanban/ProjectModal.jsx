@@ -1,8 +1,21 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space } from "../homeTheme";
-import { GhostLink, OutlineButton, ErrorNote, ModalShell, underlineInputStyle } from "../homeWidgets";
+import { fontHeading, text, space, surface, glassBorder, radius, motion } from "../homeTheme";
+import { GhostLink, OutlineButton, ErrorNote, ModalShell } from "../homeWidgets";
+
+// Sunken glass field — same recipe as AIModelPage's `fieldStyle`.
+const fieldStyle = {
+  width: "100%",
+  padding: `${space[3]}px ${space[4]}px`,
+  background: surface.sunken,
+  border: `1px solid ${glassBorder.soft}`,
+  borderRadius: radius.md,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
+  transition: `border-color ${motion.hover}, background ${motion.hover}`,
+};
 
 export default function ProjectModal({ project, onClose, onSave }) {
   const isEdit = Boolean(project?.id);
@@ -41,7 +54,7 @@ export default function ProjectModal({ project, onClose, onSave }) {
         placeholder="Project name"
         maxLength={200}
         autoFocus
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
       <textarea
         value={description}
@@ -49,7 +62,7 @@ export default function ProjectModal({ project, onClose, onSave }) {
         placeholder="Description (optional)"
         rows={3}
         className="w-full resize-y"
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
 
       <ErrorNote>{error}</ErrorNote>

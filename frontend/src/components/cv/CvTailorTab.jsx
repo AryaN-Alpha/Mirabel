@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Target } from "lucide-react";
 import { applyCvTailoring, regenerateCvSection, tailorCvToJob } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, cream } from "../homeTheme";
-import { GhostLink, ErrorNote, underlineInputStyle, Tag } from "../homeWidgets";
+import { space, cream, fontMono, success, warning, danger } from "../homeTheme";
+import { GhostLink, ErrorNote, PanelEyebrow, Tag } from "../homeWidgets";
+import { textareaFieldStyle } from "./cvFieldStyle";
 
 const SECTION_LABELS = {
   summary: "Summary",
@@ -79,6 +80,15 @@ export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTa
     }
   }
 
+  const scoreColor =
+    result?.match_score == null
+      ? cream(0.5)
+      : result.match_score >= 75
+      ? success[400]
+      : result.match_score >= 45
+      ? warning[400]
+      : danger[400];
+
   return (
     <div className="flex flex-col" style={{ gap: space[4] }}>
       <textarea
@@ -87,7 +97,7 @@ export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTa
         rows={6}
         placeholder="Paste the job description…"
         className="w-full resize-y"
-        style={underlineInputStyle}
+        style={textareaFieldStyle}
       />
       <GhostLink onClick={handleTailor} disabled={busy || !jobDescription.trim()}>
         {busy && <Loader2 size={13} className="animate-spin" />}
@@ -98,11 +108,19 @@ export default function CvTailorTab({ cvId, sections, updateSections, onJumpToTa
       {result && (
         <div className="flex flex-col" style={{ gap: space[4], marginTop: space[2] }}>
           <div>
-            <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.15em", color: cream(0.4) }}>
-              Match score
-            </span>
-            <p style={{ fontSize: 22, marginTop: space[1] }}>
-              {result.match_score != null ? `${result.match_score}/100` : "—"}
+            <PanelEyebrow icon={Target}>Match score</PanelEyebrow>
+            <p
+              style={{
+                fontFamily: fontMono,
+                fontSize: 28,
+                fontWeight: 500,
+                fontVariantNumeric: "tabular-nums",
+                marginTop: -space[2],
+                color: scoreColor,
+              }}
+            >
+              {result.match_score != null ? `${result.match_score}` : "—"}
+              {result.match_score != null && <span style={{ fontSize: 14, color: cream(0.4) }}>/100</span>}
             </p>
           </div>
 

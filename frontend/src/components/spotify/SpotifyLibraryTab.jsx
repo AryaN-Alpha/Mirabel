@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { getSpotifySavedAlbums, getSpotifySavedTracks, removeSpotifySavedTracks, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
-import { TabLink, EmptyState, ErrorNote } from "../homeWidgets";
+import { TabLink, EmptyState, ErrorNote, GlassPanel } from "../homeWidgets";
 import { MediaCard, TrackRow, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
 
 export default function SpotifyLibraryTab({ onOpenAlbum }) {
@@ -42,7 +42,7 @@ export default function SpotifyLibraryTab({ onOpenAlbum }) {
   }
 
   return (
-    <div>
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
       <div className="flex items-center" style={{ gap: space[6] }}>
         <TabLink active={sub === "tracks"} onClick={() => setSub("tracks")}>
           Tracks
@@ -52,7 +52,7 @@ export default function SpotifyLibraryTab({ onOpenAlbum }) {
         </TabLink>
       </div>
 
-      <div style={{ marginTop: space[6] }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px`, marginTop: space[5] }}>
         <ErrorNote>{error}</ErrorNote>
         {loading && (
           <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
@@ -96,7 +96,7 @@ export default function SpotifyLibraryTab({ onOpenAlbum }) {
         ) : (
           <EmptyState>No saved albums yet.</EmptyState>
         ))}
-      </div>
+      </GlassPanel>
     </div>
   );
 }

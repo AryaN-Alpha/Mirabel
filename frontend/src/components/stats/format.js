@@ -39,8 +39,10 @@ export function formatRate(n, { digits = 2, suffix = "" } = {}) {
 
 export function formatDelta(pct) {
   if (pct === null || pct === undefined) return null;
+  // No arrow glyph in the label — StatTile renders a lucide icon for
+  // direction instead, so a unicode arrow here would just duplicate it.
   const sign = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
-  return { sign, label: `${pct > 0 ? "↑" : pct < 0 ? "↓" : "→"} ${Math.abs(pct * 100).toFixed(1)}%` };
+  return { sign, label: `${Math.abs(pct * 100).toFixed(1)}%` };
 }
 
 export function formatBucketLabel(iso, granularity) {

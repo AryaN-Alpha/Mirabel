@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { space, cream } from "../homeTheme";
 import { TabLink } from "../homeWidgets";
-import { SectionCard, SkeletonBlock } from "./SectionCard";
+import { SectionCard } from "./SectionCard";
 import DataTable from "./DataTable";
 import { formatTokens, formatInt, formatCost, formatMs, formatPct, providerLabel } from "./format";
 
@@ -43,12 +43,10 @@ export default function ProviderComparisonTable({ providers, models, loading }) 
         </div>
       }
     >
-      {loading ? (
-        <SkeletonBlock rows={4} />
-      ) : tab === "provider" ? (
-        <DataTable columns={PROVIDER_COLUMNS} rows={(providers ?? []).map((r) => ({ ...r, __key: r.provider }))} defaultSort={{ key: "total_tokens", dir: "desc" }} />
+      {tab === "provider" ? (
+        <DataTable columns={PROVIDER_COLUMNS} rows={(providers ?? []).map((r) => ({ ...r, __key: r.provider }))} defaultSort={{ key: "total_tokens", dir: "desc" }} loading={loading} />
       ) : (
-        <DataTable columns={MODEL_COLUMNS} rows={(models ?? []).map((r) => ({ ...r, __key: `${r.provider}/${r.model}` }))} defaultSort={{ key: "total_tokens", dir: "desc" }} />
+        <DataTable columns={MODEL_COLUMNS} rows={(models ?? []).map((r) => ({ ...r, __key: `${r.provider}/${r.model}` }))} defaultSort={{ key: "total_tokens", dir: "desc" }} loading={loading} />
       )}
       {!loading && (providers?.some((r) => r.cost === null) || models?.some((r) => r.cost === null)) && (
         <p style={{ fontSize: 11, color: cream(0.32), marginTop: space[2] }}>

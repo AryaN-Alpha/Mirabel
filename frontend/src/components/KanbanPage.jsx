@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, LayoutGrid, TriangleAlert } from "lucide-react";
 import {
   listKanbanProjects,
   createKanbanProject,
@@ -23,8 +23,8 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import { fontHeading, text, accent, warning, space, cream } from "./homeTheme";
+import { labelStyle, GhostLink, OutlineButton, GlassPanel, PanelEyebrow, EmptyState, ErrorNote } from "./homeWidgets";
 import KanbanColumn from "./kanban/KanbanColumn";
 import { KanbanCardUI } from "./kanban/KanbanCard";
 import TaskModal from "./kanban/TaskModal";
@@ -378,26 +378,35 @@ export default function KanbanPage() {
         />
       </div>
 
-      {error && <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,140,140,0.9)" }}>{error}</p>}
+      <ErrorNote>{error}</ErrorNote>
 
       {approachingTasks.length > 0 && (
         <div
+          className="flex items-start"
           style={{
+            gap: space[3],
             marginTop: space[4],
             padding: space[4],
-            background: "rgba(224,140,140,0.1)",
-            border: "1px solid rgba(224,140,140,0.3)",
+            background: `${warning[400]}1a`,
+            border: `1px solid ${warning[400]}4d`,
             borderRadius: 6,
-            color: "rgba(224,140,140,0.95)",
+            color: warning[300],
             fontSize: 14,
           }}
         >
-          <strong style={{ fontWeight: 600 }}>Reminder:</strong> You have {approachingTasks.length} task{approachingTasks.length > 1 ? "s" : ""} due in less than 2 hours: {approachingTasks.map(t => t.title).join(", ")}.
+          <TriangleAlert size={16} strokeWidth={1.8} style={{ flexShrink: 0, marginTop: 1, color: warning[400] }} />
+          <span>
+            <strong style={{ fontWeight: 600 }}>Reminder:</strong> You have {approachingTasks.length} task{approachingTasks.length > 1 ? "s" : ""} due in less than 2 hours: {approachingTasks.map(t => t.title).join(", ")}.
+          </span>
         </div>
       )}
 
       {!selectedProjectId ? (
-        <p style={{ marginTop: space[8], fontSize: 15, color: cream(0.5) }}>Create a project to start its board.</p>
+        <div style={{ marginTop: space[8] }}>
+          <GlassPanel hoverLift={false} style={{ padding: `${space[8]}px ${space[6]}px` }}>
+            <EmptyState dot>Create a project to start its board.</EmptyState>
+          </GlassPanel>
+        </div>
       ) : tasksLoading ? (
         <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 1.5}px 0`, color: cream(0.4) }}>
           <Loader2 size={18} className="animate-spin" />
@@ -413,47 +422,57 @@ export default function KanbanPage() {
             </div>
           )}
 
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3" style={{ marginTop: space[8] * 1.1 }}>
-              {COLUMNS.map((col, i) => (
-                <KanbanColumn
-                  key={col.id}
-                  status={col.id}
-                  label={col.label}
-                  tasks={columns[col.id]}
-                  first={i === 0}
-                  last={i === COLUMNS.length - 1}
-                  onAddCard={() => openNewCard(col.id)}
-                  onEdit={(task) => {
-                    setModalStatus(task.status);
-                    setModalTask(task);
-                  }}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-            
-            <DragOverlay dropAnimation={null}>
-              {activeTask ? (
-                // translateX/Y shift the overlay so the grab point stays
-                // under the cursor rather than the card jumping to top-left.
-                <div style={{
-                  width: activeWidth ? `${activeWidth}px` : "100%",
-                  pointerEvents: "none",
-                  transform: `translate(${-grabOffset.x}px, ${-grabOffset.y}px)`,
-                  transformOrigin: "top left",
-                }}>
-                  <KanbanCardUI task={activeTask} isOverlay />
+          <div style={{ marginTop: space[8] * 1.1, animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .1s both" }}>
+            <GlassPanel hoverLift={false} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+              <PanelEyebrow icon={LayoutGrid}>Board</PanelEyebrow>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="w-full" style={{ overflowX: "auto" }}>
+                  <div
+                    className="grid grid-cols-1 md:grid-cols-3"
+                    style={{ gap: space[5] ?? 23, minWidth: 320 }}
+                  >
+                    {COLUMNS.map((col, i) => (
+                      <KanbanColumn
+                        key={col.id}
+                        status={col.id}
+                        label={col.label}
+                        tasks={columns[col.id]}
+                        first={i === 0}
+                        last={i === COLUMNS.length - 1}
+                        onAddCard={() => openNewCard(col.id)}
+                        onEdit={(task) => {
+                          setModalStatus(task.status);
+                          setModalTask(task);
+                        }}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+
+                <DragOverlay dropAnimation={null}>
+                  {activeTask ? (
+                    // translateX/Y shift the overlay so the grab point stays
+                    // under the cursor rather than the card jumping to top-left.
+                    <div style={{
+                      width: activeWidth ? `${activeWidth}px` : "100%",
+                      pointerEvents: "none",
+                      transform: `translate(${-grabOffset.x}px, ${-grabOffset.y}px)`,
+                      transformOrigin: "top left",
+                    }}>
+                      <KanbanCardUI task={activeTask} isOverlay />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </GlassPanel>
+          </div>
         </>
       )}
 

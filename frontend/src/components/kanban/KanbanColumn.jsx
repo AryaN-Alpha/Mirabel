@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import KanbanCard from "./KanbanCard";
-import { fontHeading, accent, space, cream } from "../homeTheme";
+import { fontHeading, accent, space, radius, cream, surface, glassBorder } from "../homeTheme";
 import { GhostLink } from "../homeWidgets";
 
 const EMPTY_LABEL = {
@@ -10,7 +10,11 @@ const EMPTY_LABEL = {
   done: "Nothing finished yet.",
 };
 
-export default function KanbanColumn({ status, label, tasks, first, last, onAddCard, onEdit, onDelete }) {
+// The parent still passes `first`/`last` for call-site symmetry with the
+// column order, but layout no longer depends on them — columns are
+// self-contained sunken panels spaced by the parent grid's `gap` instead of
+// shared borders, so they're intentionally not destructured here.
+export default function KanbanColumn({ status, label, tasks, onAddCard, onEdit, onDelete }) {
   const { setNodeRef } = useDroppable({
     id: status,
     data: {
@@ -22,12 +26,13 @@ export default function KanbanColumn({ status, label, tasks, first, last, onAddC
   return (
     <div
       style={{
-        paddingRight: last ? 0 : space[8] * 0.9,
-        paddingLeft: first ? 0 : space[8] * 0.9,
-        borderRight: last ? "none" : `1px solid ${cream(0.1)}`,
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        padding: space[5] ?? 23,
+        borderRadius: radius.lg,
+        border: `1px solid ${glassBorder.soft}`,
+        background: surface.sunken,
       }}
     >
       <div

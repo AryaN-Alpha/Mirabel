@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Settings } from "lucide-react";
 import { disconnectClassroom, classroomConnectUrl } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { text, space, cream } from "../homeTheme";
-import { labelStyle, GhostLink, OutlineButton, ErrorNote } from "../homeWidgets";
+import { fontMono, text, space, cream } from "../homeTheme";
+import { labelStyle, GhostLink, OutlineButton, GlassPanel, PanelEyebrow, ErrorNote } from "../homeWidgets";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -33,7 +34,8 @@ export default function ClassroomSettingsTab({ status, onChanged }) {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px`, maxWidth: 620 }}>
+      <PanelEyebrow icon={Settings}>Settings</PanelEyebrow>
       <div style={{ ...labelStyle, paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>
         Connection
       </div>
@@ -42,7 +44,7 @@ export default function ClassroomSettingsTab({ status, onChanged }) {
         <Row label="Connection expired" value={status?.expired ? "Yes — reconnect to continue" : "No"} />
         <Row label="Google account" value={status?.email || "—"} />
         <Row label="Scopes granted" value={status?.scope || "—"} />
-        <Row label="Token expires" value={formatDate(status?.token_expires_at)} />
+        <Row label="Token expires" value={formatDate(status?.token_expires_at)} mono />
       </div>
 
       <ErrorNote>{error}</ErrorNote>
@@ -64,15 +66,18 @@ export default function ClassroomSettingsTab({ status, onChanged }) {
         what's granted. Turning in an assignment always requires an explicit confirm from the Drafts tab; nothing
         is ever submitted automatically.
       </p>
-    </div>
+    </GlassPanel>
   );
 }
 
-function Row({ label, value }) {
+function Row({ label, value, mono }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span style={{ fontSize: 13, color: cream(0.5) }}>{label}</span>
-      <span className="text-right" style={{ fontSize: 13.5, color: text.cream }}>
+      <span
+        className="text-right"
+        style={{ fontSize: 13.5, color: text.cream, fontFamily: mono ? fontMono : undefined, fontVariantNumeric: mono ? "tabular-nums" : undefined }}
+      >
         {value}
       </span>
     </div>

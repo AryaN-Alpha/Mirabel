@@ -1,10 +1,28 @@
 import { useEffect, useState } from "react";
-import { Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import { getOutlookInbox } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, cream } from "../homeTheme";
-import { GhostLink, EmptyState, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
+import { fontHeading, fontMono, text, accent, space, radius, cream, surface } from "../homeTheme";
+import { GhostLink, GlassPanel, PanelEyebrow, EmptyState, labelStyle } from "../homeWidgets";
+import { fieldStyle } from "../OutlookPage";
 import OutlookMessageView from "./OutlookMessageView";
+
+// Compact select variant of the shared sunken field — same recipe as
+// fieldStyle but sized for an inline filter control rather than a
+// full-width form field.
+function getSelectFieldStyle() {
+  return {
+    ...fieldStyle,
+    width: "auto",
+    padding: `${space[2]}px ${space[3]}px`,
+    fontSize: 14,
+  };
+}
+
+// Shared column template for the header row and every MailRow so labels
+// line up with their data on desktop; rows collapse to a stacked layout
+// below the sm breakpoint (see MailRow's className) where this is unused.
+const ROW_GRID = "10px minmax(200px,1fr) 2.2fr auto";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -71,72 +89,52 @@ export default function OutlookInboxTab({ defaultDomain }) {
   }
 
   const filterBar = (
-    <div style={{ marginBottom: space[6] }}>
-      <form onSubmit={handleFilterSubmit} className="flex items-center flex-wrap" style={{ gap: space[4] }}>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={underlineSelectStyle}>
-          <option value="domain">Domain</option>
-          <option value="sender">Sender address</option>
-        </select>
-        <input
-          value={filterInput}
-          onChange={(e) => setFilterInput(e.target.value)}
-          placeholder={filterType === "sender" ? "someone@example.com" : "example.com"}
-          style={{ ...underlineInputStyle, width: "100%", maxWidth: 260, flex: "1 1 200px" }}
-        />
-        <GhostLink disabled={!filterInput.trim()} onClick={handleFilterSubmit} style={{ fontSize: 16 }}>
-          Filter
-        </GhostLink>
-        {defaultDomain && (
-          <GhostLink
-            muted={!(appliedFilter.type === "domain" && appliedFilter.value === defaultDomain)}
-            onClick={() => applyFilter("domain", defaultDomain)}
-            style={{ fontSize: 13, fontFamily: "inherit" }}
+    <form onSubmit={handleFilterSubmit} className="flex items-center flex-wrap" style={{ gap: space[4], marginBottom: space[6] }}>
+      <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={getSelectFieldStyle()}>
+        <option value="domain">Domain</option>
+        <option value="sender">Sender address</option>
+      </select>
+      <input
+        value={filterInput}
+        onChange={(e) => setFilterInput(e.target.value)}
+        placeholder={filterType === "sender" ? "someone@example.com" : "example.com"}
+        style={{ ...fieldStyle, width: "100%", maxWidth: 260, flex: "1 1 200px" }}
+      />
+      <GhostLink disabled={!filterInput.trim()} onClick={handleFilterSubmit} style={{ fontSize: 16 }}>
+        Filter
+      </GhostLink>
+      {defaultDomain && (
+        <GhostLink
+          muted={!(appliedFilter.type === "domain" && appliedFilter.value === defaultDomain)}
+          onClick={() => applyFilter("domain", defaultDomain)}
+          style={{ fontSize: 13, fontFamily: "inherit" }}
+        >
+          <span
+            style={{
+              padding: "2px 13px",
+              border: `1px solid ${accent[400]}66`,
+              borderRadius: 4,
+              letterSpacing: "0.06em",
+              color: accent[200],
+            }}
           >
-            <span
-              style={{
-                padding: "2px 13px",
-                border: `1px solid ${accent[400]}66`,
-                borderRadius: 4,
-                letterSpacing: "0.06em",
-                color: accent[200],
-              }}
-            >
-              {defaultDomain}
-            </span>
-          </GhostLink>
-        )}
-        {appliedFilter.type !== "all" && (
-          <GhostLink onClick={clearFilter} muted style={{ fontSize: 13, fontFamily: "inherit" }}>
-            ✕ Clear filter
-          </GhostLink>
-        )}
-      </form>
-    </div>
+            {defaultDomain}
+          </span>
+        </GhostLink>
+      )}
+      {appliedFilter.type !== "all" && (
+        <GhostLink onClick={clearFilter} muted style={{ fontSize: 13, fontFamily: "inherit" }}>
+          ✕ Clear filter
+        </GhostLink>
+      )}
+    </form>
   );
 
   if (selectedId) {
-    return <OutlookMessageView messageId={selectedId} onBack={() => setSelectedId(null)} />;
-  }
-
-  if (loading) {
     return (
-      <div>
-        {filterBar}
-        <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div>
-        {filterBar}
-        <EmptyState>
-          {error}
-          <br />
-          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
-        </EmptyState>
-      </div>
+      <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+        <OutlookMessageView messageId={selectedId} onBack={() => setSelectedId(null)} />
+      </GlassPanel>
     );
   }
 
@@ -150,6 +148,7 @@ export default function OutlookInboxTab({ defaultDomain }) {
       </GhostLink>
       <span
         style={{
+          fontFamily: fontMono,
           fontVariantNumeric: "tabular-nums",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
@@ -164,40 +163,75 @@ export default function OutlookInboxTab({ defaultDomain }) {
     </div>
   );
 
-  if (!messages || messages.length === 0) {
-    return (
-      <div>
-        {filterBar}
-        <EmptyState>
-          <Mail size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
-          {page > 1
-            ? "No more emails."
-            : appliedFilter.type === "all"
-              ? "No emails in your inbox yet."
-              : "No emails match this filter."}
-        </EmptyState>
-        {page > 1 && paginationBar}
-      </div>
-    );
-  }
-
   return (
-    <div>
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+      <PanelEyebrow icon={Mail}>Inbox</PanelEyebrow>
       {filterBar}
-      <div className="flex flex-col">
-        {messages.map((m) => {
-          const senderName = m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown sender";
-          return (
-            <MailRow key={m.id} message={m} senderName={senderName} onOpen={() => setSelectedId(m.id)} />
-          );
-        })}
-      </div>
-      {paginationBar}
-    </div>
+
+      {loading ? (
+        <div className="w-full flex items-center justify-center" style={{ padding: `${space[8]}px 0`, color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : error ? (
+        <EmptyState>
+          {error}
+          <br />
+          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+        </EmptyState>
+      ) : !messages || messages.length === 0 ? (
+        <>
+          <EmptyState>
+            <Mail size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+            {page > 1
+              ? "No more emails."
+              : appliedFilter.type === "all"
+                ? "No emails in your inbox yet."
+                : "No emails match this filter."}
+          </EmptyState>
+          {page > 1 && paginationBar}
+        </>
+      ) : (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            {/* Only enforce the desktop grid's minimum width from the sm
+                breakpoint up — below that, rows stack via MailRow's own
+                flex-col fallback and don't need the extra scroll width. */}
+            <div className="min-w-0 sm:min-w-[560px]">
+              <div
+                className="hidden sm:grid"
+                style={{
+                  gridTemplateColumns: ROW_GRID,
+                  gap: space[2],
+                  padding: `0 ${space[3]}px ${space[2]}px`,
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
+                  background: surface.overlay,
+                }}
+              >
+                <span />
+                <span style={labelStyle}>From / Subject</span>
+                <span style={labelStyle}>Preview</span>
+                <span style={{ ...labelStyle, textAlign: "right" }}>Received</span>
+              </div>
+              <div className="flex flex-col">
+                {messages.map((m, i) => {
+                  const senderName = m.from?.emailAddress?.name || m.from?.emailAddress?.address || "Unknown sender";
+                  return (
+                    <MailRow key={m.id} message={m} senderName={senderName} zebra={i % 2 === 1} onOpen={() => setSelectedId(m.id)} />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          {paginationBar}
+        </>
+      )}
+    </GlassPanel>
   );
 }
 
-function MailRow({ message: m, senderName, onOpen }) {
+function MailRow({ message: m, senderName, zebra, onOpen }) {
   const [hovered, setHovered] = useState(false);
   return (
     <a
@@ -210,14 +244,15 @@ function MailRow({ message: m, senderName, onOpen }) {
       onMouseLeave={() => setHovered(false)}
       className="no-underline flex flex-col sm:grid sm:items-baseline"
       style={{
-        gridTemplateColumns: "10px minmax(200px,1fr) 2.2fr auto",
+        gridTemplateColumns: ROW_GRID,
         gap: space[2],
-        padding: `${space[5] ?? 23}px ${space[3]}px`,
+        padding: `${space[4]}px ${space[3]}px`,
         paddingLeft: hovered ? space[3] + 10 : space[3],
+        borderRadius: radius.sm,
         borderBottom: `1px solid ${cream(0.09)}`,
         color: "inherit",
-        background: hovered ? `${accent[400]}12` : "transparent",
-        transition: "background 0.5s ease, padding-left 0.5s ease",
+        background: hovered ? `${accent[400]}14` : zebra ? cream(0.025) : "transparent",
+        transition: "background 0.3s ease, padding-left 0.3s ease",
       }}
     >
       <div className="flex items-start gap-3 sm:contents">
@@ -254,7 +289,10 @@ function MailRow({ message: m, senderName, onOpen }) {
       >
         {m.bodyPreview}
       </span>
-      <span className="pl-5 sm:pl-0" style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, color: cream(0.45), whiteSpace: "nowrap" }}>
+      <span
+        className="pl-5 sm:pl-0 sm:text-right"
+        style={{ fontFamily: fontMono, fontVariantNumeric: "tabular-nums", fontSize: 13, color: cream(0.45), whiteSpace: "nowrap" }}
+      >
         {formatDate(m.receivedDateTime)}
       </span>
     </a>
