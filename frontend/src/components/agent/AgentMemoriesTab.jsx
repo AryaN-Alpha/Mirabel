@@ -3,6 +3,7 @@ import { getMemoryStats, listMemories } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, accent, space, cream } from "../homeTheme";
 import { GhostLink, EmptyState, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
+import MemoryDangerZone from "./MemoryDangerZone";
 
 const PAGE_SIZE = 20;
 
@@ -103,12 +104,13 @@ export default function AgentMemoriesTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     getMemoryStats()
       .then(setStats)
       .catch(() => setStats(null));
-  }, []);
+  }, [refreshToken]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -146,7 +148,7 @@ export default function AgentMemoriesTab() {
     return () => {
       cancelled = true;
     };
-  }, [selectedMoods, kind, dateFrom, dateTo, minSalience, debouncedSearch, sort, page]);
+  }, [selectedMoods, kind, dateFrom, dateTo, minSalience, debouncedSearch, sort, page, refreshToken]);
 
   function toggleMood(mood) {
     setSelectedMoods((prev) => (prev.includes(mood) ? prev.filter((m) => m !== mood) : [...prev, mood]));
@@ -252,6 +254,8 @@ export default function AgentMemoriesTab() {
           </div>
         </>
       )}
+
+      <MemoryDangerZone onDeleted={() => setRefreshToken((t) => t + 1)} />
     </div>
   );
 }
