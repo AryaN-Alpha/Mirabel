@@ -76,11 +76,17 @@ class ScheduledEmail(models.Model):
     """
 
     STATUS_PENDING = "pending"
+    # Transient: set atomically by send_due_scheduled_emails the instant a
+    # row is claimed, before any network call — closes the window where two
+    # Celery workers (or overlapping beat ticks) could both see STATUS_PENDING
+    # and send the same email twice.
+    STATUS_SENDING = "sending"
     STATUS_SENT = "sent"
     STATUS_FAILED = "failed"
     STATUS_CANCELLED = "cancelled"
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
+        (STATUS_SENDING, "Sending"),
         (STATUS_SENT, "Sent"),
         (STATUS_FAILED, "Failed"),
         (STATUS_CANCELLED, "Cancelled"),

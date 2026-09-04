@@ -2,7 +2,7 @@ import secrets
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -409,6 +409,12 @@ def top_tracks(request: Request) -> Response:
 
 
 @api_view(["GET"])
+# Polled by SpotifyNowPlayingBar every 10s while connected — the global
+# 30/min AnonRateThrottle (mirabel/settings.py) would 429 this well before
+# anything else on the page does anything. Read-only, cheap, no LLM/cost
+# surface, so exempting it doesn't reopen the DoS concern the throttle
+# otherwise guards against.
+@throttle_classes([])
 def player_state(_request: Request) -> Response:
     try:
         token = get_active_access_token()
@@ -535,6 +541,10 @@ def player_repeat(request: Request) -> Response:
 
 
 @api_view(["GET"])
+# Polled from the device picker while it's open — same reasoning as
+# player_state above: cheap, read-only, no cost surface, but easily hit
+# often enough to trip the global anon throttle.
+@throttle_classes([])
 def devices(_request: Request) -> Response:
     try:
         token = get_active_access_token()

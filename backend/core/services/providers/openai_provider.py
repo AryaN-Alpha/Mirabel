@@ -108,31 +108,35 @@ class OpenAIProvider(Provider):
         api_key = await asyncio.to_thread(get_api_key, "openai")
         if not api_key:
             raise ProviderError("No OpenAI API key configured.")
-        client = openai.AsyncOpenAI(api_key=api_key)
+        # `async with` closes the client's underlying httpx.AsyncClient (and
+        # its connection pool) when the stream ends — a bare `AsyncOpenAI(...)`
+        # with no explicit close() left one dangling per turn over a long
+        # voice session.
         try:
-            async with client.responses.stream(
-                model=model,
-                instructions=system,
-                input=_with_system_suffix(history, system_suffix),
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-            ) as stream:
-                async for event in stream:
-                    if event.type == "response.output_text.delta":
-                        yield event.delta
-                # Best-effort only: this app's OpenAI streaming contract
-                # (event/attribute shape) hasn't been live-verified against
-                # a real API key (see CLAUDE.md's voice pipeline notes), so
-                # never let a wrong assumption about get_final_response's
-                # shape break an otherwise-working stream that already
-                # yielded its text.
-                try:
-                    final_response = await stream.get_final_response()
-                    incomplete_details = getattr(final_response, "incomplete_details", None)
-                    if getattr(incomplete_details, "reason", None) == "max_output_tokens":
-                        log_output_truncated(provider="openai", model=model, call_site=call_site, max_tokens=max_tokens)
-                except Exception:
-                    pass
+            async with openai.AsyncOpenAI(api_key=api_key) as client:
+                async with client.responses.stream(
+                    model=model,
+                    instructions=system,
+                    input=_with_system_suffix(history, system_suffix),
+                    max_output_tokens=max_tokens,
+                    temperature=temperature,
+                ) as stream:
+                    async for event in stream:
+                        if event.type == "response.output_text.delta":
+                            yield event.delta
+                    # Best-effort only: this app's OpenAI streaming contract
+                    # (event/attribute shape) hasn't been live-verified against
+                    # a real API key (see CLAUDE.md's voice pipeline notes), so
+                    # never let a wrong assumption about get_final_response's
+                    # shape break an otherwise-working stream that already
+                    # yielded its text.
+                    try:
+                        final_response = await stream.get_final_response()
+                        incomplete_details = getattr(final_response, "incomplete_details", None)
+                        if getattr(incomplete_details, "reason", None) == "max_output_tokens":
+                            log_output_truncated(provider="openai", model=model, call_site=call_site, max_tokens=max_tokens)
+                    except Exception:
+                        pass
         except openai.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

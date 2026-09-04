@@ -384,17 +384,26 @@ class NotifyVoiceSessionTests(APITestCase):
 
 
 class ExtractStepsTests(APITestCase):
-    def test_extract_steps_pulls_tool_name_and_result(self):
-        from agent.tasks import _extract_steps
+    """_record_step (not a standalone _extract_steps — there never was one;
+    this test referenced a function that doesn't exist in agent/tasks.py and
+    has been broken since it was first written) is what actually appends to
+    AgentTask.steps, one message at a time as _run_graph streams — see
+    RecordStepResultLinksTests above for its result_links behavior."""
 
-        messages = [
-            AIMessage(content="", tool_calls=[{"name": "list_kanban_projects", "args": {}, "id": "call_1"}]),
-            ToolMessage(content='[{"id": 1, "name": "General"}]', name="list_kanban_projects", tool_call_id="call_1"),
-        ]
-        steps = _extract_steps(messages)
-        self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0]["tool"], "list_kanban_projects")
-        self.assertIn("General", steps[0]["result_summary"])
+    def test_record_step_pulls_tool_name_and_result(self):
+        task = AgentTask.objects.create(instruction="list my kanban projects")
+        ai_message = AIMessage(content="", tool_calls=[{"name": "list_kanban_projects", "args": {}, "id": "call_1"}])
+        tool_message = ToolMessage(
+            content='[{"id": 1, "name": "General"}]', name="list_kanban_projects", tool_call_id="call_1"
+        )
+
+        _record_step(task, "agent", ai_message)
+        _record_step(task, "tools", tool_message)
+
+        task.refresh_from_db()
+        self.assertEqual(len(task.steps), 1)
+        self.assertEqual(task.steps[0]["tool"], "list_kanban_projects")
+        self.assertIn("General", task.steps[0]["result_summary"])
 
 
 class LifecycleServiceTests(APITestCase):

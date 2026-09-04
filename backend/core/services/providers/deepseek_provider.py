@@ -22,6 +22,21 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 # Responses API), so retryable errors come from the same openai error hierarchy.
 _RETRYABLE = (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError, openai.InternalServerError)
 
+# deepseek-reasoner spends chain-of-thought tokens out of the SAME max_tokens
+# budget as its visible answer (reasoning_content + content share one cap,
+# unlike Anthropic's separate thinking budget) — with ModelPreference's
+# default of 400, the reasoning phase alone can exhaust max_tokens and leave
+# nothing for the actual answer. This floor only applies when the reasoner
+# model is explicitly selected; deepseek-chat (used everywhere else via
+# fast_model_for) is unaffected.
+_REASONER_MIN_MAX_TOKENS = 2000
+
+
+def _effective_max_tokens(model: str, max_tokens: int) -> int:
+    if "reasoner" in model.lower():
+        return max(max_tokens, _REASONER_MIN_MAX_TOKENS)
+    return max_tokens
+
 
 def _build_messages(system: str, system_suffix: str, history: list[dict]) -> list[dict]:
     """DeepSeek's context caching (disk-based, fully automatic — no code
@@ -60,7 +75,7 @@ class DeepSeekProvider(Provider):
                 client,
                 model=model,
                 messages=messages,
-                max_tokens=max_tokens,
+                max_tokens=_effective_max_tokens(model, max_tokens),
                 temperature=temperature,
             )
         except openai.APIError as exc:
@@ -121,28 +136,32 @@ class DeepSeekProvider(Provider):
         api_key = await asyncio.to_thread(get_api_key, "deepseek")
         if not api_key:
             raise ProviderError("No DeepSeek API key configured.")
-        client = openai.AsyncOpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
         messages = _build_messages(system, system_suffix, history)
+        # `async with` closes the client's underlying httpx.AsyncClient (and
+        # its connection pool) when the stream ends — a bare `AsyncOpenAI(...)`
+        # with no explicit close() left one dangling per turn over a long
+        # voice session.
         try:
-            stream = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                stream=True,
-            )
-            finish_reason = None
-            async for chunk in stream:
-                if not chunk.choices:
-                    continue
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-                # Only the final chunk for a choice carries a non-None
-                # finish_reason — every delta chunk before it has None here.
-                finish_reason = chunk.choices[0].finish_reason or finish_reason
-            if finish_reason == "length":
-                log_output_truncated(provider="deepseek", model=model, call_site=call_site, max_tokens=max_tokens)
+            async with openai.AsyncOpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL) as client:
+                stream = await client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=_effective_max_tokens(model, max_tokens),
+                    temperature=temperature,
+                    stream=True,
+                )
+                finish_reason = None
+                async for chunk in stream:
+                    if not chunk.choices:
+                        continue
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        yield delta
+                    # Only the final chunk for a choice carries a non-None
+                    # finish_reason — every delta chunk before it has None here.
+                    finish_reason = chunk.choices[0].finish_reason or finish_reason
+                if finish_reason == "length":
+                    log_output_truncated(provider="deepseek", model=model, call_site=call_site, max_tokens=max_tokens)
         except openai.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

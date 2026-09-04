@@ -27,7 +27,18 @@ export default function SpotifyQueueTab() {
       .finally(() => !silent && setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(() => {
+    // Spotify's queue endpoint is heavy and strictly rate-limited — skip the
+    // fetch while the tab is backgrounded (e.g. this component stays mounted
+    // behind a browser tab switch) and catch back up once it's visible again,
+    // instead of firing a request nobody's there to see.
+    if (!document.hidden) load();
+    function handleVisibility() {
+      if (!document.hidden) load({ silent: true });
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   const visibleQueue = queue?.queue?.slice(0, VISIBLE_QUEUE_LIMIT) || [];
 

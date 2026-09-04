@@ -17,6 +17,10 @@ export class AudioQueue {
     this.currentSource = null;
     this.startTime = 0;
     this._pendingChunks = [];
+    // Bumped on every stop() so a decode that was in flight at cancel time
+    // can tell it's stale once decodeAudioData resolves, instead of pushing
+    // canceled audio back into the queue and restarting playback — see stop().
+    this._generation = 0;
   }
 
   _ensureCtx() {
@@ -43,6 +47,7 @@ export class AudioQueue {
     if (this._pendingChunks.length === 0) return;
     const chunks = this._pendingChunks;
     this._pendingChunks = [];
+    const generation = this._generation;
 
     const total = chunks.reduce((n, c) => n + c.length, 0);
     const merged = new Uint8Array(total);
@@ -55,6 +60,10 @@ export class AudioQueue {
     this._ensureCtx();
     try {
       const decoded = await this.ctx.decodeAudioData(merged.buffer);
+      // A stop() (barge-in) landed while decodeAudioData was in flight —
+      // this sentence was canceled, so drop it instead of queuing/playing
+      // audio the user already interrupted.
+      if (generation !== this._generation) return;
       this.queue.push(decoded);
       if (!this.playing) this._playNext();
     } catch (err) {
@@ -84,6 +93,7 @@ export class AudioQueue {
 
   // Barge-in: cut audio immediately, drop the queue.
   async stop() {
+    this._generation++;
     this.queue = [];
     this._pendingChunks = [];
     this.startTime = 0;

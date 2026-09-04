@@ -8,8 +8,6 @@ approves it. See agent/tasks.py for how this is actually driven.
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 from django.conf import settings
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -92,16 +90,29 @@ def connection_string() -> str:
     return f"postgresql://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
 
 
-@lru_cache(maxsize=1)
+_checkpointer_holder: PostgresSaver | None = None
+
+
 def _checkpointer() -> PostgresSaver:
     """One long-lived connection per worker process. Mirrors exactly what
     PostgresSaver.from_conn_string() does internally (verified against the
     installed langgraph-checkpoint-postgres source), except the connection
     is kept open for the process's lifetime instead of a single `with`
     block, since separate Celery task invocations in the same worker need
-    to share one checkpointer/connection rather than reopening per call."""
-    conn = Connection.connect(connection_string(), autocommit=True, prepare_threshold=0, row_factory=dict_row)
-    return PostgresSaver(conn)
+    to share one checkpointer/connection rather than reopening per call.
+
+    Not @lru_cache anymore: a cached connection that's since been dropped
+    (Postgres restart, idle-connection reap, network blip) previously kept
+    getting handed back as-is, so every agent run failed with
+    psycopg.OperationalError until the worker process itself restarted.
+    Checking conn.closed and reconnecting here means a single bad run
+    self-heals on the very next call instead of wedging the whole worker.
+    """
+    global _checkpointer_holder
+    if _checkpointer_holder is None or _checkpointer_holder.conn.closed:
+        conn = Connection.connect(connection_string(), autocommit=True, prepare_threshold=0, row_factory=dict_row)
+        _checkpointer_holder = PostgresSaver(conn)
+    return _checkpointer_holder
 
 
 def build_agent(tools: list | None = None):

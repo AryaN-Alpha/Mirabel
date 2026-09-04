@@ -92,7 +92,11 @@ class ProviderCredential(models.Model):
     """
 
     provider = models.CharField(max_length=20, unique=True)
-    api_key = models.CharField(max_length=255, blank=True, default="")
+    # TextField, not CharField(max_length=255): Fernet ciphertext (header +
+    # IV + AES-CBC padding + HMAC, base64-encoded) runs well past 255 chars
+    # for longer raw keys (e.g. OpenAI's sk-proj-... keys), which overflowed
+    # a CharField(255) column with a hard DB error on save.
+    api_key = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

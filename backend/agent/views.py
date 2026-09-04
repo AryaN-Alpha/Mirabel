@@ -84,6 +84,12 @@ def tasks(request: Request) -> Response:
 
 
 @api_view(["GET"])
+# Polled every 1.5s while a task is running (see pollAgentTask) — the global
+# 30/min AnonRateThrottle (mirabel/settings.py) starts 429ing this well
+# before a longer-running task finishes. Read-only, cheap, no LLM/cost
+# surface, so exempting it doesn't reopen the DoS concern the throttle
+# otherwise guards against.
+@throttle_classes([])
 def task_detail(_request: Request, task_id: int) -> Response:
     try:
         task = AgentTask.objects.get(pk=task_id)

@@ -61,6 +61,14 @@ _MAX_CLARIFICATION_ANSWER_LENGTH = 4000
 # text_message WS path instead of REST /api/chat/.
 _MAX_TEXT_MESSAGE_LENGTH = 4000
 
+# Hard cap on one in-flight utterance's accumulated audio — a client that
+# never sends utterance_end (buggy client, or someone deliberately holding
+# the mic open) would otherwise grow self._audio_buffer unbounded until the
+# worker OOMs. 10MB comfortably covers well over 60s of Opus-in-WebM audio
+# at typical bitrates, more than MAX_UTTERANCE_MS (the frontend's own
+# 20s safety cap) would ever produce in normal use.
+_MAX_AUDIO_BUFFER_BYTES = 10 * 1024 * 1024
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
@@ -101,6 +109,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data: str | None = None, bytes_data: bytes | None = None) -> None:
         # Binary frames = audio. We accumulate until the client signals end-of-utterance.
         if bytes_data is not None:
+            if len(self._audio_buffer) + len(bytes_data) > _MAX_AUDIO_BUFFER_BYTES:
+                logger.warning("audio buffer exceeded %d bytes — dropping utterance", _MAX_AUDIO_BUFFER_BYTES)
+                self._audio_buffer.clear()
+                await self._send_json({"type": "error", "message": "utterance too long"})
+                return
             self._audio_buffer.extend(bytes_data)
             return
 

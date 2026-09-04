@@ -5,8 +5,13 @@ import { answerAgentTask, approveAgentTask, rejectAgentTask } from "../services/
 import { pollAgentTask } from "../services/agentTaskPolling";
 import { micErrorMessage } from "../utils/errors";
 
+// Derives ws:// vs wss:// from the page's own protocol when VITE_WS_URL
+// isn't set, instead of hardcoding ws:// — an HTTPS-served frontend with no
+// override configured would otherwise have its WebSocket connection blocked
+// by the browser's Mixed Content policy.
+const _defaultWsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const WS_URL =
-  (import.meta.env.VITE_WS_URL || "ws://localhost:8000") + "/ws/chat/";
+  (import.meta.env.VITE_WS_URL || `${_defaultWsProtocol}//${window.location.hostname}:8000`) + "/ws/chat/";
 
 const TERMINAL_AGENT_STATUSES = new Set(["done", "failed", "cancelled"]);
 

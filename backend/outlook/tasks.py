@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.db import transaction
 from django.utils import timezone
 
 from outlook.models import ScheduledEmail
@@ -18,11 +19,25 @@ def send_due_scheduled_emails() -> None:
     whole task on any exception would resend emails that already went out
     earlier in the same batch. Each row is sent and saved independently so
     one failure never blocks the rest.
+
+    Due rows are claimed atomically (select_for_update + immediate status
+    flip to STATUS_SENDING) before any network call — without this, two
+    Celery workers, or an overlapping beat tick firing while a slow run is
+    still in progress, could both see the same STATUS_PENDING rows and send
+    duplicate emails.
     """
-    due = ScheduledEmail.objects.filter(
-        status=ScheduledEmail.STATUS_PENDING, send_at__lte=timezone.now()
-    )
-    for email in due:
+    with transaction.atomic():
+        due_ids = list(
+            ScheduledEmail.objects.filter(
+                status=ScheduledEmail.STATUS_PENDING, send_at__lte=timezone.now()
+            )
+            .select_for_update(skip_locked=True)
+            .values_list("id", flat=True)
+        )
+        ScheduledEmail.objects.filter(id__in=due_ids).update(status=ScheduledEmail.STATUS_SENDING)
+
+    for email_id in due_ids:
+        email = ScheduledEmail.objects.get(pk=email_id)
         try:
             token = oauth.get_valid_access_token()
             graph_client.send_mail(

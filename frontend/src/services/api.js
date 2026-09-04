@@ -4,14 +4,19 @@ import { getActiveSpotifyDeviceId } from "./spotifyDeviceStore";
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   headers: { "Content-Type": "application/json" },
-  timeout: 15000,
+  // 15s was tight enough to abort legitimate slow requests (a Chroma-backed
+  // memory retrieval on /api/chat/, a loaded DB under normal CRUD latency)
+  // before the server even finished — see AI_CALL_TIMEOUT_MS below for the
+  // heavier LLM-generation endpoints, which need longer still.
+  timeout: 30000,
 });
 
 export async function sendMessage(conversationId, message) {
-  const { data } = await client.post("/api/chat/", {
-    conversation_id: conversationId ?? null,
-    message,
-  });
+  const { data } = await client.post(
+    "/api/chat/",
+    { conversation_id: conversationId ?? null, message },
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
   return data;
 }
 
@@ -585,11 +590,11 @@ export async function getClassroomCourseworkDetail(courseId, courseworkId) {
 }
 
 export async function solveClassroomCoursework({ course_id, coursework_id, extra_instructions }) {
-  const { data } = await client.post("/api/classroom/solve/", {
-    course_id,
-    coursework_id,
-    extra_instructions: extra_instructions || undefined,
-  });
+  const { data } = await client.post(
+    "/api/classroom/solve/",
+    { course_id, coursework_id, extra_instructions: extra_instructions || undefined },
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
   return data;
 }
 
@@ -660,7 +665,11 @@ export async function reorderKanbanColumn(projectId, status, orderedIds) {
 }
 
 export async function processBraindump(projectId, transcript) {
-  const { data } = await client.post(`/api/projects/${projectId}/tasks/braindump/`, { transcript });
+  const { data } = await client.post(
+    `/api/projects/${projectId}/tasks/braindump/`,
+    { transcript },
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
   return data;
 }
 
@@ -693,20 +702,26 @@ export async function uploadCv(id, file) {
   form.append("file", file);
   const { data } = await client.post(`/api/cv/${id}/upload/`, form, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: AI_CALL_TIMEOUT_MS,
   });
   return data;
 }
 
 export async function generateCvSection(id, sectionType, payload) {
-  const { data } = await client.post(`/api/cv/${id}/sections/${sectionType}/generate/`, payload);
+  const { data } = await client.post(
+    `/api/cv/${id}/sections/${sectionType}/generate/`,
+    payload,
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
   return data;
 }
 
 export async function regenerateCvSection(id, sectionType, currentText, instructions) {
-  const { data } = await client.post(`/api/cv/${id}/sections/${sectionType}/regenerate/`, {
-    current_text: currentText,
-    instructions,
-  });
+  const { data } = await client.post(
+    `/api/cv/${id}/sections/${sectionType}/regenerate/`,
+    { current_text: currentText, instructions },
+    { timeout: AI_CALL_TIMEOUT_MS }
+  );
   return data;
 }
 
@@ -724,7 +739,7 @@ export async function updateCvStylePreference(patch) {
   return data;
 }
 
-// The shared client's 15s default is tuned for ordinary CRUD calls — both of
+// The shared client's 30s default is tuned for ordinary CRUD calls — both of
 // these hit an LLM and have been observed taking 12-26s with slower models
 // (DeepSeek/Gemini) even on success, which raced the default timeout and
 // surfaced as a false "Can't reach the server" (axios sets err.request with
