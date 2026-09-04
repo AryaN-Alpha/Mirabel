@@ -1,4 +1,4 @@
-import { text, cream, space } from "../homeTheme";
+import { text, cream, space, radius, glassBorder, surface, fontMono } from "../homeTheme";
 import { labelStyle } from "../homeWidgets";
 import { SectionCard, SkeletonBlock } from "./SectionCard";
 import { formatInt, formatPct, formatTokens } from "./format";
@@ -7,14 +7,26 @@ function StatRow({ label, value, estimate }) {
   return (
     <div className="flex items-baseline justify-between" style={{ padding: `${space[2]}px 0`, borderBottom: `1px solid ${cream(0.07)}` }}>
       <span style={{ fontSize: 13, color: cream(0.6) }}>{label}{estimate && <span style={{ color: cream(0.35) }}> (estimate)</span>}</span>
-      <span style={{ fontSize: 14, color: text.base, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+      <span style={{ fontSize: 14, color: text.base, fontFamily: fontMono, fontVariantNumeric: "tabular-nums" }}>{value}</span>
     </div>
   );
 }
 
+// Each optimization pass gets its own sunken card — grouping the rows makes
+// it clear which figures belong to which pass at a glance, instead of five
+// stacks of label/value rows all sharing one flat flex-wrap with no boundary.
 function SubCard({ title, children }) {
   return (
-    <div style={{ flex: "1 1 260px", minWidth: 240 }}>
+    <div
+      style={{
+        flex: "1 1 260px",
+        minWidth: 240,
+        padding: space[4],
+        borderRadius: radius.md,
+        border: `1px solid ${glassBorder.soft}`,
+        background: surface.sunken,
+      }}
+    >
       <div style={{ ...labelStyle, marginBottom: space[2] }}>{title}</div>
       {children}
     </div>

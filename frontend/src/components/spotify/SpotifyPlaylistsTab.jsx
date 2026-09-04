@@ -1,11 +1,11 @@
 // Feature: User's playlists (spec section 14) + create.
 import { useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, ListMusic, Plus } from "lucide-react";
 import { createSpotifyPlaylist, getSpotifyPlaylists } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream } from "../homeTheme";
-import { underlineInputStyle, GhostLink, OutlineButton, EmptyState, ErrorNote, ModalShell } from "../homeWidgets";
-import { MediaCard, imageUrl } from "./spotifyShared";
+import { GhostLink, OutlineButton, EmptyState, ErrorNote, ModalShell, GlassPanel, PanelEyebrow } from "../homeWidgets";
+import { MediaCard, imageUrl, fieldStyle } from "./spotifyShared";
 
 function CreatePlaylistModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
@@ -36,14 +36,14 @@ function CreatePlaylistModal({ onClose, onCreated }) {
         onChange={(e) => setName(e.target.value)}
         placeholder="Playlist name"
         autoFocus
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description (optional)"
         rows={2}
-        style={{ ...underlineInputStyle, resize: "vertical" }}
+        style={{ ...fieldStyle, resize: "vertical" }}
       />
       <ErrorNote>{error}</ErrorNote>
       <div className="flex items-center gap-4" style={{ marginTop: space[2] }}>
@@ -76,38 +76,40 @@ export default function SpotifyPlaylistsTab({ onOpenPlaylist }) {
   }, []);
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h2 style={{ fontFamily: fontHeading, fontSize: 22, color: text.base }}>Your Playlists</h2>
-        <GhostLink onClick={() => setShowCreate(true)}>
-          <Plus size={14} /> New playlist
-        </GhostLink>
-      </div>
-
-      <ErrorNote>{error}</ErrorNote>
-      {loading && (
-        <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
-          <Loader2 size={20} className="animate-spin" color={cream(0.4)} />
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px` }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: space[3] }}>
+          <PanelEyebrow icon={ListMusic}>Your Playlists</PanelEyebrow>
+          <GhostLink onClick={() => setShowCreate(true)}>
+            <Plus size={14} /> New playlist
+          </GhostLink>
         </div>
-      )}
 
-      {!loading && (playlists?.items?.length ? (
-        <div className="flex flex-wrap" style={{ gap: space[4], marginTop: space[6] }}>
-          {playlists.items.filter(Boolean).map((p) => (
-            <MediaCard
-              key={p.id}
-              image={imageUrl(p.images)}
-              title={p.name}
-              subtitle={`${p.tracks?.total ?? 0} tracks`}
-              onClick={() => onOpenPlaylist(p.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <EmptyState>
-          No playlists yet. Your Spotify playlists will appear here.
-        </EmptyState>
-      ))}
+        <ErrorNote>{error}</ErrorNote>
+        {loading && (
+          <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
+            <Loader2 size={20} className="animate-spin" color={cream(0.4)} />
+          </div>
+        )}
+
+        {!loading && (playlists?.items?.length ? (
+          <div className="flex flex-wrap" style={{ gap: space[4] }}>
+            {playlists.items.filter(Boolean).map((p) => (
+              <MediaCard
+                key={p.id}
+                image={imageUrl(p.images)}
+                title={p.name}
+                subtitle={`${p.tracks?.total ?? 0} tracks`}
+                onClick={() => onOpenPlaylist(p.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState>
+            No playlists yet. Your Spotify playlists will appear here.
+          </EmptyState>
+        ))}
+      </GlassPanel>
 
       {showCreate && (
         <CreatePlaylistModal

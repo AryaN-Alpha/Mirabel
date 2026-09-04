@@ -1,9 +1,22 @@
 import { useState } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { processBraindump } from "../../services/api";
 import { chatDegradedMessage, getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { labelStyle, GhostLink, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
+import { fontHeading, text, space, cream, surface, glassBorder, radius, motion } from "../homeTheme";
+import { GhostLink, IconButton, ErrorNote, entryCardStyle, GlassPanel, PanelEyebrow } from "../homeWidgets";
+
+// Sunken glass field — same recipe as AIModelPage's `fieldStyle`.
+const fieldStyle = {
+  width: "100%",
+  padding: `${space[3]}px ${space[4]}px`,
+  background: surface.sunken,
+  border: `1px solid ${glassBorder.soft}`,
+  borderRadius: radius.md,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
+  transition: `border-color ${motion.hover}, background ${motion.hover}`,
+};
 
 export default function BraindumpPanel({ projectId, onAccept }) {
   const [transcript, setTranscript] = useState("");
@@ -52,8 +65,8 @@ export default function BraindumpPanel({ projectId, onAccept }) {
   }
 
   return (
-    <div style={{ paddingBottom: space[6], borderBottom: `1px solid ${cream(0.1)}` }}>
-      <div style={labelStyle}>Brain dump → tasks</div>
+    <GlassPanel float={2} delay={-1.6} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+      <PanelEyebrow icon={Sparkles}>Brain dump → tasks</PanelEyebrow>
       <textarea
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
@@ -61,7 +74,7 @@ export default function BraindumpPanel({ projectId, onAccept }) {
         rows={4}
         maxLength={4000}
         className="w-full resize-y"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={fieldStyle}
       />
       <div style={{ marginTop: space[3] }}>
         <GhostLink onClick={handleProcess} disabled={processing || !transcript.trim()}>
@@ -102,6 +115,6 @@ export default function BraindumpPanel({ projectId, onAccept }) {
           ))}
         </div>
       )}
-    </div>
+    </GlassPanel>
   );
 }

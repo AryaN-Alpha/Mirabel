@@ -1,20 +1,12 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import { fontHeading, text, cream, space } from "../homeTheme";
-import { labelStyle } from "../homeWidgets";
+import { fontHeading, text, cream, space, success } from "../homeTheme";
+import { labelStyle, StatTile } from "../homeWidgets";
 import { SectionCard, SkeletonBlock, ChartEmptyState } from "./SectionCard";
 import DataTable from "./DataTable";
 import { CACHE_READ_COLOR, CACHE_WRITE_COLOR, GRID_COLOR, AXIS_COLOR, TOOLTIP_STYLE } from "./chartTheme";
 import { formatTokens, formatPct, formatBucketLabel, providerLabel } from "./format";
 
-function Metric({ label, value, hint }) {
-  return (
-    <div style={{ flex: "1 1 150px", minWidth: 130 }}>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ fontFamily: fontHeading, fontSize: 24, color: text.base, marginTop: space[1] ?? 4 }}>{value}</div>
-      {hint && <div style={{ fontSize: 11, color: cream(0.35), marginTop: 2 }}>{hint}</div>}
-    </div>
-  );
-}
+const gridStyle = { display: "grid", gap: space[3], gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" };
 
 const MODEL_COLUMNS = [
   { key: "provider", label: "Provider", render: (r) => providerLabel(r.provider) },
@@ -29,7 +21,7 @@ const CAPABILITY_COLUMNS = [
   {
     key: "prompt_caching", label: "Prompt Caching",
     render: (r) => (
-      <span style={{ color: r.prompt_caching === "enabled" ? "#8fd6a8" : cream(0.4) }}>
+      <span style={{ color: r.prompt_caching === "enabled" ? success[400] : cream(0.4) }}>
         {r.prompt_caching === "enabled" ? "Enabled" : "Unavailable"}
       </span>
     ),
@@ -51,12 +43,12 @@ export default function CacheSection({ cache, buckets, granularity, loading }) {
 
   return (
     <SectionCard title="Prompt Cache Analytics" subtitle="Actual provider-reported cache reads/writes — never inferred from configuration alone.">
-      <div className="flex flex-wrap" style={{ gap: space[6], rowGap: space[6], marginBottom: space[6] }}>
-        <Metric label="Cache Read Tokens" value={formatTokens(cache.cache_read_tokens)} />
-        <Metric label="Cache Write Tokens" value={formatTokens(cache.cache_write_tokens)} />
-        <Metric label="Cache Hit Rate" value={formatPct(cache.cache_hit_rate)} hint="reads ÷ (reads + uncached input)" />
-        <Metric label="Uncached Input Tokens" value={formatTokens(cache.uncached_input_tokens)} />
-        <Metric label="Est. Tokens Avoided" value={formatTokens(cache.estimated_tokens_avoided)} hint="= cache reads (provider-reported, not a separate estimate)" />
+      <div style={{ ...gridStyle, marginBottom: space[6] }}>
+        <StatTile label="Cache Read Tokens" value={formatTokens(cache.cache_read_tokens)} />
+        <StatTile label="Cache Write Tokens" value={formatTokens(cache.cache_write_tokens)} />
+        <StatTile label="Cache Hit Rate" value={formatPct(cache.cache_hit_rate)} hint="reads ÷ (reads + uncached input)" />
+        <StatTile label="Uncached Input Tokens" value={formatTokens(cache.uncached_input_tokens)} />
+        <StatTile label="Est. Tokens Avoided" value={formatTokens(cache.estimated_tokens_avoided)} hint="= cache reads (provider-reported, not a separate estimate)" />
       </div>
 
       <div style={{ marginBottom: space[6] }}>

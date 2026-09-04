@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { FileSignature, Loader2 } from "lucide-react";
 import { getOutlookSignature, setOutlookSignature } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
-import { labelStyle, OutlineButton, ErrorNote } from "../homeWidgets";
+import { OutlineButton, GlassPanel, PanelEyebrow, ErrorNote } from "../homeWidgets";
+import { fieldStyle } from "../OutlookPage";
 
 export default function OutlookSignatureTab() {
   const [loading, setLoading] = useState(true);
@@ -49,40 +51,35 @@ export default function OutlookSignatureTab() {
     }
   }
 
-  if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
-  }
-
   return (
-    <div style={{ maxWidth: 640 }}>
-      <div style={labelStyle}>Signature</div>
-      <p style={{ fontSize: 14, lineHeight: 1.7, marginTop: space[2], color: cream(0.6) }}>
-        Used to sign off AI-generated replies and new emails. Not fetched automatically — paste it once here.
-      </p>
-      <ErrorNote>{loadError}</ErrorNote>
-      <textarea
-        value={signatureInput}
-        onChange={(e) => setSignatureInput(e.target.value)}
-        placeholder={"Best,\nYour Name"}
-        rows={4}
-        className="w-full resize-y"
-        style={{
-          marginTop: space[4],
-          padding: `${space[3]}px 0`,
-          background: "transparent",
-          border: 0,
-          borderBottom: `1px solid ${cream(0.16)}`,
-          color: cream(1),
-          fontSize: 15,
-          outline: "none",
-        }}
-      />
-      <div className="flex items-center" style={{ gap: space[4], marginTop: space[4] }}>
-        <OutlineButton onClick={handleSaveSignature} disabled={sigBusy || !signatureDirty}>
-          {sigBusy ? "Saving…" : "Save signature"}
-        </OutlineButton>
-        <ErrorNote>{sigError}</ErrorNote>
-      </div>
-    </div>
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px`, maxWidth: 720 }}>
+      <PanelEyebrow icon={FileSignature}>Signature</PanelEyebrow>
+      {loading ? (
+        <div className="w-full flex items-center justify-center" style={{ padding: `${space[7]}px 0`, color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : (
+        <>
+          <p style={{ fontSize: 14, lineHeight: 1.7, color: cream(0.6) }}>
+            Used to sign off AI-generated replies and new emails. Not fetched automatically — paste it once here.
+          </p>
+          <ErrorNote>{loadError}</ErrorNote>
+          <textarea
+            value={signatureInput}
+            onChange={(e) => setSignatureInput(e.target.value)}
+            placeholder={"Best,\nYour Name"}
+            rows={4}
+            className="w-full resize-y"
+            style={{ ...fieldStyle, marginTop: space[4], fontSize: 15, lineHeight: 1.7 }}
+          />
+          <div className="flex items-center" style={{ gap: space[4], marginTop: space[4] }}>
+            <OutlineButton onClick={handleSaveSignature} disabled={sigBusy || !signatureDirty}>
+              {sigBusy ? "Saving…" : "Save signature"}
+            </OutlineButton>
+            <ErrorNote>{sigError}</ErrorNote>
+          </div>
+        </>
+      )}
+    </GlassPanel>
   );
 }

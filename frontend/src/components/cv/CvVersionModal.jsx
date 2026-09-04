@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "../../utils/errors";
-import { space } from "../homeTheme";
-import { ModalShell, OutlineButton, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { fontHeading, text, space } from "../homeTheme";
+import { ModalShell, OutlineButton, ErrorNote } from "../homeWidgets";
+import { fieldStyle } from "./cvFieldStyle";
 
 export default function CvVersionModal({ cv, onClose, onSave }) {
   const isEdit = Boolean(cv?.id);
@@ -25,7 +26,7 @@ export default function CvVersionModal({ cv, onClose, onSave }) {
 
   return (
     <ModalShell onClose={onClose} maxWidth={420} busy={saving}>
-      <p style={{ fontSize: 17, fontFamily: "inherit", color: "#f7ece4" }}>{isEdit ? "Rename CV" : "New CV"}</p>
+      <p style={{ fontFamily: fontHeading, fontSize: 20, color: text.bright }}>{isEdit ? "Rename CV" : "New CV"}</p>
 
       <input
         value={name}
@@ -33,7 +34,7 @@ export default function CvVersionModal({ cv, onClose, onSave }) {
         placeholder="CV name (e.g. Backend-focused)"
         maxLength={200}
         autoFocus
-        style={underlineInputStyle}
+        style={fieldStyle}
       />
 
       <ErrorNote>{error}</ErrorNote>

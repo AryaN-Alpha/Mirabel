@@ -1,22 +1,11 @@
 // Feature: Spotify statistics dashboard (spec section 24).
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users, Music } from "lucide-react";
 import { getSpotifyStats } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, radius, cream } from "../homeTheme";
-import { ErrorNote } from "../homeWidgets";
-import { imageUrl, artistNames, SectionHeading } from "./spotifyShared";
-
-function StatTile({ label, value }) {
-  return (
-    <div style={{ padding: space[5] ?? 23, border: `1px solid ${cream(0.1)}`, borderRadius: radius.md, minWidth: 160, flex: 1 }}>
-      <div style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: cream(0.42) }}>{label}</div>
-      <div className="truncate" style={{ fontFamily: fontHeading, fontSize: 24, color: text.bright, marginTop: space[2] }}>
-        {value}
-      </div>
-    </div>
-  );
-}
+import { fontMono, text, accent, space, cream } from "../homeTheme";
+import { ErrorNote, EmptyState, StatTile, GlassPanel } from "../homeWidgets";
+import { imageUrl, artistNames, Section } from "./spotifyShared";
 
 export default function SpotifyStatisticsTab() {
   const [stats, setStats] = useState(null);
@@ -32,57 +21,75 @@ export default function SpotifyStatisticsTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
-        <Loader2 size={20} className="animate-spin" color={cream(0.4)} />
-      </div>
+      <GlassPanel hoverLift={false} style={{ padding: `${space[8]}px 0`, marginTop: space[6] }}>
+        <div className="flex items-center justify-center" style={{ color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      </GlassPanel>
     );
   }
 
   if (!stats) return <ErrorNote>{error}</ErrorNote>;
 
+  const hasAnything = stats.top_artists?.length || stats.top_tracks?.length;
+
   return (
-    <div>
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
       <ErrorNote>{error}</ErrorNote>
       <div className="flex flex-wrap" style={{ gap: space[4] }}>
         <StatTile label="Top Artist" value={stats.top_artists?.[0]?.name || "—"} />
         <StatTile label="Top Track" value={stats.top_tracks?.[0]?.name || "—"} />
-        <StatTile label="Playlists" value={stats.playlist_count} />
-        <StatTile label="Saved Tracks" value={stats.saved_track_count} />
-        <StatTile label="Saved Albums" value={stats.saved_album_count} />
-        <StatTile label="Following" value={stats.followed_artist_count} />
+        <StatTile label="Playlists" value={stats.playlist_count ?? 0} />
+        <StatTile label="Saved Tracks" value={stats.saved_track_count ?? 0} />
+        <StatTile label="Saved Albums" value={stats.saved_album_count ?? 0} />
+        <StatTile label="Following" value={stats.followed_artist_count ?? 0} />
       </div>
 
+      {!hasAnything && <EmptyState dot>Listen to more on Spotify to build your statistics.</EmptyState>}
+
       {stats.top_artists?.length > 0 && (
-        <>
-          <SectionHeading>Top Artists</SectionHeading>
-          <ol className="flex flex-col" style={{ gap: space[2] }}>
-            {stats.top_artists.map((a, i) => (
-              <li key={a.id} className="flex items-center gap-3" style={{ fontSize: 15, color: text.base }}>
-                <span style={{ color: accent[300], width: 20 }}>#{i + 1}</span>
-                {imageUrl(a.images) && (
-                  <img src={imageUrl(a.images)} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
-                )}
-                {a.name}
-              </li>
-            ))}
-          </ol>
-        </>
+        <Section title="Top Artists" icon={Users}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="ds-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <tbody>
+                {stats.top_artists.map((a, i) => (
+                  <tr key={a.id}>
+                    <td style={{ width: 32, padding: `${space[2]}px ${space[2]}px`, fontFamily: fontMono, fontVariantNumeric: "tabular-nums", color: accent[300] }}>
+                      {i + 1}
+                    </td>
+                    <td style={{ width: 40, padding: `${space[2]}px ${space[2]}px` }}>
+                      {imageUrl(a.images) && (
+                        <img src={imageUrl(a.images)} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                      )}
+                    </td>
+                    <td style={{ padding: `${space[2]}px ${space[2]}px`, color: text.base }}>{a.name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
       )}
 
       {stats.top_tracks?.length > 0 && (
-        <>
-          <SectionHeading>Top Tracks</SectionHeading>
-          <ol className="flex flex-col" style={{ gap: space[2] }}>
-            {stats.top_tracks.map((t, i) => (
-              <li key={t.id} className="flex items-center gap-3" style={{ fontSize: 15, color: text.base }}>
-                <span style={{ color: accent[300], width: 20 }}>#{i + 1}</span>
-                <span className="truncate">
-                  {t.name} <span style={{ color: cream(0.45), fontSize: 13 }}>— {artistNames(t.artists)}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </>
+        <Section title="Top Tracks" icon={Music}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="ds-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <tbody>
+                {stats.top_tracks.map((t, i) => (
+                  <tr key={t.id}>
+                    <td style={{ width: 32, padding: `${space[2]}px ${space[2]}px`, fontFamily: fontMono, fontVariantNumeric: "tabular-nums", color: accent[300] }}>
+                      {i + 1}
+                    </td>
+                    <td className="truncate" style={{ padding: `${space[2]}px ${space[2]}px`, color: text.base, maxWidth: 0 }}>
+                      {t.name} <span style={{ color: cream(0.45), fontSize: 13 }}>— {artistNames(t.artists)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
       )}
     </div>
   );

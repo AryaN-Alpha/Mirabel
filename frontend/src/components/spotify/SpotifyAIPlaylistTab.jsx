@@ -11,8 +11,9 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { approveAgentTask, getAgentTask, rejectAgentTask, startAgentTask } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, radius, cream } from "../homeTheme";
-import { underlineInputStyle, underlineSelectStyle, OutlineButton, ErrorNote } from "../homeWidgets";
+import { text, accent, space, radius, cream, surface, glassBorder, bg } from "../homeTheme";
+import { underlineSelectStyle, OutlineButton, ErrorNote, GlassPanel, PanelEyebrow } from "../homeWidgets";
+import { fieldStyle } from "./spotifyShared";
 import AgentTaskPanel from "../agent/AgentTaskPanel";
 
 const POLL_MS = 1500;
@@ -91,64 +92,63 @@ export default function SpotifyAIPlaylistTab() {
   }
 
   return (
-    <div style={{ maxWidth: 640 }}>
-      <div className="flex items-center gap-2">
-        <Sparkles size={18} strokeWidth={1.8} color={accent[300]} />
-        <h2 style={{ fontFamily: fontHeading, fontSize: 22, color: text.base }}>AI Playlist Generator</h2>
-      </div>
-      <p style={{ fontSize: 14, color: cream(0.55), marginTop: space[2] }}>
-        Describe what you want to hear — Mirabel will search Spotify and propose a playlist for your approval.
-      </p>
+    <div style={{ maxWidth: 640, animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+      <GlassPanel elevated glow style={{ padding: `${space[6]}px ${space[6]}px` }}>
+        <PanelEyebrow icon={Sparkles}>AI Playlist Generator</PanelEyebrow>
+        <p style={{ fontSize: 14, color: cream(0.55), marginTop: -space[2] }}>
+          Describe what you want to hear — Mirabel will search Spotify and propose a playlist for your approval.
+        </p>
 
-      <form onSubmit={handleGenerate} style={{ marginTop: space[6] }}>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder='"An energetic 60-minute workout playlist with modern pop and hip-hop."'
-          rows={3}
-          disabled={starting}
-          style={{ ...underlineInputStyle, resize: "vertical" }}
-        />
-        <div className="flex items-center gap-6 flex-wrap" style={{ marginTop: space[4] }}>
-          <label className="flex flex-col" style={{ gap: 4, fontSize: 11, color: cream(0.45), textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            Mood
-            <select value={mood} onChange={(e) => setMood(e.target.value)} style={underlineSelectStyle}>
-              {MOODS.map((m) => (
-                <option key={m} value={m} style={{ background: "#171310" }}>
-                  {m || "Any"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col" style={{ gap: 4, fontSize: 11, color: cream(0.45), textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            Duration (minutes)
-            <input
-              type="number"
-              min={5}
-              max={300}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              style={{ ...underlineInputStyle, width: 100 }}
-            />
-          </label>
-        </div>
-        <div style={{ marginTop: space[6] }}>
-          <OutlineButton onClick={handleGenerate} disabled={starting || !prompt.trim()}>
-            {starting ? <Loader2 size={14} className="animate-spin" /> : "Generate Playlist"}
-          </OutlineButton>
-        </div>
-      </form>
+        <form onSubmit={handleGenerate} style={{ marginTop: space[5] }}>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder='"An energetic 60-minute workout playlist with modern pop and hip-hop."'
+            rows={3}
+            disabled={starting}
+            style={{ ...fieldStyle, resize: "vertical" }}
+          />
+          <div className="flex items-center gap-6 flex-wrap" style={{ marginTop: space[4] }}>
+            <label className="flex flex-col" style={{ gap: 4, fontSize: 11, color: cream(0.45), textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              Mood
+              <select value={mood} onChange={(e) => setMood(e.target.value)} style={underlineSelectStyle}>
+                {MOODS.map((m) => (
+                  <option key={m} value={m} style={{ background: bg }}>
+                    {m || "Any"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col" style={{ gap: 4, fontSize: 11, color: cream(0.45), textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              Duration (minutes)
+              <input
+                type="number"
+                min={5}
+                max={300}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                style={{ ...fieldStyle, width: 100, padding: `${space[2]}px ${space[3]}px` }}
+              />
+            </label>
+          </div>
+          <div style={{ marginTop: space[6] }}>
+            <OutlineButton onClick={handleGenerate} disabled={starting || !prompt.trim()}>
+              {starting ? <Loader2 size={14} className="animate-spin" /> : "Generate Playlist"}
+            </OutlineButton>
+          </div>
+        </form>
 
-      <ErrorNote>{error}</ErrorNote>
+        <ErrorNote>{error}</ErrorNote>
+      </GlassPanel>
 
       {task && (
         <div
           style={{
-            marginTop: space[8],
-            padding: space[4],
-            border: `1px solid ${cream(0.14)}`,
+            marginTop: space[6],
+            padding: space[5] ?? 23,
+            border: `1px solid ${glassBorder.soft}`,
             borderRadius: radius.md,
-            background: "rgba(240,201,162,0.04)",
+            background: surface.sunken,
           }}
         >
           <AgentTaskPanel task={task} busy={busy} palette={PANEL_PALETTE} onApprove={handleApprove} onReject={handleReject} />

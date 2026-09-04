@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import { fontHeading, accent, space, cream } from "../homeTheme";
-import { IconButton, GhostLink } from "../homeWidgets";
+import { space } from "../homeTheme";
+import { IconButton, GhostLink, TabLink } from "../homeWidgets";
 
 function ProjectTab({ project, active, onSelect, onEdit, onDelete }) {
   const [hovered, setHovered] = useState(false);
@@ -12,24 +12,9 @@ function ProjectTab({ project, active, onSelect, onEdit, onDelete }) {
       className="flex items-center"
       style={{ gap: space[2] }}
     >
-      <a
-        href="#"
-        onClick={(e) => {
-          e.preventDefault();
-          onSelect();
-        }}
-        className="no-underline"
-        style={{
-          paddingBottom: space[2],
-          borderBottom: `1px solid ${active ? accent[400] : "transparent"}`,
-          fontFamily: fontHeading,
-          fontSize: 19,
-          color: active ? "#f6efe4" : hovered ? "#f6efe4" : cream(0.6),
-          transition: "color 0.4s ease, border-color 0.4s ease",
-        }}
-      >
+      <TabLink active={active} onClick={onSelect}>
         {project.name}
-      </a>
+      </TabLink>
       {hovered && (
         <div className="flex items-center gap-0.5" style={{ paddingBottom: 2 }}>
           <IconButton onClick={onEdit} title="Rename project">

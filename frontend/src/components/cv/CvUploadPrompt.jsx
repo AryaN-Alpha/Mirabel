@@ -2,8 +2,8 @@ import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { createCv, uploadCv } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, radius, cream } from "../homeTheme";
-import { OutlineButton, ErrorNote } from "../homeWidgets";
+import { space, radius, cream, accent } from "../homeTheme";
+import { OutlineButton, ErrorNote, GlassPanel } from "../homeWidgets";
 
 export default function CvUploadPrompt({ cvId, onUploaded }) {
   const inputRef = useRef(null);
@@ -37,44 +37,58 @@ export default function CvUploadPrompt({ cvId, onUploaded }) {
   }
 
   return (
-    <div
-      className="flex flex-col items-center text-center"
-      style={{
-        padding: space[8] * 1.1,
-        border: `1px dashed ${cream(0.18)}`,
-        borderRadius: radius.md,
-      }}
-    >
-      {busy ? (
-        <>
-          <Loader2 size={24} className="animate-spin" style={{ color: cream(0.55) }} />
-          <p style={{ fontSize: 14, marginTop: space[4], color: cream(0.6) }}>
-            Reading your CV and structuring it — this can take a few seconds…
-          </p>
-        </>
-      ) : (
-        <>
-          <FileUp size={24} strokeWidth={1.6} style={{ color: cream(0.45) }} />
-          <p style={{ fontSize: 17, marginTop: space[4], fontFamily: "inherit", color: cream(0.9) }}>
-            Upload your CV to get started
-          </p>
-          <p style={{ fontSize: 13, marginTop: space[2], maxWidth: 360, lineHeight: 1.7, color: cream(0.5) }}>
-            Upload a PDF and Mirabel will read it and break it into editable sections you can tweak by hand or with
-            AI.
-          </p>
-          <div style={{ marginTop: space[5] ?? 23 }}>
-            <OutlineButton onClick={() => inputRef.current?.click()}>Choose PDF</OutlineButton>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,application/pdf"
-            className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0])}
-          />
-        </>
-      )}
-      <ErrorNote>{error}</ErrorNote>
-    </div>
+    <GlassPanel elevated glow={!busy} hoverLift={false} style={{ padding: 0 }}>
+      <div
+        className="flex flex-col items-center text-center"
+        style={{
+          padding: space[8],
+          margin: space[3],
+          border: `1px dashed ${cream(0.16)}`,
+          borderRadius: radius.md,
+        }}
+      >
+        {busy ? (
+          <>
+            <Loader2 size={24} className="animate-spin" style={{ color: cream(0.55) }} />
+            <p style={{ fontSize: 14, marginTop: space[4], color: cream(0.6) }}>
+              Reading your CV and structuring it — this can take a few seconds…
+            </p>
+          </>
+        ) : (
+          <>
+            <span
+              className="inline-flex items-center justify-center rounded-full"
+              style={{
+                width: 48,
+                height: 48,
+                border: `1px solid ${accent[400]}55`,
+                background: "radial-gradient(circle at 35% 30%, rgba(255,151,131,0.18), rgba(255,151,131,0.02) 70%)",
+                color: accent[300],
+              }}
+            >
+              <FileUp size={20} strokeWidth={1.6} />
+            </span>
+            <p style={{ fontSize: 18, marginTop: space[4], fontFamily: "inherit", color: cream(0.92) }}>
+              Upload your CV to get started
+            </p>
+            <p style={{ fontSize: 13, marginTop: space[2], maxWidth: 360, lineHeight: 1.7, color: cream(0.5) }}>
+              Upload a PDF and Mirabel will read it and break it into editable sections you can tweak by hand or with
+              AI.
+            </p>
+            <div style={{ marginTop: space[5] ?? 23 }}>
+              <OutlineButton onClick={() => inputRef.current?.click()}>Choose PDF</OutlineButton>
+            </div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="hidden"
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </>
+        )}
+        <ErrorNote>{error}</ErrorNote>
+      </div>
+    </GlassPanel>
   );
 }

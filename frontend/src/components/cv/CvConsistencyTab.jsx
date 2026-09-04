@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { checkCvConsistency, regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, cream } from "../homeTheme";
-import { GhostLink, ErrorNote } from "../homeWidgets";
+import { space, cream, danger, warning } from "../homeTheme";
+import { GhostLink, ErrorNote, PanelEyebrow, EmptyState } from "../homeWidgets";
 
 const SECTION_LABELS = {
   summary: "Summary",
@@ -16,9 +16,9 @@ const SECTION_LABELS = {
 };
 
 const SEVERITY_COLOR = {
-  high: "rgba(224,140,140,0.9)",
-  medium: "rgba(224,168,120,0.9)",
-  low: "rgba(200,200,200,0.7)",
+  high: danger[400],
+  medium: warning[400],
+  low: cream(0.5),
 };
 
 export default function CvConsistencyTab({ cvId, sections, updateSections, onJumpToTab }) {
@@ -65,20 +65,28 @@ export default function CvConsistencyTab({ cvId, sections, updateSections, onJum
 
   return (
     <div className="flex flex-col" style={{ gap: space[4] }}>
-      <GhostLink onClick={handleCheck} disabled={busy}>
+      <PanelEyebrow icon={ShieldCheck}>Consistency check</PanelEyebrow>
+      <GhostLink onClick={handleCheck} disabled={busy} style={{ marginTop: -space[2] }}>
         {busy && <Loader2 size={13} className="animate-spin" />}
         Check my CV →
       </GhostLink>
       <ErrorNote>{error}</ErrorNote>
 
-      {issues && issues.length === 0 && (
-        <p style={{ fontSize: 13, color: cream(0.5) }}>No consistency issues found — looks good.</p>
-      )}
+      {issues && issues.length === 0 && <EmptyState>No consistency issues found — looks good.</EmptyState>}
 
       {issues && issues.length > 0 && (
         <div className="flex flex-col" style={{ gap: space[3] }}>
           {issues.map((issue, i) => (
-            <div key={i} style={{ fontSize: 13 }}>
+            <div
+              key={i}
+              style={{
+                fontSize: 13,
+                padding: space[3],
+                borderRadius: 6,
+                borderLeft: `2px solid ${SEVERITY_COLOR[issue.severity] || SEVERITY_COLOR.medium}`,
+                background: "rgba(7,6,8,0.3)",
+              }}
+            >
               <span
                 style={{
                   fontSize: 10,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ListTodo, Loader2 } from "lucide-react";
 import {
   answerAgentTask,
   approveAgentTask,
@@ -10,7 +10,7 @@ import {
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream, accent } from "../homeTheme";
-import { EmptyState, ErrorNote, GhostLink } from "../homeWidgets";
+import { EmptyState, ErrorNote, GhostLink, GlassPanel, PanelEyebrow } from "../homeWidgets";
 import ChatInput from "../ChatInput";
 import AgentTaskPanel from "./AgentTaskPanel";
 
@@ -55,6 +55,94 @@ function formatDate(iso) {
     minute: "2-digit",
   });
 }
+
+// Card-row treatment for a task record — mirrors AgentMemoriesTab's
+// MemoryRow (zebra + local hover highlight standing in for `.ds-table`'s
+// striping, which needs an actual <table> to apply to).
+function TaskRow({ task, zebra, busy, onDecision, onAnswer }) {
+  const [hovered, setHovered] = useState(false);
+  const needsAttention =
+    task.status === "awaiting_confirmation" || task.status === "awaiting_clarification" || task.status === "running" || task.status === "done" || task.status === "failed";
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: `${space[5] ?? 23}px ${space[4]}px`,
+        borderBottom: `1px solid ${cream(0.09)}`,
+        background: hovered ? cream(0.045) : zebra ? cream(0.018) : "transparent",
+        transition: "background 0.2s ease",
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+        <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
+        <span
+          className="flex items-center gap-1.5"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: STATUS_COLOR[task.status] || cream(0.5),
+            whiteSpace: "nowrap",
+          }}
+        >
+          {task.status === "running" && <Loader2 size={12} className="animate-spin" />}
+          {STATUS_LABEL[task.status] || task.status}
+        </span>
+      </div>
+      <p style={{ fontSize: 13, marginTop: 4, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
+        {formatDate(task.created_at)}
+      </p>
+
+      {needsAttention && (
+        <div
+          style={{
+            marginTop: space[3],
+            padding: space[3],
+            border:
+              task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
+                ? `1px solid ${cream(0.14)}`
+                : "none",
+            borderRadius: 8,
+            background:
+              task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
+                ? "rgba(240,201,162,0.06)"
+                : "transparent",
+          }}
+        >
+          <AgentTaskPanel
+            task={task}
+            busy={busy}
+            palette={PANEL_PALETTE}
+            onApprove={(editedArgs) => onDecision(task.id, "approve", editedArgs)}
+            onReject={() => onDecision(task.id, "reject")}
+            onAnswer={(answer) => onAnswer(task.id, answer)}
+          />
+        </div>
+      )}
+
+      {task.steps?.length > 0 && (
+        <p style={{ fontSize: 12, marginTop: space[2], color: cream(0.4) }}>
+          {task.steps.length} step{task.steps.length === 1 ? "" : "s"} so far
+        </p>
+      )}
+
+      {task.status === "queued" && (
+        <GhostLink
+          muted
+          disabled={busy}
+          onClick={() => onDecision(task.id, "cancel")}
+          style={{ marginTop: space[3], fontSize: 13 }}
+        >
+          Cancel
+        </GhostLink>
+      )}
+    </div>
+  );
+}
+
+const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
 export default function AgentTasksTab() {
   const [tasks, setTasks] = useState(null);
@@ -141,103 +229,54 @@ export default function AgentTasksTab() {
 
   return (
     <div className="flex flex-col" style={{ gap: space[6] }}>
-      <ChatInput onSend={handleStart} disabled={starting} />
+      <div style={entrance(0.05)}>
+        <ChatInput onSend={handleStart} disabled={starting} />
+      </div>
       <ErrorNote>{error}</ErrorNote>
 
-      {loading ? (
-        <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>
-      ) : !tasks || tasks.length === 0 ? (
-        <EmptyState dot>
-          {"Tell me what to do and I'll actually go do it — this is where you'll watch it happen."}
-        </EmptyState>
-      ) : (
-        <div className="flex flex-col">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}` }}
-            >
-              <div className="flex items-baseline justify-between gap-4 flex-wrap">
-                <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
-                <span
-                  className="flex items-center gap-1.5"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: STATUS_COLOR[task.status] || cream(0.5),
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {task.status === "running" && <Loader2 size={12} className="animate-spin" />}
-                  {STATUS_LABEL[task.status] || task.status}
-                </span>
-              </div>
-              <p style={{ fontSize: 13, marginTop: 4, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
-                {formatDate(task.created_at)}
-              </p>
-
-              {(task.status === "awaiting_confirmation" || task.status === "awaiting_clarification" || task.status === "running" || task.status === "done" || task.status === "failed") && (
-                <div
-                  style={{
-                    marginTop: space[3],
-                    padding: space[3],
-                    border:
-                      task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                        ? `1px solid ${cream(0.14)}`
-                        : "none",
-                    borderRadius: 8,
-                    background:
-                      task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                        ? "rgba(240,201,162,0.06)"
-                        : "transparent",
-                  }}
-                >
-                  <AgentTaskPanel
-                    task={task}
-                    busy={busyId === task.id}
-                    palette={PANEL_PALETTE}
-                    onApprove={(editedArgs) => handleDecision(task.id, "approve", editedArgs)}
-                    onReject={() => handleDecision(task.id, "reject")}
-                    onAnswer={(answer) => handleAnswer(task.id, answer)}
-                  />
-                </div>
-              )}
-
-              {task.steps?.length > 0 && (
-                <p style={{ fontSize: 12, marginTop: space[2], color: cream(0.4) }}>
-                  {task.steps.length} step{task.steps.length === 1 ? "" : "s"} so far
-                </p>
-              )}
-
-              {task.status === "queued" && (
-                <GhostLink
-                  muted
-                  disabled={busyId === task.id}
-                  onClick={() => handleDecision(task.id, "cancel")}
-                  style={{ marginTop: space[3], fontSize: 13 }}
-                >
-                  Cancel
-                </GhostLink>
-              )}
+      <div style={entrance(0.1)}>
+        <GlassPanel float={1} delay={0} hoverLift={false} style={{ padding: `${space[6]}px ${space[3]}px` }}>
+          <div style={{ padding: `0 ${space[3]}px`, marginBottom: space[2] }}>
+            <PanelEyebrow icon={ListTodo}>Tasks</PanelEyebrow>
+          </div>
+          {loading ? (
+            <div className="w-full flex items-center justify-center" style={{ padding: `${space[8]}px 0`, color: cream(0.4) }}>
+              <Loader2 size={18} className="animate-spin" />
             </div>
-          ))}
-        </div>
-      )}
+          ) : !tasks || tasks.length === 0 ? (
+            <EmptyState dot>
+              {"Tell me what to do and I'll actually go do it — this is where you'll watch it happen."}
+            </EmptyState>
+          ) : (
+            <div className="flex flex-col">
+              {tasks.map((task, i) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  zebra={i % 2 === 1}
+                  busy={busyId === task.id}
+                  onDecision={handleDecision}
+                  onAnswer={handleAnswer}
+                />
+              ))}
+            </div>
+          )}
 
-      {tasks && tasks.length > 0 && (
-        <div className="flex items-center justify-between" style={{ marginTop: space[6] }}>
-          <GhostLink disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} muted={page <= 1}>
-            ← Previous
-          </GhostLink>
-          <span style={{ fontSize: 12, color: cream(0.4) }}>
-            {total} task{total === 1 ? "" : "s"} · page {page} of {totalPages}
-          </span>
-          <GhostLink disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} muted={page >= totalPages}>
-            Next →
-          </GhostLink>
-        </div>
-      )}
+          {tasks && tasks.length > 0 && (
+            <div className="flex items-center justify-between" style={{ marginTop: space[6], padding: `0 ${space[3]}px` }}>
+              <GhostLink disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} muted={page <= 1}>
+                ← Previous
+              </GhostLink>
+              <span style={{ fontSize: 12, color: cream(0.4), fontVariantNumeric: "tabular-nums" }}>
+                {total} task{total === 1 ? "" : "s"} · page {page} of {totalPages}
+              </span>
+              <GhostLink disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} muted={page >= totalPages}>
+                Next →
+              </GhostLink>
+            </div>
+          )}
+        </GlassPanel>
+      </div>
     </div>
   );
 }

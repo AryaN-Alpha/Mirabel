@@ -1,18 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { Bot, Keyboard, Mic, MicOff, SquarePen } from "lucide-react";
 import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
-import CozyWave from "./CozyWave";
+
 import { motion, AnimatePresence } from "framer-motion";
 import { getGreeting } from "../utils/greeting";
 import { getErrorMessage } from "../utils/errors";
 import AgentTaskPanel from "./agent/AgentTaskPanel";
 
 const AGENT_PALETTE = {
-  text: "rgba(250,242,236,0.92)",
-  muted: "rgba(243,233,226,0.45)",
-  border: "rgba(243,233,226,0.16)",
-  accent: "#f0c9a2",
-  danger: "rgba(224,140,140,0.95)",
+  text: "rgba(246,248,255,0.92)",
+  muted: "rgba(246,248,255,0.45)",
+  border: "rgba(236,48,19,0.20)",
+  accent: "#ec3013",
+  danger: "rgba(236,80,60,0.95)",
 };
 
 export default function VoiceChatScreen() {
@@ -108,9 +108,9 @@ export default function VoiceChatScreen() {
           onClick={startNewChat}
           className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-1.5 px-3 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none z-10"
           style={{
-            background: "rgba(243,233,226,0.06)",
-            border: "1px solid rgba(243,233,226,0.11)",
-            color: "rgba(243,233,226,0.58)",
+            background: "rgba(246,248,255,0.05)",
+            border: "1px solid rgba(246,248,255,0.10)",
+            color: "rgba(246,248,255,0.45)",
           }}
           title="Start a new chat"
         >
@@ -119,19 +119,14 @@ export default function VoiceChatScreen() {
         </button>
       )}
       <div className="text-center max-w-[600px]" style={{ animation: "cz-rise 700ms ease-out" }}>
-        <div className="font-serif text-[34px] leading-[1.25] tracking-[0.005em]" style={{ color: "#fbf1ea" }}>
+        <div className="font-serif text-[34px] leading-[1.25] tracking-[0.005em]" style={{ color: "rgba(246,248,255,0.95)" }}>
           {getGreeting()}
         </div>
-        <div className="mt-3 text-[15.5px] font-light leading-[1.7]" style={{ color: "rgba(243,233,226,0.6)" }}>
+        <div className="mt-3 text-[15.5px] font-light leading-[1.7]" style={{ color: "rgba(246,248,255,0.45)" }}>
           {subline}
         </div>
       </div>
 
-      <CozyWave
-        micAnalyser={micAnalyserRef}
-        playbackAnalyser={playbackAnalyserRef}
-        active={micOn}
-      />
 
       <div className="w-full max-w-[720px] flex-1 min-h-0 flex flex-col gap-4">
         <div
@@ -146,16 +141,16 @@ export default function VoiceChatScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-1.5 items-end"
               >
-                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(243,233,226,0.35)" }}>
+                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(246,248,255,0.30)" }}>
                   you
                 </div>
                 <div
                   className="max-w-[80%] px-5 py-[15px] text-[15.5px] font-light leading-[1.7]"
                   style={{
                     borderRadius: "22px 22px 6px 22px",
-                    background: "rgba(255,214,180,0.10)",
-                    border: "1px solid rgba(255,214,180,0.20)",
-                    color: "rgba(250,242,236,0.92)",
+                    background: "rgba(236,48,19,0.08)",
+                    border: "1px solid rgba(236,48,19,0.22)",
+                    color: "rgba(246,248,255,0.90)",
                     backdropFilter: "blur(8px)",
                   }}
                 >
@@ -170,16 +165,16 @@ export default function VoiceChatScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-1.5 items-start"
               >
-                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(243,233,226,0.35)" }}>
+                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(246,248,255,0.30)" }}>
                   mirabel
                 </div>
                 <div
                   className="max-w-[80%] px-5 py-[15px] text-[15.5px] font-light leading-[1.7]"
                   style={{
                     borderRadius: "22px 22px 22px 6px",
-                    background: "rgba(243,233,226,0.055)",
-                    border: "1px solid rgba(243,233,226,0.10)",
-                    color: "rgba(250,242,236,0.92)",
+                    background: "rgba(246,248,255,0.04)",
+                    border: "1px solid rgba(246,248,255,0.09)",
+                    color: "rgba(246,248,255,0.88)",
                     backdropFilter: "blur(8px)",
                   }}
                 >
@@ -194,7 +189,7 @@ export default function VoiceChatScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col gap-1.5 items-start"
               >
-                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(243,233,226,0.35)" }}>
+                <div className="px-1.5 text-[11.5px] tracking-[0.06em] uppercase" style={{ color: "rgba(246,248,255,0.30)" }}>
                   mirabel — agent task
                 </div>
                 <div
@@ -230,11 +225,11 @@ export default function VoiceChatScreen() {
                 className="flex items-center gap-2 px-1.5"
               >
                 <div className="flex space-x-1.5 items-center h-5">
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: "rgba(247,207,174,0.7)" }} />
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: "rgba(247,207,174,0.7)" }} />
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "rgba(247,207,174,0.7)" }} />
+                  <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: "rgba(236,48,19,0.70)" }} />
+                  <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: "rgba(236,48,19,0.70)" }} />
+                  <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "rgba(236,48,19,0.70)" }} />
                 </div>
-                <span className="text-[13px] font-light" style={{ color: "rgba(243,233,226,0.5)" }}>
+                <span className="text-[13px] font-light" style={{ color: "rgba(246,248,255,0.40)" }}>
                   mirabel is thinking
                 </span>
               </motion.div>
@@ -250,14 +245,14 @@ export default function VoiceChatScreen() {
               style={
                 agentModeOn
                   ? {
-                      background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                      color: "#2c1c16",
-                      boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+                      background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
+                      color: "rgba(246,248,255,0.95)",
+                      boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
                     }
                   : {
-                      background: "rgba(243,233,226,0.06)",
-                      border: "1px solid rgba(243,233,226,0.11)",
-                      color: "rgba(243,233,226,0.58)",
+                      background: "rgba(246,248,255,0.05)",
+                      border: "1px solid rgba(246,248,255,0.10)",
+                      color: "rgba(246,248,255,0.50)",
                     }
               }
               title="When on, what you say becomes a task Mirabel actually goes and does, instead of a reply."
@@ -271,14 +266,14 @@ export default function VoiceChatScreen() {
               style={
                 recordingHotkey
                   ? {
-                      background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                      color: "#2c1c16",
-                      boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+                      background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
+                      color: "rgba(246,248,255,0.95)",
+                      boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
                     }
                   : {
-                      background: "rgba(243,233,226,0.06)",
-                      border: "1px solid rgba(243,233,226,0.11)",
-                      color: "rgba(243,233,226,0.58)",
+                      background: "rgba(246,248,255,0.05)",
+                      border: "1px solid rgba(246,248,255,0.10)",
+                      color: "rgba(246,248,255,0.50)",
                     }
               }
               title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
@@ -296,24 +291,28 @@ export default function VoiceChatScreen() {
             disabled={!connected}
             className="relative w-[78px] h-[78px] rounded-full border-none cursor-pointer grid place-items-center transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
-              border: "1px solid rgba(255,222,196,0.28)",
-              background: "radial-gradient(circle at 46% 34%, rgba(255,228,205,0.30), rgba(30,22,22,0.85) 72%)",
-              color: "#ffe7d5",
-              boxShadow: "0 0 44px rgba(240,168,120,0.22)",
+              border: micOn ? "1px solid rgba(236,48,19,0.55)" : "1px solid rgba(246,248,255,0.12)",
+              background: micOn
+                ? "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.55), rgba(10,9,13,0.92) 70%)"
+                : "rgba(246,248,255,0.04)",
+              color: "rgba(246,248,255,0.88)",
+              boxShadow: micOn
+                ? "0 0 44px rgba(236,48,19,0.30)"
+                : "0 0 24px rgba(0,0,0,0.30)",
             }}
             aria-label={micOn ? "stop listening" : "start listening"}
           >
             <div
               className="absolute rounded-full pointer-events-none"
-              style={{ inset: -16, border: "1px solid rgba(255,222,196,0.14)", animation: "cz-breathe 4.6s ease-in-out infinite" }}
+              style={{ inset: -16, border: micOn ? "1px solid rgba(236,48,19,0.20)" : "1px solid rgba(246,248,255,0.07)", animation: "cz-breathe 4.6s ease-in-out infinite" }}
             />
             <div
               className="absolute rounded-full pointer-events-none"
-              style={{ inset: -34, border: "1px solid rgba(255,222,196,0.07)", animation: "cz-breathe-slow 7s ease-in-out infinite" }}
+              style={{ inset: -34, border: micOn ? "1px solid rgba(236,48,19,0.10)" : "1px solid rgba(246,248,255,0.04)", animation: "cz-breathe-slow 7s ease-in-out infinite" }}
             />
             {micOn ? <MicOff size={24} strokeWidth={1.5} /> : <Mic size={24} strokeWidth={1.5} />}
           </button>
-          <div className="text-[13px] font-light tracking-[0.02em]" style={{ color: "rgba(243,233,226,0.5)" }}>
+          <div className="text-[13px] font-light tracking-[0.02em]" style={{ color: "rgba(246,248,255,0.38)" }}>
             {micOn ? "listening — tap to pause" : "paused — tap to listen"}
           </div>
         </div>

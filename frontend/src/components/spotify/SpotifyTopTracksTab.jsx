@@ -1,10 +1,10 @@
 // Feature: Top tracks (spec section 19).
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, TrendingUp } from "lucide-react";
 import { addSpotifyQueue, getSpotifyTopTracks, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, cream } from "../homeTheme";
-import { underlineSelectStyle, EmptyState, ErrorNote } from "../homeWidgets";
+import { space, cream, bg } from "../homeTheme";
+import { underlineSelectStyle, EmptyState, ErrorNote, GlassPanel, PanelEyebrow } from "../homeWidgets";
 import { TrackRow, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
 
 const TIME_RANGES = [
@@ -32,18 +32,19 @@ export default function SpotifyTopTracksTab() {
   }, [timeRange]);
 
   return (
-    <div>
-      <div className="flex items-center justify-end">
-        <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} style={underlineSelectStyle}>
-          {TIME_RANGES.map((r) => (
-            <option key={r.value} value={r.value} style={{ background: "#171310" }}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px` }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: space[3] }}>
+          <PanelEyebrow icon={TrendingUp}>Your Top Tracks</PanelEyebrow>
+          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} style={underlineSelectStyle}>
+            {TIME_RANGES.map((r) => (
+              <option key={r.value} value={r.value} style={{ background: bg }}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div style={{ marginTop: space[4] }}>
         <ErrorNote>{error}</ErrorNote>
         {loading && (
           <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
@@ -68,7 +69,7 @@ export default function SpotifyTopTracksTab() {
         ) : (
           <EmptyState>Listen to more to build a top tracks list.</EmptyState>
         ))}
-      </div>
+      </GlassPanel>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { RefreshCw, Download } from "lucide-react";
-import { fontHeading, cream, space } from "../homeTheme";
+import { fontHeading, cream, space, radius, glassBorder, surface, blur } from "../homeTheme";
 import { labelStyle, underlineSelectStyle, GhostLink } from "../homeWidgets";
 import { providerLabel } from "./format";
 
@@ -35,7 +35,15 @@ export default function StatsFilterBar({ filters, onChange, meta, onRefresh, las
   return (
     <div
       className="flex flex-col"
-      style={{ gap: space[3], padding: `${space[4]}px ${space[5] ?? 23}px`, border: `1px solid ${cream(0.1)}`, borderRadius: 6, background: "rgba(15,12,10,0.35)" }}
+      style={{
+        gap: space[3],
+        padding: `${space[4]}px ${space[5] ?? 23}px`,
+        border: `1px solid ${glassBorder.soft}`,
+        borderRadius: radius.panel,
+        background: surface.panel,
+        backdropFilter: `blur(${blur.md})`,
+        WebkitBackdropFilter: `blur(${blur.md})`,
+      }}
     >
       <div className="flex items-end flex-wrap" style={{ gap: space[5] ?? 23 }}>
         <div style={{ minWidth: 160 }}>

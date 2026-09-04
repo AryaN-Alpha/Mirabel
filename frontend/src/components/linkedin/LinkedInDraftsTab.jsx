@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react";
 import {
   deleteLinkedInDraft,
   listLinkedInDrafts,
@@ -7,8 +7,22 @@ import {
   updateLinkedInDraft,
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, EmptyState, ErrorNote, underlineInputStyle, underlineSelectStyle } from "../homeWidgets";
+import { fontHeading, text, space, cream, surface, glassBorder, radius, motion, success } from "../homeTheme";
+import { GhostLink, OutlineButton, EmptyState, ErrorNote, GlassPanel, PanelEyebrow } from "../homeWidgets";
+
+const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
+
+const fieldStyle = {
+  width: "100%",
+  padding: `${space[3]}px ${space[4]}px`,
+  background: surface.sunken,
+  border: `1px solid ${glassBorder.soft}`,
+  borderRadius: radius.md,
+  color: text.cream,
+  fontSize: 15,
+  outline: "none",
+  transition: `border-color ${motion.hover}, background ${motion.hover}`,
+};
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -42,43 +56,58 @@ export default function LinkedInDraftsTab({ disabled, onPublished }) {
   }, [reloadToken]);
 
   if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
+    return (
+      <GlassPanel hoverLift={false} style={{ padding: `${space[8]}px 0` }}>
+        <div className="w-full flex items-center justify-center" style={{ color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      </GlassPanel>
+    );
   }
 
   if (error) {
     return (
-      <EmptyState>
-        {error}
-        <br />
-        <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
-      </EmptyState>
+      <GlassPanel hoverLift={false} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+        <EmptyState>
+          {error}
+          <br />
+          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+        </EmptyState>
+      </GlassPanel>
     );
   }
 
   if (!drafts || drafts.length === 0) {
     return (
-      <EmptyState>
-        <FileText size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
-        No drafts yet — save one from Create post.
-      </EmptyState>
+      <GlassPanel hoverLift={false} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+        <EmptyState>
+          <FileText size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+          No drafts yet — save one from Create post.
+        </EmptyState>
+      </GlassPanel>
     );
   }
 
   return (
-    <fieldset disabled={disabled} className="flex flex-col border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
-      {drafts.map((draft) => (
-        <DraftRow
-          key={draft.id}
-          draft={draft}
-          expanded={expandedId === draft.id}
-          onToggle={() => setExpandedId((id) => (id === draft.id ? null : draft.id))}
-          onChanged={() => {
-            setReloadToken((n) => n + 1);
-            onPublished?.();
-          }}
-        />
-      ))}
-    </fieldset>
+    <div style={entrance(0)}>
+      <GlassPanel elevated float={1} delay={-2.1} style={{ padding: `${space[6]}px ${space[7]}px` }}>
+        <PanelEyebrow icon={FileText}>Drafts &amp; posts ({drafts.length})</PanelEyebrow>
+        <fieldset disabled={disabled} className="flex flex-col border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
+          {drafts.map((draft) => (
+            <DraftRow
+              key={draft.id}
+              draft={draft}
+              expanded={expandedId === draft.id}
+              onToggle={() => setExpandedId((id) => (id === draft.id ? null : draft.id))}
+              onChanged={() => {
+                setReloadToken((n) => n + 1);
+                onPublished?.();
+              }}
+            />
+          ))}
+        </fieldset>
+      </GlassPanel>
+    </div>
   );
 }
 
@@ -139,21 +168,33 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
           onToggle();
         }}
         className="no-underline flex items-start justify-between gap-4"
-        style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, color: "inherit" }}
+        style={{ padding: `${space[5]}px ${space[2]}px`, color: "inherit" }}
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate" style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>
+          <p className="truncate" style={{ fontFamily: fontHeading, fontSize: 19, color: text.base }}>
             {draft.body.slice(0, 90) || "(empty draft)"}
             {draft.body.length > 90 ? "…" : ""}
           </p>
-          <p style={{ fontSize: 12, marginTop: 4, color: cream(0.45) }}>
+          <p className="flex items-center" style={{ gap: 6, fontSize: 12, marginTop: 5, color: cream(0.45) }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: isPublished ? success[400] : cream(0.35),
+              }}
+            />
             {isPublished ? "Published" : "Draft"} · {formatDate(draft.updated_at)}
           </p>
         </div>
+        <span className="shrink-0" style={{ color: cream(0.4), marginTop: 4 }}>
+          {expanded ? <ChevronUp size={16} strokeWidth={1.8} /> : <ChevronDown size={16} strokeWidth={1.8} />}
+        </span>
       </a>
 
       {expanded && (
-        <div style={{ padding: `0 ${space[3]}px ${space[5]}px` }}>
+        <div style={{ padding: `0 ${space[2]}px ${space[5]}px` }}>
           {isPublished ? (
             <p style={{ fontSize: 13, color: cream(0.5) }}>
               Already published{draft.linkedin_post_urn ? ` (${draft.linkedin_post_urn})` : ""}.
@@ -165,10 +206,14 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                 onChange={(e) => setBody(e.target.value)}
                 rows={4}
                 className="w-full resize-y"
-                style={underlineInputStyle}
+                style={fieldStyle}
               />
-              <div className="flex items-center flex-wrap" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>
-                <select value={visibility} onChange={(e) => setVisibility(e.target.value)} style={underlineSelectStyle}>
+              <div className="flex items-center flex-wrap" style={{ gap: space[4], marginTop: space[4] }}>
+                <select
+                  value={visibility}
+                  onChange={(e) => setVisibility(e.target.value)}
+                  style={{ ...fieldStyle, width: "auto", fontFamily: fontHeading }}
+                >
                   <option value="PUBLIC">Public</option>
                   <option value="CONNECTIONS">Connections only</option>
                 </select>
@@ -176,11 +221,11 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
                   placeholder="Link URL…"
-                  style={{ ...underlineInputStyle, flex: 1, minWidth: 160 }}
+                  style={{ ...fieldStyle, flex: 1, minWidth: 160 }}
                 />
               </div>
               <ErrorNote>{error}</ErrorNote>
-              <div className="flex items-center" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>
+              <div className="flex items-center" style={{ gap: space[5], marginTop: space[4] }}>
                 <GhostLink onClick={handleSave} disabled={busy} muted>
                   Save
                 </GhostLink>

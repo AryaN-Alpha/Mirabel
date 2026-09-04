@@ -37,17 +37,21 @@ export const OUTPUT_COLOR = SERIES.openai;
 export const CACHE_READ_COLOR = SERIES.gemini;
 export const CACHE_WRITE_COLOR = SERIES.deepseek;
 
-export const CHART_SURFACE = "rgba(255,255,255,0.03)";
-export const GRID_COLOR = "rgba(239,230,218,0.08)";
-export const AXIS_COLOR = "rgba(239,230,218,0.38)";
+// Colors below are pinned to homeTheme's cool "galaxy" palette values
+// directly (not imported) — this file has no JSX/React dependency and stays
+// a plain, tree-shakeable constants module recharts can consume as-is.
+export const CHART_SURFACE = "rgba(246,248,255,0.03)";
+export const GRID_COLOR = "rgba(246,248,255,0.08)";
+export const AXIS_COLOR = "rgba(246,248,255,0.4)";
 export const TOOLTIP_STYLE = {
   contentStyle: {
-    background: "rgba(24,19,15,0.96)",
-    border: "1px solid rgba(239,230,218,0.14)",
-    borderRadius: 6,
+    background: "rgba(9,8,9,0.94)",
+    border: "1px solid rgba(246,248,255,0.14)",
+    borderRadius: 8,
     fontSize: 12,
-    color: "#f6efe4",
+    color: "#f2f4fb",
+    boxShadow: "0 20px 48px -26px rgba(0,0,0,0.7)",
   },
-  labelStyle: { color: "rgba(239,230,218,0.6)", marginBottom: 4 },
+  labelStyle: { color: "rgba(246,248,255,0.6)", marginBottom: 4 },
   itemStyle: { padding: 0 },
 };

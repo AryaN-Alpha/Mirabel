@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { deleteClassroomDraft, listClassroomDrafts, turnInClassroomDraft, updateClassroomDraft } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { downloadTextFile } from "../../utils/download";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { GhostLink, OutlineButton, EmptyState, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { fontHeading, fontMono, text, space, radius, cream } from "../homeTheme";
+import { GhostLink, OutlineButton, GlassPanel, PanelEyebrow, EmptyState, ErrorNote } from "../homeWidgets";
+import { fieldStyle } from "../ClassroomPage";
 
 const CONFIRM_WINDOW_MS = 4000;
 
@@ -39,48 +40,46 @@ export default function ClassroomDraftsTab({ disabled, onChanged }) {
     };
   }, [reloadToken]);
 
-  if (loading) {
-    return <p style={{ fontSize: 15, color: cream(0.5) }}>Loading…</p>;
-  }
-
-  if (error) {
-    return (
-      <EmptyState>
-        {error}
-        <br />
-        <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
-      </EmptyState>
-    );
-  }
-
-  if (!drafts || drafts.length === 0) {
-    return (
-      <EmptyState>
-        <FileText size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
-        No drafts yet — solve an assignment from the Assignments tab.
-      </EmptyState>
-    );
-  }
-
   return (
-    <fieldset disabled={disabled} className="flex flex-col border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
-      {drafts.map((draft) => (
-        <DraftRow
-          key={draft.id}
-          draft={draft}
-          expanded={expandedId === draft.id}
-          onToggle={() => setExpandedId((id) => (id === draft.id ? null : draft.id))}
-          onChanged={() => {
-            setReloadToken((n) => n + 1);
-            onChanged?.();
-          }}
-        />
-      ))}
-    </fieldset>
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px` }}>
+      <PanelEyebrow icon={FileText}>Drafts</PanelEyebrow>
+      {loading ? (
+        <div className="w-full flex items-center justify-center" style={{ padding: `${space[7]}px 0`, color: cream(0.4) }}>
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : error ? (
+        <EmptyState>
+          {error}
+          <br />
+          <GhostLink onClick={() => setReloadToken((n) => n + 1)}>Retry</GhostLink>
+        </EmptyState>
+      ) : !drafts || drafts.length === 0 ? (
+        <EmptyState>
+          <FileText size={22} strokeWidth={1.6} style={{ color: cream(0.3), display: "block", margin: "0 auto 12px" }} />
+          No drafts yet — solve an assignment from the Assignments tab.
+        </EmptyState>
+      ) : (
+        <fieldset disabled={disabled} className="flex flex-col border-none p-0 m-0" style={{ opacity: disabled ? 0.5 : 1 }}>
+          {drafts.map((draft, i) => (
+            <DraftRow
+              key={draft.id}
+              draft={draft}
+              zebra={i % 2 === 1}
+              expanded={expandedId === draft.id}
+              onToggle={() => setExpandedId((id) => (id === draft.id ? null : draft.id))}
+              onChanged={() => {
+                setReloadToken((n) => n + 1);
+                onChanged?.();
+              }}
+            />
+          ))}
+        </fieldset>
+      )}
+    </GlassPanel>
   );
 }
 
-function DraftRow({ draft, expanded, onToggle, onChanged }) {
+function DraftRow({ draft, expanded, zebra, onToggle, onChanged }) {
   const [answerText, setAnswerText] = useState(draft.answer_text);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -156,7 +155,7 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
   }
 
   return (
-    <div style={{ borderBottom: `1px solid ${cream(0.09)}` }}>
+    <div style={{ borderRadius: radius.sm, background: zebra ? cream(0.025) : "transparent" }}>
       <a
         href="#"
         onClick={(e) => {
@@ -164,20 +163,21 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
           onToggle();
         }}
         className="no-underline flex items-start justify-between gap-4"
-        style={{ padding: `${space[5] ?? 23}px ${space[3]}px`, color: "inherit" }}
+        style={{ padding: `${space[4]}px ${space[3]}px`, borderBottom: `1px solid ${cream(0.09)}`, color: "inherit" }}
       >
         <div className="min-w-0 flex-1">
           <p className="truncate" style={{ fontFamily: fontHeading, fontSize: 20, color: text.base }}>
             {draft.coursework_title || "(untitled)"}
           </p>
           <p style={{ fontSize: 12, marginTop: 4, color: cream(0.45) }}>
-            {draft.course_name} · {isTurnedIn ? "Turned in" : "Draft"} · {formatDate(draft.updated_at)}
+            {draft.course_name} · {isTurnedIn ? "Turned in" : "Draft"} ·{" "}
+            <span style={{ fontFamily: fontMono, fontVariantNumeric: "tabular-nums" }}>{formatDate(draft.updated_at)}</span>
           </p>
         </div>
       </a>
 
       {expanded && (
-        <div style={{ padding: `0 ${space[3]}px ${space[5]}px` }}>
+        <div style={{ padding: `0 ${space[3]}px ${space[5]}px`, borderBottom: `1px solid ${cream(0.09)}` }}>
           <GhostLink muted onClick={() => setShowAssignment((v) => !v)}>
             {showAssignment ? "Hide original assignment" : "View original assignment"}
           </GhostLink>
@@ -194,7 +194,7 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                 marginTop: space[3],
                 padding: space[3],
                 border: `1px solid ${cream(0.09)}`,
-                borderRadius: 6,
+                borderRadius: radius.md,
               }}
             >
               {draft.coursework_description || "No description provided."}
@@ -243,7 +243,7 @@ function DraftRow({ draft, expanded, onToggle, onChanged }) {
                 onChange={(e) => setAnswerText(e.target.value)}
                 rows={6}
                 className="w-full resize-y"
-                style={{ ...underlineInputStyle, marginTop: space[4] }}
+                style={{ ...fieldStyle, marginTop: space[4], lineHeight: 1.7 }}
               />
               <ErrorNote>{error}</ErrorNote>
               <div className="flex items-center" style={{ gap: space[5] ?? 23, marginTop: space[4] }}>

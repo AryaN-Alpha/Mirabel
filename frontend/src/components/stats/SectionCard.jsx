@@ -1,9 +1,9 @@
 import { fontHeading, text, cream, space, radius } from "../homeTheme";
-import { entryCardStyle, labelStyle } from "../homeWidgets";
+import { labelStyle, GlassPanel } from "../homeWidgets";
 
 export function SectionCard({ title, subtitle, action, children, style }) {
   return (
-    <section style={{ ...entryCardStyle, ...style }}>
+    <GlassPanel hoverLift={false} style={{ padding: `${space[6]}px`, ...style }}>
       {(title || action) && (
         <div className="flex items-start justify-between flex-wrap" style={{ gap: space[3], marginBottom: space[4] }}>
           <div>
@@ -16,7 +16,7 @@ export function SectionCard({ title, subtitle, action, children, style }) {
         </div>
       )}
       {children}
-    </section>
+    </GlassPanel>
   );
 }
 
@@ -27,7 +27,7 @@ export function Skeleton({ height = 16, width = "100%" }) {
         height,
         width,
         borderRadius: radius.sm,
-        background: "linear-gradient(90deg, rgba(239,230,218,0.05) 25%, rgba(239,230,218,0.1) 37%, rgba(239,230,218,0.05) 63%)",
+        background: `linear-gradient(90deg, ${cream(0.05)} 25%, ${cream(0.12)} 37%, ${cream(0.05)} 63%)`,
         backgroundSize: "400% 100%",
         animation: "stats-shimmer 1.6s ease infinite",
       }}

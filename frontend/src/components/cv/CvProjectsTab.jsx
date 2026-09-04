@@ -3,7 +3,8 @@ import { Loader2, Trash2 } from "lucide-react";
 import { generateCvSection, regenerateCvSection } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
-import { labelStyle, GhostLink, OutlineButton, IconButton, ErrorNote, entryCardStyle, underlineInputStyle } from "../homeWidgets";
+import { labelStyle, GhostLink, OutlineButton, IconButton, ErrorNote, entryCardStyle } from "../homeWidgets";
+import { fieldStyle, textareaFieldStyle } from "./cvFieldStyle";
 
 function AddProjectForm({ cvId, onAdd }) {
   const [title, setTitle] = useState("");
@@ -49,10 +50,10 @@ function AddProjectForm({ cvId, onAdd }) {
     <div style={{ ...entryCardStyle, border: `1px dashed ${cream(0.16)}`, background: "transparent" }}>
       <div style={labelStyle}>+ Add project</div>
       <div className="flex flex-col" style={{ marginTop: space[3], gap: space[3] }}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project title" style={underlineInputStyle} />
-        <input value={tech} onChange={(e) => setTech(e.target.value)} placeholder="Tech stack" style={underlineInputStyle} />
-        <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Link (optional)" style={underlineInputStyle} />
-        <input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="What does it do?" style={underlineInputStyle} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project title" style={fieldStyle} />
+        <input value={tech} onChange={(e) => setTech(e.target.value)} placeholder="Tech stack" style={fieldStyle} />
+        <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Link (optional)" style={fieldStyle} />
+        <input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="What does it do?" style={fieldStyle} />
       </div>
       <div style={{ marginTop: space[3] }}>
         <GhostLink onClick={handleGenerate} disabled={busy || !title.trim()}>
@@ -68,7 +69,7 @@ function AddProjectForm({ cvId, onAdd }) {
             onChange={(e) => setDraft(e.target.value)}
             rows={4}
             className="w-full resize-y"
-            style={{ ...underlineInputStyle, marginTop: space[3] }}
+            style={{ ...textareaFieldStyle, marginTop: space[3] }}
           />
           <div style={{ marginTop: space[3] }}>
             <OutlineButton onClick={handleAccept}>Add to CV</OutlineButton>
@@ -114,13 +115,13 @@ function ProjectEntry({ cvId, entry, onChange, onRemove }) {
             value={entry.title}
             onChange={(e) => onChange({ title: e.target.value })}
             placeholder="Project title"
-            style={{ ...underlineInputStyle, flex: 1 }}
+            style={{ ...fieldStyle, flex: 1 }}
           />
           <input
             value={entry.tech}
             onChange={(e) => onChange({ tech: e.target.value })}
             placeholder="Tech stack"
-            style={{ ...underlineInputStyle, flex: 1 }}
+            style={{ ...fieldStyle, flex: 1 }}
           />
         </div>
         <IconButton onClick={onRemove} title="Remove project" danger>
@@ -131,20 +132,20 @@ function ProjectEntry({ cvId, entry, onChange, onRemove }) {
         value={entry.link}
         onChange={(e) => onChange({ link: e.target.value })}
         placeholder="Link (optional)"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...fieldStyle, marginTop: space[3] }}
       />
       <textarea
         value={entry.description}
         onChange={(e) => onChange({ description: e.target.value })}
         rows={4}
         className="w-full resize-y"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...textareaFieldStyle, marginTop: space[3] }}
       />
       <input
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
         placeholder="Optional instructions for the rewrite…"
-        style={{ ...underlineInputStyle, marginTop: space[3] }}
+        style={{ ...fieldStyle, marginTop: space[3] }}
       />
       <div style={{ marginTop: space[3] }}>
         <GhostLink onClick={handleRewrite} disabled={busy || !entry.description.trim()}>

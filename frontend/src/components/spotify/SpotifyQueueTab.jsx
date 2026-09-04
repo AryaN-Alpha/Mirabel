@@ -1,11 +1,11 @@
 // Feature: Queue management (spec section 14/23).
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, ListMusic, Plus, Search } from "lucide-react";
 import { addSpotifyQueue, getSpotifyQueue, searchSpotify, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, space, cream } from "../homeTheme";
-import { underlineInputStyle, GhostLink, EmptyState, ErrorNote } from "../homeWidgets";
-import { TrackRow, artistNames, imageUrl, playbackErrorMessage, withPlaybackError } from "./spotifyShared";
+import { space, cream } from "../homeTheme";
+import { GhostLink, EmptyState, ErrorNote, GlassPanel, PanelEyebrow, labelStyle } from "../homeWidgets";
+import { TrackRow, artistNames, imageUrl, fieldStyle, playbackErrorMessage, withPlaybackError } from "./spotifyShared";
 
 // Matches the render list below (queue.queue.slice(0, 20)) — kept as one
 // constant so playFromQueue's index always lines up with what's on screen
@@ -77,58 +77,56 @@ export default function SpotifyQueueTab() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
-        <h2 style={{ fontFamily: fontHeading, fontSize: 22, color: text.base }}>Queue</h2>
-        <GhostLink onClick={() => setShowAdd((v) => !v)}>
-          <Plus size={14} /> Add to Queue
-        </GhostLink>
-      </div>
-
-      {showAdd && <QueueSearch onAdded={load} />}
-
-      <ErrorNote>{error}</ErrorNote>
-      {loading && (
-        <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
-          <Loader2 size={20} className="animate-spin" color={cream(0.4)} />
+    <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
+      <GlassPanel style={{ padding: `${space[5]}px ${space[5]}px` }}>
+        <div className="flex items-center justify-between">
+          <PanelEyebrow icon={ListMusic}>Queue</PanelEyebrow>
+          <GhostLink onClick={() => setShowAdd((v) => !v)}>
+            <Plus size={14} /> Add to Queue
+          </GhostLink>
         </div>
-      )}
 
-      {!loading && queue?.currently_playing && (
-        <>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42), marginTop: space[6] }}>
-            Now Playing
+        {showAdd && <QueueSearch onAdded={load} />}
+
+        <ErrorNote>{error}</ErrorNote>
+        {loading && (
+          <div className="flex items-center justify-center" style={{ padding: `${space[8]}px 0` }}>
+            <Loader2 size={20} className="animate-spin" color={cream(0.4)} />
           </div>
-          <TrackRow
-            image={imageUrl(queue.currently_playing.album?.images, 2)}
-            title={queue.currently_playing.name}
-            subtitle={artistNames(queue.currently_playing.artists)}
-            durationMs={queue.currently_playing.duration_ms}
-            active
-          />
-        </>
-      )}
+        )}
 
-      <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42), marginTop: space[6] }}>
-        Up Next
-      </div>
-      {!loading && (visibleQueue.length ? (
-        <div className="flex flex-col">
-          {visibleQueue.map((t, i) => (
+        {!loading && queue?.currently_playing && (
+          <>
+            <div style={{ ...labelStyle, marginTop: space[6], marginBottom: space[2] }}>Now Playing</div>
             <TrackRow
-              key={`${t.id}-${i}`}
-              index={i}
-              image={imageUrl(t.album?.images, 2)}
-              title={t.name}
-              subtitle={artistNames(t.artists)}
-              durationMs={t.duration_ms}
-              onPlay={() => playFromQueue(i)}
+              image={imageUrl(queue.currently_playing.album?.images, 2)}
+              title={queue.currently_playing.name}
+              subtitle={artistNames(queue.currently_playing.artists)}
+              durationMs={queue.currently_playing.duration_ms}
+              active
             />
-          ))}
-        </div>
-      ) : (
-        !loading && <EmptyState>Nothing queued.</EmptyState>
-      ))}
+          </>
+        )}
+
+        <div style={{ ...labelStyle, marginTop: space[6], marginBottom: space[2] }}>Up Next</div>
+        {!loading && (visibleQueue.length ? (
+          <div className="flex flex-col">
+            {visibleQueue.map((t, i) => (
+              <TrackRow
+                key={`${t.id}-${i}`}
+                index={i}
+                image={imageUrl(t.album?.images, 2)}
+                title={t.name}
+                subtitle={artistNames(t.artists)}
+                durationMs={t.duration_ms}
+                onPlay={() => playFromQueue(i)}
+              />
+            ))}
+          </div>
+        ) : (
+          !loading && <EmptyState>Nothing queued.</EmptyState>
+        ))}
+      </GlassPanel>
     </div>
   );
 }
@@ -153,14 +151,15 @@ function QueueSearch({ onAdded }) {
 
   return (
     <div style={{ marginTop: space[4] }}>
-      <form onSubmit={runSearch} className="flex items-center gap-2" style={{ borderBottom: `1px solid ${cream(0.16)}` }}>
+      <form onSubmit={runSearch} className="flex items-center gap-2" style={fieldStyle}>
         <Search size={14} color={cream(0.4)} />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search a track to queue…"
-          style={{ ...underlineInputStyle, borderBottom: "none" }}
+          className="flex-1"
+          style={{ background: "transparent", border: 0, outline: "none", color: cream(0.9), fontSize: 15 }}
         />
       </form>
       <ErrorNote>{error}</ErrorNote>

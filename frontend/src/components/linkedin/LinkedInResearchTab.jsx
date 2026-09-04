@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { getAgentTask, startAgentTask } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, text, accent, space, cream } from "../homeTheme";
-import { ErrorNote } from "../homeWidgets";
+import { fontHeading, text, accent, danger, space, cream, glassBorder, surface, radius, motion } from "../homeTheme";
+import { ErrorNote, GlassPanel, PanelEyebrow } from "../homeWidgets";
 import ChatInput from "../ChatInput";
+
+const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
 const SUGGESTED_PROMPTS = [
   "How is my LinkedIn doing?",
@@ -70,65 +72,87 @@ export default function LinkedInResearchTab() {
   }
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <p style={{ fontSize: 14, lineHeight: 1.7, color: cream(0.55) }}>
-        Ask anything about your connected LinkedIn data. Answers are grounded in what's actually stored — profile,
-        profile history, publishing activity, and automation status. LinkedIn is the only data source used here.
-      </p>
+    <div className="flex flex-col" style={{ gap: space[6] }}>
+      <div style={entrance(0)}>
+        <GlassPanel elevated float={1} delay={-1.3} style={{ padding: `${space[6]}px ${space[7]}px` }}>
+          <PanelEyebrow icon={Search}>AI research</PanelEyebrow>
+          <p style={{ fontSize: 14, lineHeight: 1.7, color: cream(0.6) }}>
+            Ask anything about your connected LinkedIn data. Answers are grounded in what's actually stored —
+            profile, profile history, publishing activity, and automation status. LinkedIn is the only data source
+            used here.
+          </p>
 
-      <div className="flex flex-wrap" style={{ gap: space[2], marginTop: space[4] }}>
-        {SUGGESTED_PROMPTS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => !busy && ask(p)}
-            disabled={busy}
-            className="border-none cursor-pointer"
-            style={{
-              padding: `${space[2]}px ${space[3]}px`,
-              borderRadius: 20,
-              border: `1px solid ${cream(0.16)}`,
-              background: "transparent",
-              fontSize: 12.5,
-              color: cream(0.6),
-              opacity: busy ? 0.5 : 1,
-            }}
-          >
-            {p}
-          </button>
-        ))}
+          <div className="flex flex-wrap" style={{ gap: space[2], marginTop: space[4] }}>
+            {SUGGESTED_PROMPTS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => !busy && ask(p)}
+                disabled={busy}
+                className="border-none cursor-pointer"
+                style={{
+                  padding: `${space[2]}px ${space[3]}px`,
+                  borderRadius: 20,
+                  border: `1px solid ${glassBorder.medium}`,
+                  background: surface.sunken,
+                  fontSize: 12.5,
+                  color: cream(0.62),
+                  opacity: busy ? 0.5 : 1,
+                  transition: `border-color ${motion.hover}, color ${motion.hover}`,
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: space[5] }}>
+            <ChatInput onSend={ask} disabled={busy} />
+          </div>
+
+          <ErrorNote>{error}</ErrorNote>
+        </GlassPanel>
       </div>
 
-      <div style={{ marginTop: space[5] }}>
-        <ChatInput onSend={ask} disabled={busy} />
-      </div>
-
-      <ErrorNote>{error}</ErrorNote>
-
-      <div className="flex flex-col" style={{ marginTop: space[6], gap: space[5] }}>
-        {entries
-          .slice()
-          .reverse()
-          .map((entry) => (
-            <div key={entry.id} style={{ padding: `${space[4]}px 0`, borderBottom: `1px solid ${cream(0.09)}` }}>
-              <p style={{ fontFamily: fontHeading, fontSize: 18, color: accent[300] }}>{entry.instruction}</p>
-              {NON_TERMINAL.has(entry.status) ? (
-                <div className="flex items-center" style={{ gap: space[2], marginTop: space[2], color: cream(0.4) }}>
-                  <Loader2 size={14} className="animate-spin" />
-                  <span style={{ fontSize: 13 }}>Researching…</span>
-                </div>
-              ) : entry.status === "failed" ? (
-                <p style={{ fontSize: 14, marginTop: space[2], color: "rgba(224,140,140,0.9)" }}>
-                  {entry.errorMessage || "Couldn't complete that research."}
-                </p>
-              ) : (
-                <p style={{ fontSize: 15, marginTop: space[2], lineHeight: 1.75, color: text.cream, whiteSpace: "pre-wrap" }}>
-                  {entry.resultText || "No answer text was returned."}
-                </p>
-              )}
+      {entries.length > 0 && (
+        <div style={entrance(0.1)}>
+          <GlassPanel float={2} delay={-3.7} style={{ padding: `${space[6]}px ${space[7]}px` }}>
+            <PanelEyebrow>Research history</PanelEyebrow>
+            <div className="flex flex-col" style={{ gap: space[4] }}>
+              {entries
+                .slice()
+                .reverse()
+                .map((entry) => (
+                  <div
+                    key={entry.id}
+                    style={{
+                      padding: `${space[4]}px ${space[5]}px`,
+                      borderRadius: radius.md,
+                      border: `1px solid ${glassBorder.soft}`,
+                      background: surface.sunken,
+                    }}
+                  >
+                    <p style={{ fontFamily: fontHeading, fontSize: 17, color: accent[300] }}>{entry.instruction}</p>
+                    {NON_TERMINAL.has(entry.status) ? (
+                      <div className="flex items-center" style={{ gap: space[2], marginTop: space[2], color: cream(0.4) }}>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span style={{ fontSize: 13 }}>Researching…</span>
+                      </div>
+                    ) : entry.status === "failed" ? (
+                      <p style={{ fontSize: 14, marginTop: space[2], color: danger[300] }}>
+                        {entry.errorMessage || "Couldn't complete that research."}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 15, marginTop: space[2], lineHeight: 1.75, color: text.cream, whiteSpace: "pre-wrap" }}>
+                        {entry.resultText || "No answer text was returned."}
+                      </p>
+                    )}
+                  </div>
+                ))}
             </div>
-          ))}
-      </div>
+          </GlassPanel>
+        </div>
+      )}
     </div>
   );
 }

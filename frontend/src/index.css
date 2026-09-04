@@ -8,15 +8,22 @@
   --font-home-body: "Lora", system-ui, serif;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-input, button, textarea, select {
+input,
+button,
+textarea,
+select {
   font-family: inherit;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -34,71 +41,277 @@ html, body, #root {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(246, 248, 255, 0.12);
   border-radius: 99px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(246, 248, 255, 0.2);
 }
 
 @keyframes cz-float-a {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(6%, -5%, 0) scale(1.12); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(6%, -5%, 0) scale(1.12);
+  }
 }
+
 @keyframes cz-float-b {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50% { transform: translate3d(-7%, 6%, 0) scale(0.95); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+
+  50% {
+    transform: translate3d(-7%, 6%, 0) scale(0.95);
+  }
 }
+
 @keyframes cz-float-c {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
-  50% { transform: translate3d(4%, 7%, 0) scale(1.1); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.98);
+  }
+
+  50% {
+    transform: translate3d(4%, 7%, 0) scale(1.1);
+  }
 }
+
 @keyframes cz-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.07); opacity: 0.85; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.07);
+    opacity: 0.85;
+  }
 }
+
 @keyframes cz-breathe-slow {
-  0%, 100% { transform: scale(1.02); opacity: 0.32; }
-  50% { transform: scale(1.12); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1.02);
+    opacity: 0.32;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.6;
+  }
 }
+
 @keyframes cz-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Home dashboard ("hearth") theme — scoped to /home, see HomeLayout/Sidebar/HomePage */
 @keyframes home-hearth {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .55; }
-  50% { transform: translate3d(2%, -2%, 0) scale(1.12); opacity: .85; }
-}
-@keyframes home-drift {
-  0%, 100% { transform: translate3d(-3%, 2%, 0) scale(1.05); }
-  50% { transform: translate3d(4%, -3%, 0) scale(1.18); }
-}
-@keyframes home-ember {
-  0% { transform: translate3d(0, 0, 0); opacity: 0; }
-  12% { opacity: .8; }
-  70% { opacity: .5; }
-  100% { transform: translate3d(24px, -320px, 0); opacity: 0; }
-}
-@keyframes home-breathe {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 173, 102, 0.4); opacity: .85; }
-  50% { box-shadow: 0 0 18px 4px rgba(225, 173, 102, 0.26); opacity: 1; }
-}
-@keyframes home-rise {
-  from { opacity: 0; transform: translate3d(0, 14px, 0); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes stats-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-@keyframes home-rule-in {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: .55;
+  }
+
+  50% {
+    transform: translate3d(2%, -2%, 0) scale(1.12);
+    opacity: .85;
+  }
 }
 
+@keyframes home-drift {
+
+  0%,
+  100% {
+    transform: translate3d(-3%, 2%, 0) scale(1.05);
+  }
+
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.18);
+  }
+}
+
+@keyframes home-ember {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+
+  12% {
+    opacity: .8;
+  }
+
+  70% {
+    opacity: .5;
+  }
+
+  100% {
+    transform: translate3d(24px, -320px, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes home-breathe {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 173, 102, 0.4);
+    opacity: .85;
+  }
+
+  50% {
+    box-shadow: 0 0 18px 4px rgba(225, 173, 102, 0.26);
+    opacity: 1;
+  }
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stats-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes home-rule-in {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Zero-gravity float — extremely subtle vertical drift for floating glass
+   panels (GlassPanel in homeWidgets.jsx). Three variants at different
+   amplitudes/durations so panels never bob in sync; each panel also gets a
+   distinct (often negative) animation-delay from its caller for the same
+   reason. Disabled entirely under reduced motion below. */
+@keyframes home-float-1 {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+@keyframes home-float-2 {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes home-float-3 {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+.home-float-1 {
+  animation: home-float-1 9s ease-in-out infinite;
+}
+
+.home-float-2 {
+  animation: home-float-2 11s ease-in-out infinite;
+}
+
+.home-float-3 {
+  animation: home-float-3 7.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .home-float-1,
+  .home-float-2,
+  .home-float-3 {
+    animation: none !important;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Accent-colored keyboard focus ring, consistent across the redesigned
+   /home pages — replaces the browser default blue outline which clashed
+   with the galaxy palette. Only ever shown for keyboard/programmatic focus. */
+:focus-visible {
+  outline: 2px solid rgba(255, 151, 131, 0.85);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Shared data-table row treatment (DataTable.jsx, and any other redesigned
+   table) — zebra striping + hover highlight extracted to CSS because a
+   per-row inline style can't express :hover without per-row React state. */
+.ds-table tbody tr:nth-child(even) {
+  background: rgba(246, 248, 255, 0.025);
+}
+
+.ds-table tbody tr:hover {
+  background: rgba(255, 151, 131, 0.07);
+}
+
+.ds-table tbody tr {
+  transition: background 0.15s ease;
+}

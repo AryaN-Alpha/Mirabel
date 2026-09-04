@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, PenSquare } from "lucide-react";
 import { generateOutlookCompose, scheduleOutlookMessage, sendOutlookMessage } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { space, cream } from "../homeTheme";
-import { labelStyle, GhostLink, OutlineButton, TabLink, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { space } from "../homeTheme";
+import { labelStyle, GhostLink, OutlineButton, GlassPanel, PanelEyebrow, TabLink, ErrorNote, underlineInputStyle } from "../homeWidgets";
+import { fieldStyle } from "../OutlookPage";
 
 export default function OutlookComposeTab() {
   const [to, setTo] = useState("");
@@ -71,7 +72,9 @@ export default function OutlookComposeTab() {
     to.trim() && subject.trim() && body.trim() && !sending && !sent && (!scheduling || sendAtInFuture);
 
   return (
-    <div style={{ maxWidth: 720 }}>
+    <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[6]}px`, maxWidth: 760 }}>
+      <PanelEyebrow icon={PenSquare}>Compose</PanelEyebrow>
+
       <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="To — comma-separated addresses" style={underlineInputStyle} />
       <div style={{ marginTop: space[4] }}>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" style={underlineInputStyle} />
@@ -94,24 +97,14 @@ export default function OutlookComposeTab() {
         <ErrorNote>{genError}</ErrorNote>
       </div>
 
-      <div
-        style={{
-          marginTop: space[6],
-          padding: `${space[6]}px ${space[6]}px ${space[5]}px`,
-          border: `1px solid ${cream(0.12)}`,
-          borderRadius: 4,
-          background: "rgba(15,12,10,0.35)",
-        }}
-      >
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write your email…"
-          rows={9}
-          className="w-full resize-y"
-          style={{ background: "transparent", border: 0, color: cream(1), fontSize: 16, lineHeight: 1.85, outline: "none" }}
-        />
-      </div>
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Write your email…"
+        rows={9}
+        className="w-full resize-y"
+        style={{ ...fieldStyle, marginTop: space[6], padding: `${space[5] ?? 23}px ${space[6]}px`, fontSize: 16, lineHeight: 1.85 }}
+      />
 
       <div className="flex items-center flex-wrap" style={{ gap: space[6], marginTop: space[6] }}>
         <TabLink active={!scheduling} onClick={() => setScheduling(false)}>
@@ -148,6 +141,6 @@ export default function OutlookComposeTab() {
                 : "Send"}
         </OutlineButton>
       </div>
-    </div>
+    </GlassPanel>
   );
 }

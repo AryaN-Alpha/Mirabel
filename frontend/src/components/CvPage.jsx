@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText, Layers, RefreshCw } from "lucide-react";
 import {
   createCv,
   cvExportUrl,
@@ -12,8 +12,8 @@ import {
   updateCvStylePreference,
 } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, space, cream } from "./homeTheme";
-import { labelStyle, GhostLink, OutlineButton } from "./homeWidgets";
+import { fontHeading, text, accent, danger, warning, space, cream } from "./homeTheme";
+import { labelStyle, GhostLink, OutlineButton, GlassPanel, PanelEyebrow, StatusDot } from "./homeWidgets";
 import ConfirmDialog from "./ConfirmDialog";
 import CvUploadPrompt from "./cv/CvUploadPrompt";
 import CvPreview from "./cv/CvPreview";
@@ -51,18 +51,20 @@ const TABS = [
   { id: "style", label: "Style", Component: CvStyleTab },
 ];
 
+const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
+
 function hasContent(cv) {
   if (!cv) return false;
   if (cv.has_file) return true;
   const s = cv.sections;
   return Boolean(
     s.summary ||
-      s.experience.length ||
-      s.education.length ||
-      s.projects.length ||
-      s.skill_groups.length ||
-      s.strengths.length ||
-      s.certifications.length
+    s.experience.length ||
+    s.education.length ||
+    s.projects.length ||
+    s.skill_groups.length ||
+    s.strengths.length ||
+    s.certifications.length
   );
 }
 
@@ -75,9 +77,12 @@ function uploadResultNotice(data) {
 function SaveIndicator({ state }) {
   if (state === "idle") return null;
   const label = state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Couldn't save";
-  const color = state === "error" ? "rgba(224,140,140,0.85)" : cream(0.4);
+  const color = state === "error" ? danger[300] : cream(0.4);
   return (
-    <span style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color }}>{label}</span>
+    <span className="inline-flex items-center" style={{ gap: 5, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color }}>
+      {state === "saving" && <Loader2 size={10} className="animate-spin" />}
+      {label}
+    </span>
   );
 }
 
@@ -94,17 +99,37 @@ function SectionNavItem({ label, active, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: `${space[3]}px 0`,
-        paddingLeft: active || hovered ? 6 : 0,
-        borderBottom: `1px solid ${cream(0.08)}`,
+        padding: `${space[3]}px ${space[3]}px`,
+        paddingLeft: active ? space[4] : space[3],
+        borderRadius: 6,
+        borderLeft: `2px solid ${active ? accent[400] : "transparent"}`,
+        background: active ? "rgba(255,151,131,0.06)" : hovered ? cream(0.04) : "transparent",
         fontFamily: fontHeading,
-        fontSize: 18,
-        color: active ? text.base : hovered ? text.base : cream(0.7),
-        transition: "color 0.4s ease, padding-left 0.4s ease",
+        fontSize: 16,
+        color: active ? text.base : hovered ? text.base : cream(0.62),
+        transition: "color 0.3s ease, background 0.3s ease, padding-left 0.3s ease, border-color 0.3s ease",
       }}
     >
       {label}
     </a>
+  );
+}
+
+function CenteredLoader() {
+  return (
+    <GlassPanel hoverLift={false} style={{ padding: `${space[8]}px 0` }}>
+      <div className="w-full flex items-center justify-center" style={{ color: cream(0.4) }}>
+        <Loader2 size={20} className="animate-spin" />
+      </div>
+    </GlassPanel>
+  );
+}
+
+function ErrorPanel({ children }) {
+  return (
+    <GlassPanel hoverLift={false} glow style={{ padding: `${space[6]}px ${space[6]}px` }}>
+      <p style={{ fontSize: 15, color: danger[300], margin: 0 }}>{children}</p>
+    </GlassPanel>
   );
 }
 
@@ -187,7 +212,7 @@ export default function CvPage() {
   useEffect(() => {
     getCvStylePreference()
       .then(setStylePref)
-      .catch(() => {}); // non-critical — the preview/PDF just fall back to defaults
+      .catch(() => { }); // non-critical — the preview/PDF just fall back to defaults
   }, []);
 
   async function saveStylePref(patch) {
@@ -283,7 +308,7 @@ export default function CvPage() {
     // refresh the version list and make sure it's the selected tab.
     listCvs()
       .then((list) => setCvs(list.cvs))
-      .catch(() => {});
+      .catch(() => { });
     if (data.id !== selectedCvId) selectCv(data.id);
   }
 
@@ -293,7 +318,7 @@ export default function CvPage() {
   function handleTailoredCvCreated(data) {
     listCvs()
       .then((list) => setCvs(list.cvs))
-      .catch(() => {});
+      .catch(() => { });
     let notice;
     if (data.changed_sections.length > 0) {
       notice = `Created "${data.name}" — tailored ${data.changed_sections.join(", ")}.`;
@@ -349,14 +374,18 @@ export default function CvPage() {
 
   if (cvsLoading) {
     return (
-      <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 2.5}px 0`, color: cream(0.4) }}>
-        <Loader2 size={20} className="animate-spin" />
+      <div style={{ marginTop: space[8] * 1.5 }}>
+        <CenteredLoader />
       </div>
     );
   }
 
   if (listError) {
-    return <p style={{ fontSize: 13, color: "rgba(224,140,140,0.9)" }}>{listError}</p>;
+    return (
+      <div style={{ marginTop: space[8] * 1.5 }}>
+        <ErrorPanel>{listError}</ErrorPanel>
+      </div>
+    );
   }
 
   const activeTabDef = TABS.find((t) => t.id === activeTab);
@@ -395,9 +424,9 @@ export default function CvPage() {
 
   if (!selectedCvId) {
     return (
-      <div>
-        <div style={{ marginBottom: space[6] }}>{versionTabs}</div>
-        <div style={{ marginTop: space[8], maxWidth: 640 }}>
+      <div style={{ marginTop: space[8] * 1.4 }}>
+        <div style={entrance(0.05)}>{versionTabs}</div>
+        <div style={{ ...entrance(0.12), marginTop: space[8], maxWidth: 640 }}>
           <CvUploadPrompt onUploaded={handleUploaded} />
         </div>
         {modals}
@@ -407,11 +436,9 @@ export default function CvPage() {
 
   if (loading) {
     return (
-      <div>
+      <div style={{ marginTop: space[8] * 1.4 }}>
         <div style={{ marginBottom: space[6] }}>{versionTabs}</div>
-        <div className="w-full flex items-center justify-center" style={{ padding: `${space[8] * 2.5}px 0`, color: cream(0.4) }}>
-          <Loader2 size={20} className="animate-spin" />
-        </div>
+        <CenteredLoader />
         {modals}
       </div>
     );
@@ -419,9 +446,9 @@ export default function CvPage() {
 
   if (loadError) {
     return (
-      <div>
+      <div style={{ marginTop: space[8] * 1.4 }}>
         <div style={{ marginBottom: space[6] }}>{versionTabs}</div>
-        <p style={{ fontSize: 13, color: "rgba(224,140,140,0.9)" }}>{loadError}</p>
+        <ErrorPanel>{loadError}</ErrorPanel>
         {modals}
       </div>
     );
@@ -429,9 +456,9 @@ export default function CvPage() {
 
   if (!hasContent(cv)) {
     return (
-      <div>
-        <div style={{ marginBottom: space[6] }}>{versionTabs}</div>
-        <div style={{ marginTop: space[8], maxWidth: 640 }}>
+      <div style={{ marginTop: space[8] * 1.4 }}>
+        <div style={entrance(0.05)}>{versionTabs}</div>
+        <div style={{ ...entrance(0.12), marginTop: space[8], maxWidth: 640 }}>
           <CvUploadPrompt cvId={selectedCvId} onUploaded={handleUploaded} />
         </div>
         {modals}
@@ -442,41 +469,65 @@ export default function CvPage() {
   const info = cv.sections.personal_info;
 
   return (
-    <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>
-      <div style={{ marginTop: space[8] * 1.5 }}>{versionTabs}</div>
+    <div style={{ paddingBottom: space[8] * 2 }}>
+      <div style={{ marginTop: space[8] * 1.4, ...entrance(0.02) }}>{versionTabs}</div>
 
-      <div
-        className="flex items-baseline justify-between flex-wrap"
-        style={{
-          gap: space[6],
-          marginTop: space[6],
-          paddingBottom: space[5] ?? 23,
-          borderBottom: `1px solid ${accent[400]}73`,
-        }}
-      >
-        <div>
-          <div style={labelStyle}>{info.title || "CV & Résumé"}</div>
+      {/* ---- hero: active CV name + primary actions ---- */}
+      <div style={{ marginTop: space[6], ...entrance(0.08) }}>
+        <GlassPanel elevated glow float={1} delay={0} style={{ padding: `${space[6]}px ${space[7]}px` }}>
+          <div className="flex items-start justify-between flex-wrap" style={{ gap: space[5] }}>
+            <div className="flex items-start min-w-0" style={{ gap: space[5] }}>
+              <span
+                className="inline-flex items-center justify-center shrink-0 rounded-full"
+                style={{
+                  width: 52,
+                  height: 52,
+                  border: `1px solid ${accent[400]}66`,
+                  background: "radial-gradient(circle at 35% 30%, rgba(255,151,131,0.22), rgba(255,151,131,0.02) 70%)",
+                  boxShadow: `0 0 34px -12px ${accent[400]}`,
+                  color: accent[300],
+                }}
+              >
+                <FileText size={22} strokeWidth={1.5} />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2" style={{ marginBottom: space[2] }}>
+                  <StatusDot />
+                  <span style={labelStyle}>{info.title || "CV & Résumé"}</span>
+                </div>
+                <div
+                  style={{
+                    fontFamily: fontHeading,
+                    fontSize: "clamp(28px,3.4vw,44px)",
+                    lineHeight: 1.1,
+                    color: "#fbf5ec",
+                  }}
+                >
+                  {info.name || "Untitled CV"}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center shrink-0" style={{ gap: space[5] ?? 23 }}>
+              <GhostLink onClick={handleReplaceClick} muted>
+                <RefreshCw size={13} strokeWidth={1.8} /> Replace PDF
+              </GhostLink>
+              <OutlineButton onClick={handleDownload}>Download PDF</OutlineButton>
+            </div>
+          </div>
           <div
             style={{
-              fontFamily: fontHeading,
-              fontSize: "clamp(28px,3.2vw,42px)",
-              color: text.bright,
-              marginTop: space[2],
+              marginTop: space[6],
+              height: 1,
+              background: `linear-gradient(90deg, ${accent[400]} 0%, transparent 75%)`,
+              transformOrigin: "left",
+              animation: "home-rule-in 1.2s cubic-bezier(.2,.7,.2,1) .35s both",
             }}
-          >
-            {info.name || "Untitled CV"}
-          </div>
-        </div>
-        <div className="flex items-center" style={{ gap: space[5] ?? 23 }}>
-          <GhostLink onClick={handleReplaceClick} muted>
-            Replace PDF
-          </GhostLink>
-          <OutlineButton onClick={handleDownload}>Download PDF</OutlineButton>
-        </div>
+          />
+        </GlassPanel>
       </div>
 
       {showReplace && (
-        <div style={{ marginTop: space[6], maxWidth: 560 }}>
+        <div style={{ marginTop: space[6], maxWidth: 560, ...entrance(0.05) }}>
           <CvUploadPrompt cvId={selectedCvId} onUploaded={handleUploaded} />
           <div style={{ marginTop: space[3] }}>
             <GhostLink onClick={() => setShowReplace(false)} muted>
@@ -487,57 +538,77 @@ export default function CvPage() {
       )}
 
       <div
-        className="grid items-start grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,.6fr)]"
+        className="grid items-start grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]"
         style={{ gap: space[8] * 1.1, marginTop: space[8] * 1.1 }}
       >
-        {stylePref?.template_choice === "minimal-single-column" ? (
-          <CvPreviewMinimal
-            sections={cv.sections}
-            fontFamily={stylePref.available.fonts[stylePref.font_choice]?.css}
-            accentColor={stylePref.available.themes[stylePref.theme_choice]?.accent}
-            sectionOrder={stylePref.section_order}
-          />
-        ) : (
-          <CvPreview
-            sections={cv.sections}
-            fontFamily={stylePref?.available.fonts[stylePref.font_choice]?.css}
-            sidebarBg={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_bg}
-            sidebarText={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_text}
-            accentColor={stylePref?.available.themes[stylePref.theme_choice]?.accent}
-            sectionOrder={stylePref?.section_order}
-          />
-        )}
-
-        <div>
-          <div className="flex items-center justify-between" style={{ paddingBottom: space[2], borderBottom: `1px solid ${cream(0.14)}` }}>
-            <div style={labelStyle}>Sections</div>
-            <SaveIndicator state={saveState} />
+        <div style={entrance(0.14)}>
+          <div style={{ marginBottom: space[4] }}>
+            <span style={labelStyle}>Live preview</span>
           </div>
-          <div className="flex flex-col" style={{ marginTop: space[2] }}>
-            {TABS.map(({ id, label }) => (
-              <SectionNavItem key={id} label={label} active={activeTab === id} onClick={() => setActiveTab(id)} />
-            ))}
-          </div>
-
-          {uploadNotice && (
-            <p style={{ fontSize: 12, marginTop: space[4], color: "rgba(224,168,120,0.9)" }}>{uploadNotice}</p>
-          )}
-
-          <div style={{ marginTop: space[6] }}>
-            <ActiveComponent
-              cvId={selectedCvId}
+          {stylePref?.template_choice === "minimal-single-column" ? (
+            <CvPreviewMinimal
               sections={cv.sections}
-              updateSections={updateSections}
-              stylePref={stylePref}
-              onSaveStylePref={saveStylePref}
-              onJumpToTab={setActiveTab}
-              onTailoredCvCreated={handleTailoredCvCreated}
+              fontFamily={stylePref.available.fonts[stylePref.font_choice]?.css}
+              accentColor={stylePref.available.themes[stylePref.theme_choice]?.accent}
+              sectionOrder={stylePref.section_order}
             />
-          </div>
+          ) : (
+            <CvPreview
+              sections={cv.sections}
+              fontFamily={stylePref?.available.fonts[stylePref.font_choice]?.css}
+              sidebarBg={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_bg}
+              sidebarText={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_text}
+              accentColor={stylePref?.available.themes[stylePref.theme_choice]?.accent}
+              sectionOrder={stylePref?.section_order}
+            />
+          )}
+        </div>
 
-          <p style={{ marginTop: space[6], fontSize: 13, lineHeight: 1.8, color: cream(0.45) }}>
-            Edits save as you type. AI suggestions appear beside each section.
-          </p>
+        <div style={entrance(0.2)}>
+          <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[5]}px` }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: space[3] }}>
+              <PanelEyebrow icon={Layers}>Sections</PanelEyebrow>
+              <SaveIndicator state={saveState} />
+            </div>
+            <div className="flex flex-col" style={{ gap: 2 }}>
+              {TABS.map(({ id, label }) => (
+                <SectionNavItem key={id} label={label} active={activeTab === id} onClick={() => setActiveTab(id)} />
+              ))}
+            </div>
+
+            {uploadNotice && (
+              <p
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                  marginTop: space[4],
+                  padding: `${space[3]}px ${space[3]}px`,
+                  borderRadius: 6,
+                  border: `1px solid ${warning[600]}55`,
+                  background: "rgba(201,154,63,0.08)",
+                  color: warning[300],
+                }}
+              >
+                {uploadNotice}
+              </p>
+            )}
+
+            <div style={{ marginTop: space[6], paddingTop: space[5], borderTop: `1px solid ${cream(0.09)}` }}>
+              <ActiveComponent
+                cvId={selectedCvId}
+                sections={cv.sections}
+                updateSections={updateSections}
+                stylePref={stylePref}
+                onSaveStylePref={saveStylePref}
+                onJumpToTab={setActiveTab}
+                onTailoredCvCreated={handleTailoredCvCreated}
+              />
+            </div>
+
+            <p style={{ marginTop: space[6], fontSize: 12, lineHeight: 1.8, color: cream(0.42) }}>
+              Edits save as you type. AI suggestions appear beside each section.
+            </p>
+          </GlassPanel>
         </div>
       </div>
 
