@@ -6,6 +6,7 @@ from typing import Any
 from core.models import ModelPreference
 from core.prompts.persona import ALLOWED_MOODS, MIRABEL_SYSTEM_PROMPT
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.telemetry import log_optimization_event
 from memory.services.gating import needs_memory
 from memory.services.retrieval import format_memories_for_prompt, retrieve_relevant_memories
@@ -37,7 +38,12 @@ def generate_reply(*, history: list[dict]) -> dict[str, Any]:
     try:
         provider = get_provider(pref.provider)
         raw = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) only when the user has opted into
+            # fast_conversation_mode (see ModelPreference) — unlike every
+            # other call site model_select.py covers, this is the user's
+            # actual conversation, so the reasoning-tier tradeoff is theirs
+            # to opt into, not a silent default.
+            model=fast_model_for(pref) if pref.fast_conversation_mode else pref.model,
             system=MIRABEL_SYSTEM_PROMPT,
             system_suffix=memory_block,
             history=history,

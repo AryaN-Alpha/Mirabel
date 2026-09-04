@@ -65,8 +65,9 @@ class SpotifyError(Exception):
     """Raised when Spotify OAuth/token handling or a Web API call can't
     complete. `reason` is a coarse machine-readable code (unconfigured,
     not_connected, token_expired, insufficient_scope, no_active_device,
-    premium_required, rate_limited, unknown) that views/tools map to a
-    user-facing message — same convention as classroom.services.oauth.ClassroomError.
+    premium_required, playback_restricted, rate_limited, unknown) that
+    views/tools map to a user-facing message — same convention as
+    classroom.services.oauth.ClassroomError.
     `retry_after` (seconds) is set from Spotify's Retry-After header on 429s.
     """
 
@@ -114,14 +115,24 @@ def reason_for_status(resp: requests.Response) -> str:
     if status_code == 401:
         return "token_expired"
     if status_code == 403:
-        # Spotify returns 403 for two very different causes: a missing OAuth
-        # scope, and a Free-tier account hitting a Premium-only playback
-        # endpoint ("Player command failed: Premium required"). Conflating
-        # them was a real bug — the UI's fix-it action for insufficient_scope
-        # is "Reconnect Spotify" (spec section 35), which does nothing for a
-        # Free account and would just confuse the user.
-        if "premium" in error_detail(resp).lower():
+        # Spotify returns 403 for three very different causes: a missing
+        # OAuth scope, a Free-tier account hitting a Premium-only playback
+        # endpoint ("Player command failed: Premium required"), and a
+        # transient player-state restriction — "Player command failed:
+        # Restriction violated", returned when e.g. Play is pressed with no
+        # track loaded/resumable. Conflating any of these was a real bug —
+        # the UI's fix-it action for insufficient_scope is "Reconnect
+        # Spotify" (spec section 35), which does nothing for a Free account
+        # or a stale player state and would just confuse the user.
+        # Only matching the exact documented message ("restriction
+        # violated") rather than guessing at other phrasings (e.g. a bare
+        # "disallow" substring) — an unverified guess here would risk
+        # reclassifying an actual scope error as a harmless restriction.
+        detail = error_detail(resp).lower()
+        if "premium" in detail:
             return "premium_required"
+        if "restriction violated" in detail:
+            return "playback_restricted"
         return "insufficient_scope"
     if status_code == 404:
         detail = error_detail(resp)

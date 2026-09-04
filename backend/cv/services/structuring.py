@@ -4,6 +4,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.text_utils import truncate_chars
 from cv.prompts import structure_system_prompt
 from cv.schema import empty_sections, normalize_sections
@@ -38,7 +39,13 @@ def structure_cv(raw_text: str, hyperlinks: list[dict] | None = None) -> dict[st
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref), not pref.model directly — this is a
+            # deterministic transcription-into-JSON task with no need for a
+            # reasoning-tier model's hidden chain-of-thought, which was
+            # eating into (and on tight budgets, exhausting) max_tokens
+            # before any visible JSON came out. See
+            # core/services/providers/model_select.py.
+            model=fast_model_for(pref),
             system=structure_system_prompt(),
             history=[{"role": "user", "content": user_content}],
             max_tokens=max(pref.max_tokens, 4000),

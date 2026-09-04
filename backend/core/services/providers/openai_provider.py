@@ -5,7 +5,7 @@ from typing import AsyncIterator
 import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from core.services.telemetry import log_llm_call
+from core.services.telemetry import log_llm_call, log_output_truncated
 
 from .base import Provider, ProviderError
 from .credentials import get_api_key
@@ -80,6 +80,9 @@ class OpenAIProvider(Provider):
             cache_read_tokens=getattr(cache_details, "cached_tokens", None),
             cache_write_tokens=getattr(cache_details, "cache_write_tokens", None),
         )
+        incomplete_details = getattr(response, "incomplete_details", None)
+        if getattr(incomplete_details, "reason", None) == "max_output_tokens":
+            log_output_truncated(provider="openai", model=model, call_site=call_site, max_tokens=max_tokens)
         return response.output_text
 
     @retry(
@@ -99,6 +102,7 @@ class OpenAIProvider(Provider):
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         api_key = await asyncio.to_thread(get_api_key, "openai")
@@ -116,6 +120,19 @@ class OpenAIProvider(Provider):
                 async for event in stream:
                     if event.type == "response.output_text.delta":
                         yield event.delta
+                # Best-effort only: this app's OpenAI streaming contract
+                # (event/attribute shape) hasn't been live-verified against
+                # a real API key (see CLAUDE.md's voice pipeline notes), so
+                # never let a wrong assumption about get_final_response's
+                # shape break an otherwise-working stream that already
+                # yielded its text.
+                try:
+                    final_response = await stream.get_final_response()
+                    incomplete_details = getattr(final_response, "incomplete_details", None)
+                    if getattr(incomplete_details, "reason", None) == "max_output_tokens":
+                        log_output_truncated(provider="openai", model=model, call_site=call_site, max_tokens=max_tokens)
+                except Exception:
+                    pass
         except openai.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

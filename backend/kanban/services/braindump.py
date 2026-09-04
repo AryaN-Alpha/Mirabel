@@ -5,6 +5,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from kanban.prompts import braindump_system_prompt
 
 logger = logging.getLogger("kanban.services.braindump")
@@ -70,11 +71,17 @@ def process_braindump(transcript: str) -> dict[str, Any]:
     try:
         provider = get_provider(pref.provider)
         raw = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # Parsing a transcript into a task list is a deterministic
+            # extraction task, not one that benefits from a reasoning-tier
+            # model's hidden chain-of-thought (which would also risk eating
+            # the whole budget before the required JSON ever comes out).
+            model=fast_model_for(pref),
             system=system,
             history=[{"role": "user", "content": transcript}],
             max_tokens=pref.max_tokens,
             temperature=pref.temperature,
+            call_site="kanban.braindump",
         )
     except ProviderError as exc:
         logger.error("%s provider call failed: %s", pref.provider, exc)

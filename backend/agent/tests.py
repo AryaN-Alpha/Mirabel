@@ -335,6 +335,54 @@ class RunGraphInterruptKindTests(APITestCase):
         self.assertEqual(task.status, AgentTask.Status.AWAITING_CONFIRMATION)
 
 
+class NotifyVoiceSessionTests(APITestCase):
+    """_run_graph calls _notify_voice_session on every interrupt so a voice/
+    chat session that started the task hears the clarifying question /
+    confirmation summary through Mirabel's real edge-tts voice instead of
+    the frontend's old window.speechSynthesis fallback — see
+    voice/consumers.py's agent_speak. Covers the group_send payload shape
+    directly rather than through a full _run_graph run (already covered
+    above) so a text-shaping regression here fails independently of the
+    graph-routing tests."""
+
+    def test_clarify_interrupt_sends_the_question(self):
+        from agent.tasks import _notify_voice_session
+
+        with patch("agent.tasks.get_channel_layer") as mock_get_layer:
+            mock_layer = MagicMock()
+            mock_get_layer.return_value = mock_layer
+            with patch("agent.tasks.async_to_sync") as mock_async_to_sync:
+                _notify_voice_session(42, {"kind": "clarify", "question": "Which professor?"})
+
+        mock_async_to_sync.assert_called_once_with(mock_layer.group_send)
+        mock_async_to_sync.return_value.assert_called_once_with(
+            AgentTask.voice_group_name(42),
+            {"type": "agent.speak", "task_id": 42, "text": "Which professor?"},
+        )
+
+    def test_confirm_interrupt_sends_summary_plus_prompt(self):
+        from agent.tasks import _notify_voice_session
+
+        with patch("agent.tasks.get_channel_layer") as mock_get_layer:
+            mock_layer = MagicMock()
+            mock_get_layer.return_value = mock_layer
+            with patch("agent.tasks.async_to_sync") as mock_async_to_sync:
+                _notify_voice_session(
+                    7, {"kind": "confirm", "tool": "publish_linkedin_draft", "summary": "publish it", "args": {}}
+                )
+
+        mock_async_to_sync.return_value.assert_called_once_with(
+            AgentTask.voice_group_name(7),
+            {"type": "agent.speak", "task_id": 7, "text": "publish it. Approve or reject?"},
+        )
+
+    def test_no_channel_layer_configured_is_a_silent_noop(self):
+        from agent.tasks import _notify_voice_session
+
+        with patch("agent.tasks.get_channel_layer", return_value=None):
+            _notify_voice_session(1, {"kind": "clarify", "question": "x?"})  # must not raise
+
+
 class ExtractStepsTests(APITestCase):
     def test_extract_steps_pulls_tool_name_and_result(self):
         from agent.tasks import _extract_steps

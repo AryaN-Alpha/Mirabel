@@ -53,6 +53,14 @@ class ModelPreference(models.Model):
     model = models.CharField(max_length=100, default=DEFAULT_MODEL)
     max_tokens = models.PositiveIntegerField(default=DEFAULT_MAX_TOKENS)
     temperature = models.FloatField(default=DEFAULT_TEMPERATURE)
+    # Opt-in: routes chat.rest and voice.turn through
+    # core.services.providers.model_select.fast_model_for the same way every
+    # other short/deterministic call site already does, instead of the raw
+    # `model` above. Off by default because, unlike those call sites, this
+    # one is the user's actual conversation with Mirabel — silently trading
+    # away a reasoning-tier model's depth there is a product decision the
+    # user should opt into, not one made for them.
+    fast_conversation_mode = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

@@ -5,7 +5,7 @@ from typing import AsyncIterator
 import anthropic
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from core.services.telemetry import log_llm_call
+from core.services.telemetry import log_llm_call, log_output_truncated
 
 from .base import Provider, ProviderError
 from .credentials import get_api_key
@@ -100,6 +100,8 @@ class AnthropicProvider(Provider):
             cache_read_tokens=response.usage.cache_read_input_tokens,
             cache_write_tokens=response.usage.cache_creation_input_tokens,
         )
+        if response.stop_reason == "max_tokens":
+            log_output_truncated(provider="anthropic", model=model, call_site=call_site, max_tokens=max_tokens)
         return response.content[0].text
 
     @retry(
@@ -119,6 +121,7 @@ class AnthropicProvider(Provider):
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         api_key = await asyncio.to_thread(get_api_key, "anthropic")
@@ -135,6 +138,9 @@ class AnthropicProvider(Provider):
             ) as stream:
                 async for delta in stream.text_stream:
                     yield delta
+                final_message = await stream.get_final_message()
+                if final_message.stop_reason == "max_tokens":
+                    log_output_truncated(provider="anthropic", model=model, call_site=call_site, max_tokens=max_tokens)
         except anthropic.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

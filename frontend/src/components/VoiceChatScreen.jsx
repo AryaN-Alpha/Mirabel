@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Mic, MicOff } from "lucide-react";
-import { useVoiceSession } from "../hooks/useVoiceSession";
+import { Bot, Keyboard, Mic, MicOff, SquarePen } from "lucide-react";
+import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
 import CozyWave from "./CozyWave";
 import { motion, AnimatePresence } from "framer-motion";
 import { getGreeting } from "../utils/greeting";
-import { micErrorMessage, getErrorMessage } from "../utils/errors";
+import { getErrorMessage } from "../utils/errors";
 import AgentTaskPanel from "./agent/AgentTaskPanel";
 
 const AGENT_PALETTE = {
@@ -23,19 +23,24 @@ export default function VoiceChatScreen() {
     thinking,
     wsError,
     agentTaskNudge,
-    startMic,
+    micOn,
+    micError,
+    agentModeOn,
     stopMic,
+    toggleMic,
+    pushToTalkKeyLabel,
+    recordingHotkey,
+    beginRecordingHotkey,
+    cancelRecordingHotkey,
     setAgentMode,
+    startNewChat,
     micAnalyserRef,
     playbackAnalyserRef,
     agentTask,
     approveCurrentAgentTask,
     rejectCurrentAgentTask,
     answerCurrentAgentTask,
-  } = useVoiceSession();
-  const [micOn, setMicOn] = useState(false);
-  const [micError, setMicError] = useState("");
-  const [agentModeOn, setAgentModeOn] = useState(false);
+  } = useVoiceSessionContext();
   const [agentTaskBusy, setAgentTaskBusy] = useState(false);
   const [agentTaskError, setAgentTaskError] = useState("");
   const scrollRef = useRef(null);
@@ -65,9 +70,7 @@ export default function VoiceChatScreen() {
   }
 
   const toggleAgentMode = () => {
-    const next = !agentModeOn;
-    setAgentModeOn(next);
-    setAgentMode(next);
+    setAgentMode(!agentModeOn);
   };
 
   useEffect(() => {
@@ -76,21 +79,15 @@ export default function VoiceChatScreen() {
     }
   }, [transcript, streamingText, agentTask]);
 
-  const toggleMic = async () => {
-    if (micOn) {
+  // The mic/VAD instance lives in the shared session (VoiceSessionProvider),
+  // not this screen, so it would otherwise keep recording after navigating
+  // away or switching back to text mode. Stop it on unmount so the mic only
+  // ever listens while this screen is actually on screen.
+  useEffect(() => {
+    return () => {
       stopMic();
-      setMicOn(false);
-    } else {
-      try {
-        setMicError("");
-        await startMic();
-        setMicOn(true);
-      } catch (err) {
-        console.error(err);
-        setMicError(micErrorMessage(err));
-      }
-    }
-  };
+    };
+  }, [stopMic]);
 
   const subline = micError
     ? micError
@@ -105,7 +102,22 @@ export default function VoiceChatScreen() {
     : "Resting quietly. Tap the circle whenever you want me back.";
 
   return (
-    <div className="w-full max-w-[880px] flex-1 min-h-0 flex flex-col items-center px-6 pt-8">
+    <div className="relative w-full max-w-[880px] flex-1 min-h-0 flex flex-col items-center px-6 pt-8">
+      {(transcript || streamingText || agentTask) && (
+        <button
+          onClick={startNewChat}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-1.5 px-3 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none z-10"
+          style={{
+            background: "rgba(243,233,226,0.06)",
+            border: "1px solid rgba(243,233,226,0.11)",
+            color: "rgba(243,233,226,0.58)",
+          }}
+          title="Start a new chat"
+        >
+          <SquarePen size={13} strokeWidth={1.8} />
+          <span className="hidden sm:inline">New chat</span>
+        </button>
+      )}
       <div className="text-center max-w-[600px]" style={{ animation: "cz-rise 700ms ease-out" }}>
         <div className="font-serif text-[34px] leading-[1.25] tracking-[0.005em]" style={{ color: "#fbf1ea" }}>
           {getGreeting()}
@@ -231,27 +243,54 @@ export default function VoiceChatScreen() {
         </div>
 
         <div className="flex flex-col items-center gap-4 pb-8 flex-shrink-0">
-          <button
-            onClick={toggleAgentMode}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
-            style={
-              agentModeOn
-                ? {
-                    background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                    color: "#2c1c16",
-                    boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
-                  }
-                : {
-                    background: "rgba(243,233,226,0.06)",
-                    border: "1px solid rgba(243,233,226,0.11)",
-                    color: "rgba(243,233,226,0.58)",
-                  }
-            }
-            title="When on, what you say becomes a task Mirabel actually goes and does, instead of a reply."
-          >
-            <Bot size={13} strokeWidth={1.8} />
-            {agentModeOn ? "Agent Mode: on" : "Agent Mode"}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={toggleAgentMode}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
+              style={
+                agentModeOn
+                  ? {
+                      background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
+                      color: "#2c1c16",
+                      boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+                    }
+                  : {
+                      background: "rgba(243,233,226,0.06)",
+                      border: "1px solid rgba(243,233,226,0.11)",
+                      color: "rgba(243,233,226,0.58)",
+                    }
+              }
+              title="When on, what you say becomes a task Mirabel actually goes and does, instead of a reply."
+            >
+              <Bot size={13} strokeWidth={1.8} />
+              {agentModeOn ? "Agent Mode: on" : "Agent Mode"}
+            </button>
+            <button
+              onClick={recordingHotkey ? cancelRecordingHotkey : beginRecordingHotkey}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none"
+              style={
+                recordingHotkey
+                  ? {
+                      background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
+                      color: "#2c1c16",
+                      boxShadow: "0 6px 22px rgba(240,168,120,0.28)",
+                    }
+                  : {
+                      background: "rgba(243,233,226,0.06)",
+                      border: "1px solid rgba(243,233,226,0.11)",
+                      color: "rgba(243,233,226,0.58)",
+                    }
+              }
+              title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
+            >
+              <Keyboard size={13} strokeWidth={1.8} />
+              {recordingHotkey
+                ? "Press any key… (Esc to cancel)"
+                : pushToTalkKeyLabel
+                ? `Push-to-talk: ${pushToTalkKeyLabel}`
+                : "Set push-to-talk key"}
+            </button>
+          </div>
           <button
             onClick={toggleMic}
             disabled={!connected}

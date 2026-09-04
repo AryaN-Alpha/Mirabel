@@ -8,13 +8,15 @@ from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone as dj_timezone
 
-from core.models import BudgetSettings, LLMCallLog, OptimizationEvent, PricingConfig
+from core.models import BudgetSettings, LLMCallLog, ModelPreference, OptimizationEvent, PricingConfig
 from core.services import analytics
+from core.services.llm import generate_reply
 from core.services.period import InvalidPeriod, iter_buckets, resolve_period
 from core.services.pricing import compute_cost, uncached_input_tokens
 from core.services.providers.anthropic_provider import _cacheable_system, _with_cache_breakpoint
 from core.services.providers.deepseek_provider import _build_messages as _deepseek_build_messages
 from core.services.providers.gemini_provider import _to_contents as _gemini_to_contents
+from core.services.providers.model_select import fast_model_for
 from core.services.providers.openai_provider import _with_system_suffix as _openai_with_system_suffix
 from core.services.telemetry import log_llm_call, log_optimization_event
 from core.services.text_utils import encode_compact_list, select_relevant_sentences, truncate_chars
@@ -123,6 +125,103 @@ class DeepSeekBuildMessagesTests(TestCase):
                 {"role": "user", "content": "hi"},
             ],
         )
+
+
+class FastModelSelectionTests(TestCase):
+    """Shared helper (see cv/services/tailoring.py, agent/graph.py, and the
+    other cv/linkedin/outlook/kanban call sites that use it): every
+    short/deterministic LLM call site should redirect DeepSeek to its real
+    non-reasoning chat model, and leave every other provider's chosen model
+    untouched."""
+
+    def test_deepseek_is_redirected_to_the_fast_chat_model(self):
+        pref = ModelPreference(provider="deepseek", model="deepseek-v4-pro")
+        self.assertEqual(fast_model_for(pref), "deepseek-chat")
+
+    def test_other_providers_pass_through_unchanged(self):
+        for provider, model in [("anthropic", "claude-opus-5"), ("openai", "gpt-5.6-sol"), ("gemini", "gemini-3.1-pro-preview")]:
+            pref = ModelPreference(provider=provider, model=model)
+            self.assertEqual(fast_model_for(pref), model)
+
+
+class GenerateReplyFastConversationModeTests(TestCase):
+    """chat.rest is deliberately excluded from every other fast_model_for
+    call site (see model_select.py's docstring) because it's the user's
+    actual conversation with Mirabel, not a short deterministic utility
+    call — so unlike memory/facts.py, memory/supersession.py, and
+    memory/summary.py, it only redirects to the fast model when the user
+    has explicitly opted in via ModelPreference.fast_conversation_mode."""
+
+    def setUp(self):
+        cache.clear()
+
+    @patch("core.services.llm.get_provider")
+    def test_default_off_uses_the_configured_model_unchanged(self, mock_get_provider):
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "deepseek", "model": "deepseek-v4-flash", "fast_conversation_mode": False}
+        )
+        mock_get_provider.return_value.generate_text.return_value = '{"text": "hi", "mood": "neutral"}'
+
+        generate_reply(history=[{"role": "user", "content": "hey"}])
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "deepseek-v4-flash")
+
+    @patch("core.services.llm.get_provider")
+    def test_opted_in_redirects_deepseek_to_the_fast_model(self, mock_get_provider):
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "deepseek", "model": "deepseek-v4-flash", "fast_conversation_mode": True}
+        )
+        mock_get_provider.return_value.generate_text.return_value = '{"text": "hi", "mood": "neutral"}'
+
+        generate_reply(history=[{"role": "user", "content": "hey"}])
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "deepseek-chat")
+
+    @patch("core.services.llm.get_provider")
+    def test_opted_in_does_not_affect_non_deepseek_providers(self, mock_get_provider):
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "anthropic", "model": "claude-sonnet-5", "fast_conversation_mode": True}
+        )
+        mock_get_provider.return_value.generate_text.return_value = '{"text": "hi", "mood": "neutral"}'
+
+        generate_reply(history=[{"role": "user", "content": "hey"}])
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "claude-sonnet-5")
+
+
+class ModelPreferenceViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def test_get_includes_fast_conversation_mode_default_off(self):
+        response = self.client.get("/api/settings/model/")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["fast_conversation_mode"])
+
+    def test_put_persists_fast_conversation_mode(self):
+        response = self.client.put(
+            "/api/settings/model/",
+            {"provider": "anthropic", "model": "claude-sonnet-5", "fast_conversation_mode": True},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["fast_conversation_mode"])
+        self.assertTrue(ModelPreference.current().fast_conversation_mode)
+
+    def test_put_without_the_field_leaves_it_unchanged(self):
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "anthropic", "model": "claude-sonnet-5", "fast_conversation_mode": True}
+        )
+        response = self.client.put(
+            "/api/settings/model/",
+            {"provider": "anthropic", "model": "claude-opus-5"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["fast_conversation_mode"])
 
 
 class TruncateCharsTelemetryTests(TestCase):

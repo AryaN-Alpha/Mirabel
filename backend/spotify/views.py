@@ -20,7 +20,12 @@ MAX_IDS_PER_REQUEST = 50
 MAX_PLAYLIST_TRACK_URIS_PER_REQUEST = 100
 
 # Coarse SpotifyError.reason -> HTTP status, so every endpoint maps errors the
-# same way instead of each view guessing (spec section 35).
+# same way instead of each view guessing (spec section 35). Several distinct
+# reasons collapse to the same status (unconfigured/not_connected/
+# playback_restricted/invalid_image are all 400) — the status code alone
+# does not disambiguate them, `reason` in the response body does, so any
+# frontend/agent branching on the specific failure must key off `reason`,
+# not `status`.
 _REASON_STATUS = {
     "unconfigured": 400,
     "not_connected": 400,
@@ -29,6 +34,7 @@ _REASON_STATUS = {
     "no_active_device": 404,
     "not_found": 404,
     "premium_required": 403,
+    "playback_restricted": 400,
     "rate_limited": 429,
     "unavailable": 502,
     "invalid_image": 400,
@@ -41,6 +47,12 @@ def _error_response(exc: SpotifyError) -> Response:
     body = {"error": str(exc), "reason": exc.reason}
     resp = Response(body, status=status)
     if exc.retry_after is not None:
+        # Also in the body, not just the header: CORS doesn't expose
+        # non-safelisted response headers (Retry-After isn't on the
+        # safelist) to frontend JS unless CORS_EXPOSE_HEADERS is set, which
+        # this app doesn't do — the header stays for any direct/HTTP-level
+        # caller, but the frontend must read this from the JSON body.
+        body["retry_after"] = exc.retry_after
         resp["Retry-After"] = str(exc.retry_after)
     return resp
 
@@ -433,6 +445,7 @@ def player_play(request: Request) -> Response:
             context_uri=request.data.get("context_uri"),
             uris=request.data.get("uris"),
             offset=request.data.get("offset"),
+            preserve_queue=bool(request.data.get("preserve_queue", True)),
         )
     except SpotifyError as exc:
         return _error_response(exc)

@@ -262,6 +262,24 @@ class CvUploadEndpointTests(CvAPITestCase):
         self.assertEqual(response.data["sections"]["personal_info"]["name"], "Jane Doe")
         self.assertTrue(response.data["has_file"])
 
+    @patch("cv.services.structuring.ModelPreference")
+    @patch("cv.services.structuring.get_provider")
+    def test_upload_uses_deepseeks_fast_non_reasoning_model(self, mock_get_provider, mock_pref):
+        """structure_cv must route through fast_model_for (see
+        core/services/providers/model_select.py), not pref.model directly —
+        DeepSeek's reasoning-tier default can burn the whole max_tokens
+        budget on hidden chain-of-thought before any visible JSON comes out."""
+        from core.models import ModelPreference
+
+        mock_pref.current.return_value = ModelPreference(provider="deepseek", model="deepseek-v4-pro")
+        mock_get_provider.return_value.generate_text.return_value = '{"summary": "A summary."}'
+        cv = _create_cv()
+        file = SimpleUploadedFile(
+            "resume.pdf", _make_pdf_bytes(["Jane Doe", "Backend Engineer"]), content_type="application/pdf"
+        )
+        self.client.post(reverse("cv-upload", args=[cv.id]), {"file": file}, format="multipart")
+        self.assertEqual(mock_get_provider.return_value.generate_text.call_args.kwargs["model"], "deepseek-chat")
+
     @patch("cv.services.structuring.get_provider")
     def test_upload_falls_back_on_provider_error(self, mock_get_provider):
         from core.services.providers import ProviderError
@@ -314,6 +332,24 @@ class CvGenerateSectionEndpointTests(CvAPITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.data["error"])
         self.assertEqual(response.data["text"], "Built a thing with tech.")
+
+    @patch("cv.services.generation.ModelPreference")
+    @patch("cv.services.generation.get_provider")
+    def test_uses_deepseeks_fast_non_reasoning_model(self, mock_get_provider, mock_pref):
+        """generation.py's shared _generate (project description, section
+        rewrite, cover letter) must route through fast_model_for, same
+        reasoning-tax rationale as structure_cv/check_cv_consistency."""
+        from core.models import ModelPreference
+
+        mock_pref.current.return_value = ModelPreference(provider="deepseek", model="deepseek-v4-pro")
+        mock_get_provider.return_value.generate_text.return_value = "Built a thing with tech."
+        cv = _create_cv()
+        self.client.post(
+            reverse("cv-generate-section", args=[cv.id, "projects"]),
+            {"title": "iTags", "tech": "Django", "one_liner": "Asset manager"},
+            format="json",
+        )
+        self.assertEqual(mock_get_provider.return_value.generate_text.call_args.kwargs["model"], "deepseek-chat")
 
 
 class CvRegenerateSectionEndpointTests(CvAPITestCase):
@@ -902,6 +938,17 @@ class CvConsistencyCheckEndpointTests(CvAPITestCase):
         self.assertFalse(response.data["error"])
         self.assertEqual(len(response.data["issues"]), 1)
         self.assertEqual(response.data["issues"][0]["severity"], "high")
+
+    @patch("cv.services.consistency.ModelPreference")
+    @patch("cv.services.consistency.get_provider")
+    def test_uses_deepseeks_fast_non_reasoning_model(self, mock_get_provider, mock_pref):
+        from core.models import ModelPreference
+
+        mock_pref.current.return_value = ModelPreference(provider="deepseek", model="deepseek-v4-pro")
+        mock_get_provider.return_value.generate_text.return_value = '{"issues": []}'
+        cv = _create_cv()
+        self.client.post(reverse("cv-consistency-check", args=[cv.id]), {}, format="json")
+        self.assertEqual(mock_get_provider.return_value.generate_text.call_args.kwargs["model"], "deepseek-chat")
 
     @patch("cv.services.consistency.get_provider")
     def test_defaults_severity_when_invalid(self, mock_get_provider):

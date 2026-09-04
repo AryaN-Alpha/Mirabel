@@ -7,7 +7,7 @@ from google.genai import errors as genai_errors
 from google.genai import types
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from core.services.telemetry import log_llm_call
+from core.services.telemetry import log_llm_call, log_output_truncated
 
 from .base import Provider, ProviderError
 from .credentials import get_api_key
@@ -89,6 +89,10 @@ class GeminiProvider(Provider):
             # on older models/short prompts simply means it didn't qualify.
             cache_read_tokens=getattr(usage, "cached_content_token_count", None),
         )
+        candidates = getattr(response, "candidates", None) or []
+        finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+        if getattr(finish_reason, "name", finish_reason) == "MAX_TOKENS":
+            log_output_truncated(provider="gemini", model=model, call_site=call_site, max_tokens=max_tokens)
         return response.text
 
     @retry(
@@ -108,6 +112,7 @@ class GeminiProvider(Provider):
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         api_key = await asyncio.to_thread(get_api_key, "gemini")
@@ -125,9 +130,15 @@ class GeminiProvider(Provider):
                     thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
                 ),
             )
+            finish_reason = None
             async for chunk in stream:
                 if chunk.text:
                     yield chunk.text
+                candidates = getattr(chunk, "candidates", None) or []
+                if candidates:
+                    finish_reason = getattr(candidates[0], "finish_reason", None) or finish_reason
+            if getattr(finish_reason, "name", finish_reason) == "MAX_TOKENS":
+                log_output_truncated(provider="gemini", model=model, call_site=call_site, max_tokens=max_tokens)
         except genai_errors.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

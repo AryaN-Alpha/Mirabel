@@ -27,6 +27,7 @@ from django.conf import settings
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from memory.services.chroma_client import query_memories
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,14 @@ def find_superseded_fact(new_text: str, fact_type: str) -> dict[str, Any] | None
     try:
         provider = get_provider(pref.provider)
         raw = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # This is a single-boolean JSON judgment on a 50-token budget, the
+            # tightest in the app — on a reasoning-tier model, hidden
+            # chain-of-thought alone can exceed the budget, truncating raw
+            # before it ever parses. That failure is invisible: the broad
+            # except Exception below (added for a prior, unrelated bug) just
+            # returns None, "assuming no supersession."
+            model=fast_model_for(pref),
             system=SUPERSESSION_SYSTEM_PROMPT,
             history=[
                 {

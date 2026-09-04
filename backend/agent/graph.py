@@ -21,6 +21,7 @@ from agent.prompts import AGENT_SYSTEM_PROMPT
 from agent.tools.registry import ALL_TOOLS
 from core.models import ModelPreference
 from core.services.providers.credentials import get_api_key
+from core.services.providers.model_select import fast_model_for
 from core.services.telemetry import log_optimization_event
 
 # Caps how many of the run's accumulated messages are sent to the LLM on
@@ -29,6 +30,16 @@ from core.services.telemetry import log_optimization_event
 # keeps most tasks focused. AGENT_MAX_STEPS bounds the *number* of tool-call
 # round trips; this bounds how much of that history gets resent each time.
 _MAX_AGENT_MESSAGES = 20
+
+# See core/services/providers/model_select.py for why: in the agent loop the
+# DeepSeek reasoning-tax problem is worse than a malformed-JSON failure — a
+# mid-tool-call-chain turn can get truncated into a plain AIMessage with no
+# tool_calls, which create_react_agent then treats as a legitimate final
+# answer: the run stops and reports success (or invents a plausible-sounding
+# one) without ever having called the tool that would've actually done the
+# thing. Live-observed with "play me a song from the library": the model
+# called get_spotify_saved_tracks, then stopped and claimed a track was
+# playing without ever calling play_spotify_item.
 
 
 def _group_messages(messages: list) -> list[list]:
@@ -161,8 +172,10 @@ def _build_model():
 
         # DeepSeek exposes an OpenAI-compatible API — point ChatOpenAI at their
         # base URL. langchain-openai supports this via openai_api_base / base_url.
+        # model=fast_model_for(pref), not pref.model directly — see
+        # core/services/providers/model_select.py.
         return ChatOpenAI(
-            model=pref.model,
+            model=fast_model_for(pref),
             api_key=api_key,
             base_url=DEEPSEEK_BASE_URL,
             max_tokens=pref.max_tokens,

@@ -64,3 +64,14 @@ class AgentTask(models.Model):
         """LangGraph checkpointer thread id — derived from the pk rather than
         stored, so there's no create-then-backfill race to worry about."""
         return f"agent-task-{self.pk}"
+
+    @staticmethod
+    def voice_group_name(task_id: int) -> str:
+        """Channels group name a voice/chat WS connection joins when it
+        starts this task (voice/consumers.py's _handle_agent_task) and that
+        agent/tasks.py's _run_graph (a different, Celery-worker process)
+        group_sends to when the task pauses for clarification/confirmation
+        — see _notify_voice_session there and agent_speak in the consumer.
+        A shared staticmethod rather than a literal in both files so the
+        naming convention can't drift out of sync between them."""
+        return f"agent_task_{task_id}"

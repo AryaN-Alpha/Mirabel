@@ -5,7 +5,7 @@ from typing import AsyncIterator
 import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from core.services.telemetry import log_llm_call
+from core.services.telemetry import log_llm_call, log_output_truncated
 
 from .base import Provider, ProviderError
 from .credentials import get_api_key
@@ -94,6 +94,8 @@ class DeepSeekProvider(Provider):
             cache_read_tokens=getattr(usage, "prompt_cache_hit_tokens", None),
             cache_write_tokens=getattr(usage, "prompt_cache_miss_tokens", None),
         )
+        if response.choices[0].finish_reason == "length":
+            log_output_truncated(provider="deepseek", model=model, call_site=call_site, max_tokens=max_tokens)
         return response.choices[0].message.content
 
     @retry(
@@ -113,6 +115,7 @@ class DeepSeekProvider(Provider):
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         api_key = await asyncio.to_thread(get_api_key, "deepseek")
@@ -128,10 +131,18 @@ class DeepSeekProvider(Provider):
                 temperature=temperature,
                 stream=True,
             )
+            finish_reason = None
             async for chunk in stream:
-                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content
                 if delta:
                     yield delta
+                # Only the final chunk for a choice carries a non-None
+                # finish_reason — every delta chunk before it has None here.
+                finish_reason = chunk.choices[0].finish_reason or finish_reason
+            if finish_reason == "length":
+                log_output_truncated(provider="deepseek", model=model, call_site=call_site, max_tokens=max_tokens)
         except openai.APIError as exc:
             raise ProviderError(str(exc)) from exc
 

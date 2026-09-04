@@ -4,6 +4,7 @@ import HomeNavbar from "./HomeNavbar";
 import { bg, accent, accent2700, fontHeading, text } from "./homeTheme";
 import { ScrollContainerProvider, useScrollContainer } from "./ScrollContainerContext";
 import SpotifyNowPlayingBar from "./spotify/SpotifyNowPlayingBar";
+import GlobalChatWidget from "./GlobalChatWidget";
 
 const PAGE_TITLES = {
   "/home/ai-model": "AI Model",
@@ -109,6 +110,7 @@ function HomeLayoutInner({ title }) {
       </div>
 
       <SpotifyNowPlayingBar />
+      <GlobalChatWidget />
     </div>
   );
 }

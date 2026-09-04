@@ -119,3 +119,34 @@ def log_truncation(
         logger.debug("telemetry logging failed", exc_info=True)
 
     log_optimization_event(category="truncation", outcome=label, count=original_chars, extra=kept_chars)
+
+
+def log_output_truncated(
+    *,
+    provider: str,
+    model: str,
+    call_site: str,
+    max_tokens: int,
+) -> None:
+    """Fired when a provider's own response metadata says generation
+    stopped because it hit `max_tokens` (Anthropic stop_reason="max_tokens",
+    OpenAI/DeepSeek finish_reason="length"/"max_output_tokens", Gemini
+    finish_reason=MAX_TOKENS) rather than finishing the reply naturally —
+    i.e. the visible text is genuinely incomplete, not just short. Distinct
+    from log_truncation above (which tracks INPUT text pre-emptively cut
+    before ever reaching the LLM); deliberately not wired into the
+    OptimizationEvent "truncation" category since that dashboard section
+    sums char counts, not this. WARNING (not INFO) since this is a
+    user-visible defect the moment it fires. Greppable: `grep
+    output_truncated backend/logs/mirabel.log`."""
+    try:
+        logger.warning(
+            "output_truncated provider=%s model=%s call_site=%s max_tokens=%s — "
+            "response was cut off; raise max_tokens in Settings if this recurs",
+            provider,
+            model,
+            call_site,
+            max_tokens,
+        )
+    except Exception:
+        logger.debug("telemetry logging failed", exc_info=True)

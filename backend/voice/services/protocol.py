@@ -55,6 +55,27 @@ class ProtocolParser:
         self._spoken_so_far += speakable
         return speakable
 
+    def flush_pre_sentinel(self) -> str:
+        """Call after the streaming loop ends, before finalize().
+
+        Returns any text still held back by the sentinel-boundary guard.
+        If the sentinel was already seen (normal case), returns "".
+
+        Without this call, the last len(SENTINEL)-1 characters of a response
+        that never emits the sentinel (e.g. the model hit max_tokens, or a
+        provider doesn't follow the sentinel protocol) are silently lost from
+        TTS and text_delta — they stay in _buffer and only surface in
+        finalize()'s full_text, which by then is too late for audio.
+        """
+        if self._sentinel_seen:
+            return ""
+        # Everything remaining in the buffer is speakable — no sentinel
+        # appeared, so these chars were only held back as a precaution.
+        speakable = self._buffer
+        self._spoken_so_far += speakable
+        self._buffer = ""
+        return speakable
+
     def finalize(self) -> tuple[str, str]:
         """Returns (full_spoken_text, mood). Tolerates malformed JSON."""
         if not self._sentinel_seen:

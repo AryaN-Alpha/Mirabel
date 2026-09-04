@@ -28,6 +28,7 @@ class OpenCodeProvider(Provider):
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         raise ProviderError("OpenCode support isn't wired up yet — pick another provider for now.")

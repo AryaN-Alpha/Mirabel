@@ -1,27 +1,69 @@
 // Feature: Queue management (spec section 14/23).
 import { useEffect, useState } from "react";
 import { Loader2, Plus, Search } from "lucide-react";
-import { addSpotifyQueue, getSpotifyQueue, searchSpotify } from "../../services/api";
+import { addSpotifyQueue, getSpotifyQueue, searchSpotify, spotifyPlay } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream } from "../homeTheme";
 import { underlineInputStyle, GhostLink, EmptyState, ErrorNote } from "../homeWidgets";
-import { TrackRow, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
+import { TrackRow, artistNames, imageUrl, playbackErrorMessage, withPlaybackError } from "./spotifyShared";
+
+// Matches the render list below (queue.queue.slice(0, 20)) — kept as one
+// constant so playFromQueue's index always lines up with what's on screen
+// instead of two independently-maintained slices drifting apart.
+const VISIBLE_QUEUE_LIMIT = 20;
 
 export default function SpotifyQueueTab() {
   const [queue, setQueue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState(null);
 
-  function load() {
-    setLoading(true);
+  function load({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     getSpotifyQueue()
       .then(setQueue)
       .catch((err) => setError(getErrorMessage(err, "Couldn't load the queue.")))
-      .finally(() => setLoading(false));
+      .finally(() => !silent && setLoading(false));
   }
 
   useEffect(load, []);
+
+  const visibleQueue = queue?.queue?.slice(0, VISIBLE_QUEUE_LIMIT) || [];
+
+  // Playing a specific "Up Next" row should skip to that track and keep
+  // whatever was still queued after it — not the generic preserve_queue
+  // behavior (spotify/services/client.py::play), which would snapshot and
+  // restore the WHOLE pre-play queue, resurrecting the tracks being skipped
+  // past (and re-adding the clicked track's own uri redundantly). So this
+  // opts out of preserve_queue and re-queues only the remainder itself.
+  async function playFromQueue(index) {
+    if (playingIndex !== null) return; // one play-then-requeue flow at a time
+    const upcoming = visibleQueue.slice(index + 1);
+    const target = visibleQueue[index];
+    if (!target?.uri) return;
+    setError("");
+    setPlayingIndex(index);
+    try {
+      await spotifyPlay({ uris: [target.uri], preserveQueue: false });
+      // Best-effort per track — one failed re-add (e.g. a transient error)
+      // shouldn't abandon the rest of the restore or skip the final reload,
+      // which would otherwise leave the UI showing the stale pre-play queue.
+      for (const t of upcoming) {
+        if (!t.uri) continue;
+        try {
+          await addSpotifyQueue(t.uri);
+        } catch (err) {
+          setError(playbackErrorMessage(err, "Couldn't restore the rest of the queue."));
+        }
+      }
+    } catch (err) {
+      setError(playbackErrorMessage(err, "Couldn't play that track."));
+    } finally {
+      setPlayingIndex(null);
+      load({ silent: true }); // playingIndex already covered the busy state; no need to flash the whole list
+    }
+  }
 
   return (
     <div>
@@ -59,9 +101,9 @@ export default function SpotifyQueueTab() {
       <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: cream(0.42), marginTop: space[6] }}>
         Up Next
       </div>
-      {!loading && (queue?.queue?.length ? (
+      {!loading && (visibleQueue.length ? (
         <div className="flex flex-col">
-          {queue.queue.slice(0, 20).map((t, i) => (
+          {visibleQueue.map((t, i) => (
             <TrackRow
               key={`${t.id}-${i}`}
               index={i}
@@ -69,6 +111,7 @@ export default function SpotifyQueueTab() {
               title={t.name}
               subtitle={artistNames(t.artists)}
               durationMs={t.duration_ms}
+              onPlay={() => playFromQueue(i)}
             />
           ))}
         </div>

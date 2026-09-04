@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from linkedin.models import LinkedInAutomation, LinkedInAutomationRun, LinkedInCredential, LinkedInProfileChange
 from linkedin.services.activity import activity_since
 from linkedin.services.oauth import LinkedInError
@@ -172,7 +173,10 @@ def _generate_briefing(facts: str, *, call_site: str) -> str:
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # A grounded, fact-restating briefing needs no reasoning-tier
+            # hidden chain-of-thought.
+            model=fast_model_for(pref),
             system=system,
             system_suffix="",
             history=[{"role": "user", "content": facts}],

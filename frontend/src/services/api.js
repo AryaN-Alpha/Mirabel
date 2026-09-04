@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getActiveSpotifyDeviceId } from "./spotifyDeviceStore";
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
@@ -19,12 +20,13 @@ export async function getModelPreference() {
   return data;
 }
 
-export async function setModelPreference(provider, model, maxTokens, temperature) {
+export async function setModelPreference(provider, model, maxTokens, temperature, fastConversationMode) {
   const { data } = await client.put("/api/settings/model/", {
     provider,
     model,
     max_tokens: maxTokens,
     temperature,
+    fast_conversation_mode: fastConversationMode,
   });
   return data;
 }
@@ -461,12 +463,22 @@ export async function getSpotifyCurrentlyPlaying() {
   return data;
 }
 
-export async function spotifyPlay({ deviceId, contextUri, uris, offset } = {}) {
+export async function spotifyPlay({ deviceId, contextUri, uris, offset, preserveQueue } = {}) {
+  // Explicitly target the last-known active device instead of omitting
+  // device_id and leaving it to Spotify's own "current active device"
+  // resolution, which is unreliable once more than one device has been
+  // used in a session (see spotifyDeviceStore.js).
+  // preserveQueue defaults on: starting a track/context normally wipes
+  // Spotify's manually-queued "Up Next" list (see spotify/services/client.py
+  // play()'s docstring), which is never what a click on a search/library
+  // result intends. Pass preserveQueue: false only when the caller is
+  // already managing the queue itself (see SpotifyQueueTab's onPlay).
   const { data } = await client.put("/api/spotify/me/player/play/", {
-    device_id: deviceId,
+    device_id: deviceId ?? getActiveSpotifyDeviceId(),
     context_uri: contextUri,
     uris,
     offset,
+    preserve_queue: preserveQueue ?? true,
   });
   return data;
 }
@@ -525,7 +537,10 @@ export async function getSpotifyQueue() {
 }
 
 export async function addSpotifyQueue(uri, deviceId) {
-  const { data } = await client.post("/api/spotify/me/player/queue/", { uri, device_id: deviceId });
+  const { data } = await client.post("/api/spotify/me/player/queue/", {
+    uri,
+    device_id: deviceId ?? getActiveSpotifyDeviceId(),
+  });
   return data;
 }
 

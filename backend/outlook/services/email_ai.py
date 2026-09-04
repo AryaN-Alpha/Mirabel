@@ -3,6 +3,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.text_utils import truncate_chars
 from outlook.models import OutlookCredential
 from outlook.prompts import compose_system_prompt, reply_system_prompt
@@ -25,7 +26,10 @@ def _generate(*, system: str, user_content: str, call_site: str) -> dict[str, An
     try:
         provider = get_provider(pref.provider)
         draft = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # Drafting an email reply/compose is short-form and deterministic;
+            # no need for a reasoning-tier model's hidden chain-of-thought.
+            model=fast_model_for(pref),
             system=system,
             history=[{"role": "user", "content": user_content}],
             max_tokens=pref.max_tokens,

@@ -5,6 +5,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.text_utils import select_relevant_sentences
 from cv.prompts import auto_tailor_system_prompt, job_tailor_system_prompt
 from cv.schema import normalize_sections
@@ -22,25 +23,15 @@ _VALID_SECTION_TYPES = {"experience", "education", "projects", "certifications",
 _MAX_JOB_DESCRIPTION_CHARS = 6000
 _MAX_SUGGESTION_NOTE_CHARS = 300
 
-# Reasoning-tier models (live-verified here: DeepSeek's default reasoning
-# model) spend a large, variable share of max_tokens on hidden chain-of-
-# thought before ever emitting the visible answer — that's the actual cause
-# of the 1500->4000->6000->12000 token-cap chase in auto_tailor_sections
-# below, not payload size. Fit-scoring and light section rewriting are small,
-# deterministic tasks with no need for that reasoning tax, so both
-# tailor_cv_to_job and auto_tailor_sections always use each provider's fast/
-# non-reasoning model here instead of whatever ModelPreference.model
-# currently is — keeping the user's chosen *provider* (so their existing API
-# key/billing still applies) while overriding just the model. Anthropic/
-# OpenAI aren't listed: this app never opts into their reasoning-tier
-# behavior (no `thinking`/`reasoning_effort` param is set in
-# anthropic_provider.py / openai_provider.py), and Gemini already forces
-# thinking_level=MINIMAL for every call inside gemini_provider.py itself.
-_FAST_MODEL_OVERRIDE = {"deepseek": "deepseek-chat"}
-
-
-def _fast_model(pref: ModelPreference) -> str:
-    return _FAST_MODEL_OVERRIDE.get(pref.provider, pref.model)
+# Fit-scoring and light section rewriting are small, deterministic tasks with
+# no need for a reasoning-tier model's hidden chain-of-thought — that tax was
+# the actual cause of the 1500->4000->6000->12000 token-cap chase in
+# auto_tailor_sections below, not payload size. See
+# core/services/providers/model_select.py::fast_model_for for the full
+# rationale; both tailor_cv_to_job and auto_tailor_sections use it instead of
+# whatever ModelPreference.model currently is, keeping the user's chosen
+# *provider* (so their existing API key/billing still applies) while
+# overriding just the model.
 
 
 def _fallback(*, error: bool, reason: str | None) -> dict[str, Any]:
@@ -94,7 +85,7 @@ def tailor_cv_to_job(sections: dict, job_description: str) -> dict[str, Any]:
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=_fast_model(pref),
+            model=fast_model_for(pref),
             system=job_tailor_system_prompt(context),
             history=[{"role": "user", "content": job_description}],
             # Live-verified in production use: with DeepSeek (and other
@@ -293,7 +284,7 @@ def auto_tailor_sections(sections: dict, suggestions: list, missing_keywords: li
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=_fast_model(pref),
+            model=fast_model_for(pref),
             system=auto_tailor_system_prompt(),
             system_suffix=system_suffix,
             history=[{"role": "user", "content": user_message}],
@@ -332,7 +323,7 @@ def auto_tailor_sections(sections: dict, suggestions: list, missing_keywords: li
                 base_max_tokens, retry_max_tokens,
             )
             text = provider.generate_text(
-                model=_fast_model(pref),
+                model=fast_model_for(pref),
                 system=auto_tailor_system_prompt(),
                 system_suffix=system_suffix,
                 history=[{"role": "user", "content": user_message}],

@@ -1,0 +1,19 @@
+To apply the consumers.py fix and restart everything (redis + both celery workers + beat):
+cd backend
+.\start-docker.ps1
+This runs docker compose up -d --build, which rebuilds any service whose image is stale and restarts it — Redis is unaffected since its image doesn't change.
+
+
+If you just want to force-restart only the Celery workers (rebuild + recreate, skip touching Redis/Chroma):
+cd backend
+docker compose up -d --build celery-worker agent-worker celery-beat
+
+
+Plain restart with no rebuild (only useful if you haven't changed backend code, e.g. just want a clean process):
+docker compose restart celery-worker agent-worker celery-beat redis
+
+
+Full stop/start cycle:
+cd backend
+.\start-docker.ps1 -Down
+.\start-docker.ps1

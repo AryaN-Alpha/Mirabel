@@ -18,7 +18,16 @@ _MAX_ATTACHMENT_CHARS = 6000
 
 def _generate(*, system: str, user_content: str, call_site: str) -> dict[str, Any]:
     """Never-crash contract, matching linkedin.services.generation._generate /
-    outlook.services.email_ai._generate."""
+    outlook.services.email_ai._generate.
+
+    Deliberately does NOT switch to each provider's fast/non-reasoning model
+    the way core/services/providers/model_select.py's other callers do:
+    solving actual coursework is exactly the kind of task that benefits from
+    a reasoning-tier model's chain-of-thought, unlike short-form drafting or
+    JSON structuring. Instead this raises the max_tokens floor (same idea as
+    cv/services/tailoring.py's floor, applied for the opposite reason — here
+    to give real reasoning room to finish, not to avoid it) so that budget
+    isn't silently exhausted mid-thought before any visible answer comes out."""
     pref = ModelPreference.current()
     try:
         provider = get_provider(pref.provider)
@@ -26,7 +35,7 @@ def _generate(*, system: str, user_content: str, call_site: str) -> dict[str, An
             model=pref.model,
             system=system,
             history=[{"role": "user", "content": user_content}],
-            max_tokens=pref.max_tokens,
+            max_tokens=max(pref.max_tokens, 6000),
             temperature=pref.temperature,
             call_site=call_site,
         )

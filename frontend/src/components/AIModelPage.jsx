@@ -117,6 +117,7 @@ export default function AIModelPage() {
   const [model, setModel] = useState(null);
   const [maxTokens, setMaxTokens] = useState(400);
   const [temperature, setTemperature] = useState(1.0);
+  const [fastConversationMode, setFastConversationMode] = useState(false);
 
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [credBusy, setCredBusy] = useState(false);
@@ -145,11 +146,13 @@ export default function AIModelPage() {
         setModel(data.model);
         setMaxTokens(data.max_tokens);
         setTemperature(data.temperature);
+        setFastConversationMode(data.fast_conversation_mode);
         setSaved({
           provider: data.provider,
           model: data.model,
           maxTokens: data.max_tokens,
           temperature: data.temperature,
+          fastConversationMode: data.fast_conversation_mode,
         });
       })
       .catch((err) => {
@@ -191,7 +194,8 @@ export default function AIModelPage() {
     (provider !== saved.provider ||
       model !== saved.model ||
       Number(maxTokens) !== saved.maxTokens ||
-      Number(temperature) !== saved.temperature);
+      Number(temperature) !== saved.temperature ||
+      fastConversationMode !== saved.fastConversationMode);
   const maxTokensNum = Number(maxTokens);
   const temperatureNum = Number(temperature);
   const maxTokensValid = Number.isFinite(maxTokensNum) && maxTokensNum >= 1 && maxTokensNum <= 8192;
@@ -217,12 +221,13 @@ export default function AIModelPage() {
     setSaving(true);
     setError("");
     try {
-      const data = await setModelPreference(provider, model, Number(maxTokens), Number(temperature));
+      const data = await setModelPreference(provider, model, Number(maxTokens), Number(temperature), fastConversationMode);
       setSaved({
         provider: data.provider,
         model: data.model,
         maxTokens: data.max_tokens,
         temperature: data.temperature,
+        fastConversationMode: data.fast_conversation_mode,
       });
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't save that selection."));
@@ -504,6 +509,27 @@ export default function AIModelPage() {
                 Anthropic caps temperature at 1.0 — higher values are clamped automatically.
               </p>
             )}
+
+            <label
+              className="flex items-baseline justify-between"
+              style={{ gap: space[6], padding: `${space[4]}px 0`, borderBottom: `1px solid ${cream(0.1)}`, cursor: "pointer" }}
+            >
+              <span>
+                <span style={{ fontFamily: fontHeading, fontSize: 20, color: text.base, display: "block" }}>
+                  Fast conversation mode
+                </span>
+                <span style={{ fontSize: 12, color: cream(0.45), display: "block", marginTop: space[1] ?? 4, maxWidth: 440 }}>
+                  Skips DeepSeek's reasoning-tier model for chat and voice replies — faster, cheaper,
+                  less deep thinking. Every other provider is unaffected (they never reason by default).
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={fastConversationMode}
+                onChange={(e) => setFastConversationMode(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: accent[300], flexShrink: 0 }}
+              />
+            </label>
 
             {error && <p style={{ fontSize: 12, margin: `${space[4]}px 0 0`, color: "rgba(224,140,140,0.9)" }}>{error}</p>}
 

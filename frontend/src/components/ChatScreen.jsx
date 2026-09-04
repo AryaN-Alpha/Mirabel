@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot } from "lucide-react";
+import { Bot, SquarePen } from "lucide-react";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import ErrorBoundary from "./ErrorBoundary";
@@ -126,9 +126,37 @@ export default function ChatScreen() {
     }
   }
 
+  // "New chat" — nothing is deleted server-side (past Conversation/Message
+  // rows stay in the database), this just detaches the UI from the old
+  // conversation_id so the next sendMessage() creates a fresh Conversation
+  // (see core/views.py::chat) instead of continuing to append to this one.
+  function handleNewChat() {
+    stopPollers.current.forEach((stop) => stop());
+    stopPollers.current.clear();
+    setMessages([]);
+    setConversationId(null);
+    setLoading(false);
+    setBusyAgentTaskId(null);
+  }
+
   return (
     <ErrorBoundary>
-      <div className="w-full max-w-[880px] flex-1 min-h-0 flex flex-col items-center px-6 pt-8">
+      <div className="relative w-full max-w-[880px] flex-1 min-h-0 flex flex-col items-center px-6 pt-8">
+        {messages.length > 0 && (
+          <button
+            onClick={handleNewChat}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-1.5 px-3 py-2 rounded-full text-[12.5px] tracking-[0.01em] transition-all duration-200 cursor-pointer border-none z-10"
+            style={{
+              background: "rgba(243,233,226,0.06)",
+              border: "1px solid rgba(243,233,226,0.11)",
+              color: "rgba(243,233,226,0.58)",
+            }}
+            title="Start a new chat"
+          >
+            <SquarePen size={13} strokeWidth={1.8} />
+            <span className="hidden sm:inline">New chat</span>
+          </button>
+        )}
         <div className="text-center max-w-[600px]" style={{ animation: "cz-rise 700ms ease-out" }}>
           <div className="font-serif text-[34px] leading-[1.25] tracking-[0.005em]" style={{ color: "#fbf1ea" }}>
             {getGreeting()}

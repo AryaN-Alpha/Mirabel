@@ -35,6 +35,7 @@ class Provider:
         history: list[dict],
         max_tokens: int,
         temperature: float,
+        call_site: str = "",
         system_suffix: str = "",
     ) -> AsyncIterator[str]:
         """Yields text deltas. Used by the voice/WebSocket pipeline. See

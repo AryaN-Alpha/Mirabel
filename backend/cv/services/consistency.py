@@ -4,6 +4,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from cv.prompts import consistency_check_system_prompt
 from cv.services.generation import format_cv_context
 from cv.services.json_utils import extract_json_object
@@ -38,7 +39,10 @@ def check_cv_consistency(sections: dict) -> dict[str, Any]:
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py;
+            # this is a deterministic pattern-matching task, not one that
+            # benefits from a reasoning-tier model's hidden chain-of-thought.
+            model=fast_model_for(pref),
             system=consistency_check_system_prompt(context),
             history=[{"role": "user", "content": "Check this CV for tense/tone/grammar consistency."}],
             max_tokens=max(pref.max_tokens, 1000),

@@ -30,6 +30,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from memory.services.salience import DISCLOSURE_MARKERS, PROPER_NOUN_RX
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,12 @@ def extract_facts(text: str) -> list[dict[str, Any]]:
     try:
         provider = get_provider(pref.provider)
         raw = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # Extracting typed facts into JSON is deterministic classification,
+            # not reasoning; on a reasoning-tier model the 300-token budget can
+            # be lost entirely to hidden chain-of-thought, which fails silently
+            # here (see the except Exception below) rather than raising.
+            model=fast_model_for(pref),
             system=FACT_EXTRACTION_SYSTEM_PROMPT,
             history=[{"role": "user", "content": text}],
             max_tokens=300,

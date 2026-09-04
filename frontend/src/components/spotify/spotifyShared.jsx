@@ -14,8 +14,25 @@ import { fontHeading, text, accent, space, radius, cream } from "../homeTheme";
 // bare `.catch(() => {})`. Centralized here instead of repeating the same
 // three-line catch in every tab, so a future change to the fallback
 // message only needs to land once.
-export function withPlaybackError(promise, setError, fallback = "Couldn't do that — is Spotify open on a device?") {
-  return promise.catch((err) => setError?.(getErrorMessage(err, fallback)));
+// playback_restricted (spotify/services/oauth.py::reason_for_status) is
+// Spotify's 403 "Player command failed: Restriction violated" — an expected
+// player-state condition (e.g. nothing resumable), not a scope or
+// connection problem, so it gets its own message instead of surfacing
+// Spotify's raw error text via getErrorMessage's default path. Exported (not
+// just used by withPlaybackError below) so every Spotify surface that
+// handles playback errors — including ones with their own busy/error
+// plumbing, like SpotifyNowPlayingBar and SpotifyQueueTab's multi-step
+// play-then-requeue flow — shares one copy of the message instead of each
+// re-declaring the same string.
+export function playbackErrorMessage(err, fallback = "Couldn't do that — is Spotify open on a device?") {
+  if (err?.response?.data?.reason === "playback_restricted") {
+    return "Playback is restricted on this device. Select a track or open Spotify on your device.";
+  }
+  return getErrorMessage(err, fallback);
+}
+
+export function withPlaybackError(promise, setError, fallback) {
+  return promise.catch((err) => setError?.(playbackErrorMessage(err, fallback)));
 }
 
 export function formatDuration(ms) {

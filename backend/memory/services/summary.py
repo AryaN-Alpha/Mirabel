@@ -21,6 +21,7 @@ from typing import Any
 
 from core.models import Message, ModelPreference
 from core.services.providers import get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.text_utils import truncate_chars
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,11 @@ def build_weekly_summary(
     pref = ModelPreference.current()
     provider = get_provider(pref.provider)
     raw = provider.generate_text(
-        model=pref.model,
+        # fast_model_for(pref) — see core/services/providers/model_select.py.
+        # Condensing a transcript into a short first-person paragraph is
+        # drafting, not reasoning; a reasoning-tier model's hidden
+        # chain-of-thought just eats into the 400-token budget for no gain.
+        model=fast_model_for(pref),
         system=SUMMARY_SYSTEM_PROMPT,
         history=[{"role": "user", "content": transcript}],
         max_tokens=400,

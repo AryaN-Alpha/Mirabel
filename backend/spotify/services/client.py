@@ -17,10 +17,13 @@ playlists from LLM-generated search queries against /v1/search instead of
 from __future__ import annotations
 
 import base64
+import logging
 
 import requests
 
 from spotify.services.oauth import API_BASE, SpotifyError, raise_for_response
+
+logger = logging.getLogger(__name__)
 
 _TIMEOUT = 15
 
@@ -308,6 +311,47 @@ def get_recently_played(token: str, *, limit: int = 20) -> dict:
 # --- Playback controls -------------------------------------------------------
 
 
+def _resolve_play_device_id(token: str, device_id: str | None) -> str | None:
+    """Spotify resolves an omitted device_id against its own ambient "current
+    active device", which 404s with no_active_device once a session has gone
+    idle — even though a device (the desktop/mobile app) is still connected.
+    Fall back to an explicit device from /me/player/devices, preferring one
+    Spotify already marks active, else just the first available one, so Play
+    (and add_to_queue, which implies playback is about to happen) recovers
+    instead of failing outright. Only for endpoints that *start* playback —
+    see _resolve_active_device_id for endpoints that control it."""
+    if device_id:
+        return device_id
+    devices = get_devices(token).get("devices") or []
+    if not devices:
+        return None
+    active = next((d for d in devices if d.get("is_active")), None)
+    return (active or devices[0]).get("id")
+
+
+def _resolve_active_device_id(token: str, device_id: str | None) -> str | None:
+    """Same ambient-resolution staleness as _resolve_play_device_id (see its
+    docstring), but for playback-*control* endpoints (pause/next/previous/
+    seek/volume/shuffle/repeat) rather than play/queue: there is by
+    definition nothing to control if no device is actively playing, so unlike
+    _resolve_play_device_id this never falls back to an arbitrary non-active
+    device. Silently targeting some other connected-but-idle device (e.g. a
+    phone left open in another room) would apply the command to the wrong
+    place instead of surfacing a clear no_active_device error."""
+    if device_id:
+        return device_id
+    devices = get_devices(token).get("devices") or []
+    active = next((d for d in devices if d.get("is_active")), None)
+    return active.get("id") if active else None
+
+
+# Cap on how many "Up Next" tracks preserve_queue re-adds after a play call
+# replaces the context — bounds worst-case added latency/request count to a
+# single play click, matching the most the UI itself ever shows
+# (SpotifyQueueTab.jsx caps its "Up Next" list display at 20).
+_MAX_PRESERVED_QUEUE_TRACKS = 20
+
+
 def play(
     token: str,
     *,
@@ -315,10 +359,32 @@ def play(
     context_uri: str | None = None,
     uris: list[str] | None = None,
     offset: dict | None = None,
+    preserve_queue: bool = True,
 ) -> None:
     """offset starts playback partway into a context_uri (an album/playlist)
     instead of from track 1 — either {"position": N} or {"uri": track_uri}.
-    Only meaningful alongside context_uri; Spotify ignores it otherwise."""
+    Only meaningful alongside context_uri; Spotify ignores it otherwise.
+
+    preserve_queue: starting playback replaces Spotify's active playback
+    context, which silently wipes any manually-queued "Up Next" tracks
+    (added via add_to_queue) — once the newly started track ends, playback
+    just stops instead of moving on to what the user had queued.
+
+    This can ONLY be done safely for a bare `uris` play with nothing already
+    playing from a context: /me/player/queue returns "what plays next",
+    which — when a context (album/playlist) is already active — is that
+    context's own upcoming tracks, not just manually-queued ones (Spotify's
+    API has no field distinguishing the two). Restoring that snapshot would
+    permanently pin the old context's tail onto the new track. So:
+    preserve_queue never applies to a context_uri play (there's no
+    "queue" to preserve, only a context to replace — apply the queue
+    metaphor to the wrong endpoint mode and lose to it), and for a `uris`
+    play it only snapshots when GET /me/player/currently-playing shows no
+    context was already active. Lives here rather than in views.py so every
+    caller gets it — including agent/tools/spotify_tools.py's
+    play_spotify_item, which calls this function directly and never goes
+    through the view."""
+    device_id = _resolve_play_device_id(token, device_id)
     params = {"device_id": device_id} if device_id else None
     body = {}
     if context_uri:
@@ -327,22 +393,45 @@ def play(
         body["uris"] = uris
     if offset:
         body["offset"] = offset
+
+    upcoming: list[str] = []
+    if preserve_queue and uris and not context_uri:
+        try:
+            currently = get_currently_playing(token)
+            if not (currently or {}).get("context"):
+                upcoming = [t["uri"] for t in (get_queue(token).get("queue") or []) if t.get("uri")]
+        except SpotifyError:
+            logger.warning("play(): couldn't snapshot the queue before starting playback", exc_info=True)
+
     _put(token, "/me/player/play", body or None, params)
+
+    for track_uri in upcoming[:_MAX_PRESERVED_QUEUE_TRACKS]:
+        try:
+            add_to_queue(token, track_uri, device_id=device_id)
+        except SpotifyError:
+            # Playback itself already succeeded; a failure re-adding one
+            # track (e.g. a transient 429) shouldn't stop the rest from
+            # being restored, and shouldn't surface as a failed play call.
+            logger.warning("play(): couldn't re-queue %s while restoring the queue", track_uri, exc_info=True)
 
 
 def pause(token: str, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     _put(token, "/me/player/pause", None, {"device_id": device_id} if device_id else None)
 
 
 def next_track(token: str, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     _post(token, "/me/player/next", None, {"device_id": device_id} if device_id else None)
 
 
 def previous_track(token: str, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     _post(token, "/me/player/previous", None, {"device_id": device_id} if device_id else None)
 
 
 def seek(token: str, position_ms: int, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     params = {"position_ms": position_ms}
     if device_id:
         params["device_id"] = device_id
@@ -350,6 +439,7 @@ def seek(token: str, position_ms: int, *, device_id: str | None = None) -> None:
 
 
 def set_volume(token: str, volume_percent: int, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     params = {"volume_percent": max(0, min(100, volume_percent))}
     if device_id:
         params["device_id"] = device_id
@@ -357,6 +447,7 @@ def set_volume(token: str, volume_percent: int, *, device_id: str | None = None)
 
 
 def set_shuffle(token: str, state: bool, *, device_id: str | None = None) -> None:
+    device_id = _resolve_active_device_id(token, device_id)
     params = {"state": "true" if state else "false"}
     if device_id:
         params["device_id"] = device_id
@@ -365,6 +456,7 @@ def set_shuffle(token: str, state: bool, *, device_id: str | None = None) -> Non
 
 def set_repeat(token: str, state: str, *, device_id: str | None = None) -> None:
     """state: 'track' | 'context' | 'off'."""
+    device_id = _resolve_active_device_id(token, device_id)
     params = {"state": state}
     if device_id:
         params["device_id"] = device_id
@@ -390,6 +482,7 @@ def get_queue(token: str) -> dict:
 
 
 def add_to_queue(token: str, track_uri: str, *, device_id: str | None = None) -> None:
+    device_id = _resolve_play_device_id(token, device_id)
     params = {"uri": track_uri}
     if device_id:
         params["device_id"] = device_id

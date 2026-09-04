@@ -3,6 +3,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from linkedin.models import LinkedInCredential
 from linkedin.prompts import comment_system_prompt, post_system_prompt
 from memory.services.retrieval import format_memories_for_prompt, retrieve_relevant_memories
@@ -17,7 +18,10 @@ def _generate(*, system: str, user_content: str, call_site: str, system_suffix: 
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # A LinkedIn post/comment is short-form drafting with no need for
+            # a reasoning-tier model's hidden chain-of-thought.
+            model=fast_model_for(pref),
             system=system,
             system_suffix=system_suffix,
             history=[{"role": "user", "content": user_content}],

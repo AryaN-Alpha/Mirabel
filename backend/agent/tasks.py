@@ -16,7 +16,9 @@ from __future__ import annotations
 import logging
 import time
 
+from asgiref.sync import async_to_sync
 from celery import shared_task
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.utils import timezone
 from langgraph.types import Command
@@ -118,6 +120,7 @@ def _run_graph(task: AgentTask, graph_input) -> None:
         task.pending_action = interrupt_value
         task.current_step = ""
         task.save(update_fields=["status", "pending_action", "current_step"])
+        _notify_voice_session(task.id, interrupt_value)
         return
 
     final_text = _message_text(all_messages[-1]) if all_messages else ""
@@ -134,6 +137,38 @@ def _run_graph(task: AgentTask, graph_input) -> None:
 
     if task.conversation_id:
         Message.objects.create(conversation_id=task.conversation_id, role="assistant", text=text, mood=mood)
+
+
+def _notify_voice_session(task_id: int, interrupt_value: dict) -> None:
+    """Speaks a paused task's clarifying question / confirmation summary
+    aloud through the same WS connection that started it (if any), using
+    Mirabel's real edge-tts voice via voice/consumers.py's agent_speak
+    handler — instead of the browser driving its own window.speechSynthesis
+    (wrong voice, and inaudible to the mic's echo cancellation the way this
+    connection's normal audio_chunk playback is, so it used to get
+    transcribed back in as a new user utterance).
+
+    This function runs in the Celery worker process, not the ASGI/Channels
+    process the consumer lives in, so it can't call the consumer directly —
+    it group_sends over the channel layer to the group the consumer joined
+    in _handle_agent_task (group name = f"agent_task_{task_id}"). A no-op,
+    not an error, if no connection ever joined that group (e.g. the task was
+    started from the Agent tab over REST rather than voice/chat)."""
+    if interrupt_value.get("kind") == "clarify":
+        text = interrupt_value.get("question") or ""
+    else:
+        summary = interrupt_value.get("summary") or ""
+        text = f"{summary}. Approve or reject?" if summary else ""
+    if not text:
+        return
+
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    async_to_sync(channel_layer.group_send)(
+        AgentTask.voice_group_name(task_id),
+        {"type": "agent.speak", "task_id": task_id, "text": text},
+    )
 
 
 def _log_agent_llm_call(pref: ModelPreference, message, started: float) -> None:

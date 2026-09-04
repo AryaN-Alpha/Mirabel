@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { VoiceSessionProvider } from "./hooks/VoiceSessionProvider";
 import CozyFlow from "./components/CozyFlow";
 import CozyBackdrop from "./components/CozyBackdrop";
 import HomeLayout from "./components/HomeLayout";
@@ -43,57 +44,59 @@ import StatsPage from "./components/StatsPage";
 export default function App() {
   return (
     <CozyBackdrop>
-      <Routes>
-        <Route path="/" element={<CozyFlow />} />
-        <Route path="/home" element={<HomeLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="ai-model" element={<AIModelPage />} />
-          <Route path="ai-model/:provider" element={<AIModelPage />} />
-          <Route path="outlook" element={<OutlookPage />}>
-            <Route index element={<Navigate to="inbox" replace />} />
-            <Route path="inbox" element={<OutlookInboxRoute />} />
-            <Route path="compose" element={<OutlookComposeTab />} />
-            <Route path="scheduled" element={<OutlookScheduledTab />} />
-            <Route path="signature" element={<OutlookSignatureTab />} />
+      <VoiceSessionProvider>
+        <Routes>
+          <Route path="/" element={<CozyFlow />} />
+          <Route path="/home" element={<HomeLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="ai-model" element={<AIModelPage />} />
+            <Route path="ai-model/:provider" element={<AIModelPage />} />
+            <Route path="outlook" element={<OutlookPage />}>
+              <Route index element={<Navigate to="inbox" replace />} />
+              <Route path="inbox" element={<OutlookInboxRoute />} />
+              <Route path="compose" element={<OutlookComposeTab />} />
+              <Route path="scheduled" element={<OutlookScheduledTab />} />
+              <Route path="signature" element={<OutlookSignatureTab />} />
+            </Route>
+            <Route path="linkedin" element={<LinkedInPage />}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<LinkedInOverviewTab />} />
+              <Route path="profile" element={<LinkedInProfileRoute />} />
+              <Route path="create" element={<LinkedInCreatePostRoute />} />
+              <Route path="drafts" element={<LinkedInDraftsRoute />} />
+              <Route path="automations" element={<LinkedInAutomationsTab />} />
+              <Route path="research" element={<LinkedInResearchTab />} />
+              <Route path="settings" element={<LinkedInSettingsRoute />} />
+            </Route>
+            <Route path="classroom" element={<ClassroomPage />}>
+              <Route index element={<Navigate to="assignments" replace />} />
+              <Route path="assignments" element={<ClassroomAssignmentsRoute />} />
+              <Route path="drafts" element={<ClassroomDraftsRoute />} />
+              <Route path="settings" element={<ClassroomSettingsRoute />} />
+            </Route>
+            <Route path="cv" element={<CvPage />} />
+            <Route path="spotify" element={<SpotifyPage />}>
+              <Route index element={<Navigate to="home" replace />} />
+              <Route path="home" element={<SpotifyHomeRoute />} />
+              <Route path="search" element={<SpotifySearchRoute />} />
+              <Route path="library" element={<SpotifyLibraryRoute />} />
+              <Route path="playlists" element={<SpotifyPlaylistsRoute />} />
+              <Route path="artists" element={<SpotifyArtistsRoute />} />
+              <Route path="top-tracks" element={<SpotifyTopTracksTab />} />
+              <Route path="queue" element={<SpotifyQueueTab />} />
+              <Route path="stats" element={<SpotifyStatisticsTab />} />
+              <Route path="ai-playlist" element={<SpotifyAIPlaylistTab />} />
+            </Route>
+            <Route path="agent" element={<AgentPage />}>
+              <Route index element={<Navigate to="tasks" replace />} />
+              <Route path="tasks" element={<AgentTasksTab />} />
+              <Route path="memories" element={<AgentMemoriesTab />} />
+            </Route>
+            <Route path="tasks" element={<KanbanPage />} />
+            <Route path="stats" element={<StatsPage />} />
           </Route>
-          <Route path="linkedin" element={<LinkedInPage />}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<LinkedInOverviewTab />} />
-            <Route path="profile" element={<LinkedInProfileRoute />} />
-            <Route path="create" element={<LinkedInCreatePostRoute />} />
-            <Route path="drafts" element={<LinkedInDraftsRoute />} />
-            <Route path="automations" element={<LinkedInAutomationsTab />} />
-            <Route path="research" element={<LinkedInResearchTab />} />
-            <Route path="settings" element={<LinkedInSettingsRoute />} />
-          </Route>
-          <Route path="classroom" element={<ClassroomPage />}>
-            <Route index element={<Navigate to="assignments" replace />} />
-            <Route path="assignments" element={<ClassroomAssignmentsRoute />} />
-            <Route path="drafts" element={<ClassroomDraftsRoute />} />
-            <Route path="settings" element={<ClassroomSettingsRoute />} />
-          </Route>
-          <Route path="cv" element={<CvPage />} />
-          <Route path="spotify" element={<SpotifyPage />}>
-            <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<SpotifyHomeRoute />} />
-            <Route path="search" element={<SpotifySearchRoute />} />
-            <Route path="library" element={<SpotifyLibraryRoute />} />
-            <Route path="playlists" element={<SpotifyPlaylistsRoute />} />
-            <Route path="artists" element={<SpotifyArtistsRoute />} />
-            <Route path="top-tracks" element={<SpotifyTopTracksTab />} />
-            <Route path="queue" element={<SpotifyQueueTab />} />
-            <Route path="stats" element={<SpotifyStatisticsTab />} />
-            <Route path="ai-playlist" element={<SpotifyAIPlaylistTab />} />
-          </Route>
-          <Route path="agent" element={<AgentPage />}>
-            <Route index element={<Navigate to="tasks" replace />} />
-            <Route path="tasks" element={<AgentTasksTab />} />
-            <Route path="memories" element={<AgentMemoriesTab />} />
-          </Route>
-          <Route path="tasks" element={<KanbanPage />} />
-          <Route path="stats" element={<StatsPage />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </VoiceSessionProvider>
     </CozyBackdrop>
   );
 }

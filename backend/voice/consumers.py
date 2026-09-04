@@ -25,6 +25,7 @@ from agent.tasks import run_agent_task
 from core.models import Conversation, Message, ModelPreference
 from core.prompts.persona import MIRABEL_STREAMING_SYSTEM_PROMPT
 from core.services.providers import get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.telemetry import log_llm_call, log_optimization_event
 from memory.services.gating import needs_memory
 from memory.services.retrieval import (
@@ -55,6 +56,11 @@ _TERMINAL_AGENT_STATUSES = {
 # instead of REST.
 _MAX_CLARIFICATION_ANSWER_LENGTH = 4000
 
+# Mirrors core.views.MAX_MESSAGE_LENGTH — same cap, same reasoning (a cheap
+# guard against runaway per-request LLM cost), just reached over the
+# text_message WS path instead of REST /api/chat/.
+_MAX_TEXT_MESSAGE_LENGTH = 4000
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
@@ -63,15 +69,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self._conversation_id: int | None = None
         self._agent_mode = False
         # Tracks a background AgentTask this session started (see
-        # _start_agent_task) so the next utterance can be routed to it
+        # _handle_agent_task) so the next utterance can be routed to it
         # (answer/approve/reject/cancel) instead of spawning a second,
         # concurrent task — see _route_user_utterance.
         self._pending_agent_task_id: int | None = None
+        # Serializes actual audio_chunk emission across every TTS-producing
+        # path (_handle_turn's inline worker, _speak_ack, agent_speak).
+        # Normally exactly one is ever active at a time because they all run
+        # inside the single tracked _inflight_task — but agent_speak is
+        # dispatched by the channel layer (see below) and can therefore fire
+        # while _inflight_task is mid-flight (e.g. the graph pauses on a
+        # second clarifying question moments after this session's "Got it,
+        # thanks." ack for the first one). Without this lock two concurrent
+        # _tts_worker calls could interleave audio_chunk frames from two
+        # different sentences into the client's single AudioQueue before
+        # either's audio_sentence_end arrives, corrupting playback.
+        self._tts_lock = asyncio.Lock()
         await self.accept()
         await self._send_json({"type": "ready"})
 
     async def disconnect(self, code: int) -> None:
         await self._cancel_inflight()
+        if self._pending_agent_task_id is not None:
+            await self.channel_layer.group_discard(
+                AgentTask.voice_group_name(self._pending_agent_task_id), self.channel_name
+            )
 
     # ------------------------------------------------------------------
     # Inbound
@@ -101,14 +123,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self._cancel_inflight()
         elif kind == "text_message":
             # Optional: text input over the same socket (skip STT).
-            await self._cancel_inflight()
             text = str(msg.get("text", "")).strip()
+            if len(text) > _MAX_TEXT_MESSAGE_LENGTH:
+                await self._send_json({
+                    "type": "agent_task_nudge",
+                    "message": f"That message is too long — try under {_MAX_TEXT_MESSAGE_LENGTH} characters.",
+                })
+                return
+            await self._cancel_inflight()
+            if text:
+                # Mirrors _handle_utterance's transcript echo for the voice/STT
+                # path — drives the same "you: ..." bubble and thinking/mood
+                # reset on the frontend regardless of input modality.
+                await self._send_json({"type": "transcript", "text": text})
             self._inflight_task = asyncio.create_task(self._route_user_utterance(text))
         elif kind == "set_agent_mode":
             # Toggled from the UI. While on, a finished utterance is queued
             # as a background AgentTask (agent/tasks.py) instead of driving
             # a normal streaming chat turn — see _handle_agent_task.
             self._agent_mode = bool(msg.get("enabled"))
+        elif kind == "new_chat":
+            await self._start_new_chat()
 
     # ------------------------------------------------------------------
     # The full turn pipeline
@@ -169,6 +204,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         task = await self._fetch_agent_task(task_id)
         if task is None or task.status in _TERMINAL_AGENT_STATUSES:
             self._pending_agent_task_id = None
+            await self.channel_layer.group_discard(AgentTask.voice_group_name(task_id), self.channel_name)
             return None
         return task
 
@@ -197,6 +233,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # answered via the on-screen card at the same moment) — stale,
                 # not an error. Drop the lock rather than fail silently.
                 self._pending_agent_task_id = None
+                await self.channel_layer.group_discard(AgentTask.voice_group_name(task.id), self.channel_name)
                 await self._send_json({
                     "type": "agent_task_nudge",
                     "message": "That one already moved on — go ahead and say it again if needed.",
@@ -225,6 +262,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # decided via the on-screen card at the same moment) — stale,
                 # not an error. Drop the lock rather than fail silently.
                 self._pending_agent_task_id = None
+                await self.channel_layer.group_discard(AgentTask.voice_group_name(task.id), self.channel_name)
                 await self._send_json({
                     "type": "agent_task_nudge",
                     "message": "That one already moved on — go ahead and say it again if needed.",
@@ -297,6 +335,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 history=history,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                call_site="voice.turn",
             ):
                 speakable = parser.feed(delta)
                 if speakable:
@@ -304,7 +343,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     for sentence in sentence_buffer.feed(speakable):
                         await tts_queue.put(sentence)
 
-            # Stream finished — flush any remaining sentence and the parser tail.
+            # Stream finished — flush any text the parser was holding back
+            # while guarding against a sentinel split across chunk boundaries
+            # (up to 9 chars). Without this, the last word(s) of a response
+            # that never emits <<<META>>> (e.g. model hit max_tokens) are
+            # silently lost from TTS and text_delta — see protocol.py.
+            remaining = parser.flush_pre_sentinel()
+            if remaining:
+                await self._send_json({"type": "text_delta", "text": remaining})
+                for sentence in sentence_buffer.feed(remaining):
+                    await tts_queue.put(sentence)
+
+            # Flush any remaining sentence and the parser tail.
             leftover_text = sentence_buffer.flush()
             if leftover_text:
                 await tts_queue.put(leftover_text)
@@ -377,11 +427,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self._conversation_id = conv_id
 
         try:
-            task_id = await self._start_agent_task(conv_id, user_text)
+            task_id = await self._create_agent_task(conv_id, user_text)
             # Session-level turn lock: the next utterance routes to this
             # task (answer/approve/reject/cancel) instead of spawning
             # another one — see _route_user_utterance.
             self._pending_agent_task_id = task_id
+            # Joins the group agent/tasks.py's _run_graph (in the Celery
+            # worker process) sends to when this task pauses for
+            # clarification/confirmation — see agent_speak below. Must
+            # happen BEFORE the Celery task is enqueued (_enqueue_agent_task,
+            # below): group_send to a group nobody has joined yet is a
+            # silent no-op on the Redis channel layer, so if the worker
+            # picks up a fast task (e.g. one that immediately calls
+            # ask_clarifying_question) before this connection joins the
+            # group, the spoken question vanishes with no error anywhere.
+            await self.channel_layer.group_add(AgentTask.voice_group_name(task_id), self.channel_name)
+            await self._enqueue_agent_task(task_id)
             # Lets the client poll GET /api/agent/tasks/<id>/ for live
             # progress/approval instead of the task vanishing into the
             # Agent tab with no way back to this conversation.
@@ -427,6 +488,42 @@ class ChatConsumer(AsyncWebsocketConsumer):
             raise
 
     # ------------------------------------------------------------------
+    # Channel-layer handler — agent/tasks.py's _run_graph runs in a Celery
+    # worker process, not this consumer, so when a task this connection
+    # started (see _handle_agent_task's group_add) pauses for a clarifying
+    # question or a confirmation, it can't just call a method here directly;
+    # it group_sends a {"type": "agent.speak", ...} message instead (Channels
+    # dispatches "agent.speak" to this method by convention). This speaks
+    # the question through Mirabel's real edge-tts voice over THIS
+    # connection's existing audio_chunk pipeline — the same one normal
+    # replies use — instead of the browser's own window.speechSynthesis,
+    # which (a) uses whatever default OS/browser voice, not Mirabel's, and
+    # (b) plays outside the tab's WebAudio graph, so the mic's
+    # echoCancellation (which only cancels audio it can see as a render
+    # reference) can't suppress it — the VAD heard it as a new user
+    # utterance and transcribed it as input. See _notify_voice_session in
+    # agent/tasks.py for the sending side.
+    # ------------------------------------------------------------------
+    async def agent_speak(self, event: dict) -> None:
+        if event.get("task_id") != self._pending_agent_task_id:
+            return  # stale: this connection moved on to a different task (or none) since
+        text = event.get("text") or ""
+        if not text:
+            return
+        tts_queue: asyncio.Queue[str | None] = asyncio.Queue()
+        tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
+        try:
+            await tts_queue.put(text)
+            await tts_queue.put(None)
+            await tts_worker
+        except asyncio.CancelledError:
+            tts_worker.cancel()
+            raise
+        except Exception:
+            logger.exception("agent task speech failed")
+            tts_worker.cancel()
+
+    # ------------------------------------------------------------------
     # TTS worker — single consumer of the sentence queue, ordered output
     # ------------------------------------------------------------------
     async def _tts_worker(self, queue: asyncio.Queue[str | None]) -> None:
@@ -434,21 +531,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
             sentence = await queue.get()
             if sentence is None:
                 return
-            try:
-                async for audio_chunk in stream_tts(sentence):
-                    if not audio_chunk:
-                        continue
-                    await self._send_json({
-                        "type": "audio_chunk",
-                        "data": base64.b64encode(audio_chunk).decode("ascii"),
-                    })
-                # Per-sentence boundary marker — lets the client play gaplessly
-                # but know where utterances split if it ever needs to.
-                await self._send_json({"type": "audio_sentence_end"})
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                logger.exception("tts failed for sentence: %r", sentence[:80])
+            # See _tts_lock's definition in connect(): serializes actual
+            # audio_chunk emission against any other concurrently-running
+            # _tts_worker on this connection so two logical utterances'
+            # audio never interleaves before either's audio_sentence_end.
+            async with self._tts_lock:
+                try:
+                    async for audio_chunk in stream_tts(sentence):
+                        if not audio_chunk:
+                            continue
+                        await self._send_json({
+                            "type": "audio_chunk",
+                            "data": base64.b64encode(audio_chunk).decode("ascii"),
+                        })
+                    # Per-sentence boundary marker — lets the client play gaplessly
+                    # but know where utterances split if it ever needs to.
+                    await self._send_json({"type": "audio_sentence_end"})
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("tts failed for sentence: %r", sentence[:80])
 
     # ------------------------------------------------------------------
     # Helpers
@@ -463,13 +565,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 pass
         self._inflight_task = None
 
+    # ------------------------------------------------------------------
+    # "New chat" — drops this connection's conversation thread so the next
+    # utterance starts a fresh Conversation (see _persist_user_message)
+    # instead of continuing to append to the old one. Mirrors "cancel"'s
+    # barge-in cleanup (stop whatever's in flight) plus releasing any
+    # pending AgentTask link, since a task tied to the conversation being
+    # discarded shouldn't keep routing new utterances to it — see
+    # _route_user_utterance. The AgentTask itself (if any) keeps running in
+    # the background; this only stops *this* connection from tracking it.
+    # Nothing is deleted server-side — past Conversation/Message rows are
+    # untouched, this just starts a new thread.
+    # ------------------------------------------------------------------
+    async def _start_new_chat(self) -> None:
+        await self._cancel_inflight()
+        self._audio_buffer.clear()
+        if self._pending_agent_task_id is not None:
+            await self.channel_layer.group_discard(
+                AgentTask.voice_group_name(self._pending_agent_task_id), self.channel_name
+            )
+            self._pending_agent_task_id = None
+        self._conversation_id = None
+        await self._send_json({"type": "chat_cleared"})
+
     async def _send_json(self, payload: dict[str, Any]) -> None:
         await self.send(text_data=json.dumps(payload))
 
     @database_sync_to_async
     def _current_model_preference(self) -> tuple[str, str, int, float]:
         pref = ModelPreference.current()
-        return pref.provider, pref.model, pref.max_tokens, pref.temperature
+        # fast_model_for(pref) only under the user's own opt-in — see
+        # core/services/llm.py's chat.rest for the same gate and rationale.
+        model = fast_model_for(pref) if pref.fast_conversation_mode else pref.model
+        return pref.provider, model, pref.max_tokens, pref.temperature
 
     @database_sync_to_async
     def _persist_user_message(self, text: str) -> tuple[int, int]:
@@ -481,12 +609,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return self._conversation_id, msg.id
 
     @database_sync_to_async
-    def _start_agent_task(self, conv_id: int, instruction: str) -> int:
+    def _create_agent_task(self, conv_id: int, instruction: str) -> int:
         task = AgentTask.objects.create(instruction=instruction, conversation_id=conv_id)
-        async_result = run_agent_task.delay(task.id)
-        task.celery_task_id = async_result.id
-        task.save(update_fields=["celery_task_id"])
         return task.id
+
+    @database_sync_to_async
+    def _enqueue_agent_task(self, task_id: int) -> None:
+        # Split from _create_agent_task so the caller can group_add this
+        # connection to the task's voice group before the Celery worker can
+        # possibly pick this up and group_send to it — see _handle_agent_task.
+        async_result = run_agent_task.delay(task_id)
+        AgentTask.objects.filter(pk=task_id).update(celery_task_id=async_result.id)
 
     @database_sync_to_async
     def _persist_assistant_message(self, conv_id: int, text: str, mood: str) -> int:

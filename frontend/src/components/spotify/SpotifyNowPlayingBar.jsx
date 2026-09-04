@@ -19,12 +19,21 @@ import {
   spotifySetVolume,
   transferSpotifyPlayback,
 } from "../../services/api";
-import { getErrorMessage } from "../../utils/errors";
+import { setActiveSpotifyDeviceId } from "../../services/spotifyDeviceStore";
 import { fontHeading, text, accent, space, radius, cream } from "../homeTheme";
-import { formatDuration, Thumb } from "./spotifyShared";
+import { formatDuration, playbackErrorMessage, Thumb } from "./spotifyShared";
 
-const POLL_MS = 6000;
+const POLL_MS = 10000;
+// Spotify's 429 doesn't always carry a usable Retry-After — fall back to a
+// conservative pause so a rate-limited poll loop doesn't just keep hammering
+// the same endpoint every POLL_MS and re-triggering the same 429.
+const RATE_LIMIT_BACKOFF_MS = 30000;
 const ERROR_DISPLAY_MS = 5000;
+// Actions (play/pause/seek/skip/...) debounce into one refresh instead of
+// firing a GET per click — rapid repeats (spamming skip, dragging the seek
+// bar) previously meant one extra /me/player call per click on top of the
+// write call itself.
+const ACTION_REFRESH_DEBOUNCE_MS = 700;
 // Spotify's actual repeat cycle is three states, not a toggle — off (no
 // repeat), context (repeat the album/playlist/queue), track (repeat-one).
 const NEXT_REPEAT_STATE = { off: "context", context: "track", track: "off" };
@@ -50,9 +59,16 @@ export default function SpotifyNowPlayingBar() {
   const [localVolume, setLocalVolume] = useState(50);
   const pollRef = useRef(null);
   const errorTimeoutRef = useRef(null);
+  const refreshTimeoutRef = useRef(null);
   const syncedVolumeDeviceRef = useRef(null);
 
-  useEffect(() => () => clearTimeout(errorTimeoutRef.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(errorTimeoutRef.current);
+      clearTimeout(refreshTimeoutRef.current);
+    },
+    []
+  );
 
   // Re-sync the slider from the server only when the *device* changes, not
   // on every ~6s poll tick — otherwise a poll landing mid-drag would yank
@@ -69,10 +85,14 @@ export default function SpotifyNowPlayingBar() {
     }
   }, [state?.device?.id, state?.device?.volume_percent]);
 
-  function flashError(err, fallback) {
-    setError(getErrorMessage(err, fallback));
+  function flashMessage(message) {
+    setError(message);
     clearTimeout(errorTimeoutRef.current);
     errorTimeoutRef.current = setTimeout(() => setError(""), ERROR_DISPLAY_MS);
+  }
+
+  function flashError(err, fallback) {
+    flashMessage(playbackErrorMessage(err, fallback));
   }
 
   useEffect(() => {
@@ -89,46 +109,74 @@ export default function SpotifyNowPlayingBar() {
     if (!connected) return undefined;
 
     let cancelled = false;
-    const poll = () => {
+
+    function scheduleNext(delayMs) {
+      clearTimeout(pollRef.current);
+      pollRef.current = setTimeout(poll, delayMs);
+    }
+
+    // Self-rescheduling instead of setInterval so a 429 can push the next
+    // attempt out (Retry-After, or RATE_LIMIT_BACKOFF_MS as a fallback)
+    // instead of the loop just retrying — and getting rate-limited again —
+    // every POLL_MS regardless.
+    function poll() {
       getSpotifyPlayerState()
         .then((data) => {
-          if (!cancelled) setState(data);
+          if (cancelled) return;
+          setState(data);
+          setActiveSpotifyDeviceId(data?.device?.id);
+          scheduleNext(POLL_MS);
         })
-        .catch(() => {});
-    };
+        .catch((err) => {
+          if (cancelled) return;
+          const retryAfterSec = err?.response?.data?.retry_after;
+          const delayMs =
+            err?.response?.status === 429
+              ? (Number(retryAfterSec) > 0 ? Number(retryAfterSec) * 1000 : RATE_LIMIT_BACKOFF_MS)
+              : POLL_MS;
+          scheduleNext(delayMs);
+        });
+    }
 
     function handleVisibility() {
       if (document.hidden) {
-        clearInterval(pollRef.current);
+        clearTimeout(pollRef.current);
       } else {
         poll();
-        pollRef.current = setInterval(poll, POLL_MS);
       }
     }
 
     poll();
-    pollRef.current = setInterval(poll, POLL_MS);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       cancelled = true;
-      clearInterval(pollRef.current);
+      clearTimeout(pollRef.current);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [connected]);
 
   async function refresh() {
     try {
-      setState(await getSpotifyPlayerState());
+      const data = await getSpotifyPlayerState();
+      setState(data);
+      setActiveSpotifyDeviceId(data?.device?.id);
     } catch {
       // best-effort — the next poll tick will pick it back up
     }
+  }
+
+  // Coalesces refreshes from bursts of actions (spamming skip, dragging
+  // seek) into a single call instead of one GET per click.
+  function scheduleRefresh() {
+    clearTimeout(refreshTimeoutRef.current);
+    refreshTimeoutRef.current = setTimeout(refresh, ACTION_REFRESH_DEBOUNCE_MS);
   }
 
   async function withBusy(fn) {
     setBusy(true);
     try {
       await fn();
-      await refresh();
+      scheduleRefresh();
     } catch (err) {
       // Most common real cause: no active device, or a Free account
       // hitting a Premium-only endpoint — both need a message, not silence
@@ -239,7 +287,37 @@ export default function SpotifyNowPlayingBar() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => withBusy(() => (isPlaying ? spotifyPause(deviceId) : spotifyPlay({ deviceId })))}
+            onClick={() => {
+              // Pressing Play with no track loaded (idle, or a player
+              // session that never had anything active) sends an empty PUT
+              // /me/player/play that Spotify rejects with 403 "Restriction
+              // violated" — check the already-polled state instead of
+              // firing a request we know will fail (done client-side so
+              // it's instant and free). Deliberately not also gated on
+              // state?.actions?.disallows?.resuming: a fully idle session
+              // (nothing ever played) normalizes to {item: null, device:
+              // null} with no `actions` key at all (see
+              // spotify/views.py::player_state's 204 handling), so that
+              // extra condition would never fire in the most common idle
+              // case — !item is already sufficient, since Spotify only
+              // ever populates item once something has been active.
+              if (!isPlaying && !item) {
+                flashMessage("Select a track from Search or Library to start playing.");
+                return;
+              }
+              withBusy(async () => {
+                // Optimistic flip: known from the action itself, so the icon
+                // updates immediately instead of waiting on the debounced
+                // refresh (and doesn't need an extra network round trip).
+                if (isPlaying) {
+                  await spotifyPause(deviceId);
+                  setState((s) => (s ? { ...s, is_playing: false } : s));
+                } else {
+                  await spotifyPlay({ deviceId });
+                  setState((s) => (s ? { ...s, is_playing: true } : s));
+                }
+              });
+            }}
             className="flex items-center justify-center"
             style={{
               width: 32,

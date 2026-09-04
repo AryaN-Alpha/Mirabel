@@ -97,6 +97,7 @@ def model_preference(request: Request) -> Response:
                 "model": pref.model,
                 "max_tokens": pref.max_tokens,
                 "temperature": pref.temperature,
+                "fast_conversation_mode": pref.fast_conversation_mode,
                 "available": AVAILABLE_MODELS,
                 "credentials": _credential_status(),
             }
@@ -128,6 +129,8 @@ def model_preference(request: Request) -> Response:
     pref.model = model
     pref.max_tokens = max_tokens
     pref.temperature = temperature
+    if "fast_conversation_mode" in request.data:
+        pref.fast_conversation_mode = bool(request.data.get("fast_conversation_mode"))
     pref.save()
     return Response(
         {
@@ -135,6 +138,7 @@ def model_preference(request: Request) -> Response:
             "model": pref.model,
             "max_tokens": pref.max_tokens,
             "temperature": pref.temperature,
+            "fast_conversation_mode": pref.fast_conversation_mode,
         }
     )
 

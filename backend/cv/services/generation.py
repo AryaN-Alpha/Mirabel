@@ -3,6 +3,7 @@ from typing import Any
 
 from core.models import ModelPreference
 from core.services.providers import ProviderError, get_provider
+from core.services.providers.model_select import fast_model_for
 from core.services.text_utils import truncate_chars
 from cv.prompts import cover_letter_system_prompt, project_description_system_prompt, section_rewrite_system_prompt
 
@@ -18,7 +19,13 @@ def _generate(*, system: str, user_content: str, call_site: str) -> dict[str, An
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
-            model=pref.model,
+            # fast_model_for(pref) — see core/services/providers/model_select.py.
+            # A short project blurb / section rewrite / cover letter is small
+            # and deterministic; a reasoning-tier model's hidden
+            # chain-of-thought just eats into max_tokens for no quality gain
+            # here, and at this call site's tight default budget can burn
+            # the whole thing before any visible text comes out.
+            model=fast_model_for(pref),
             system=system,
             history=[{"role": "user", "content": user_content}],
             max_tokens=pref.max_tokens,

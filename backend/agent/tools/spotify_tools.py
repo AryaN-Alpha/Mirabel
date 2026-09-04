@@ -70,7 +70,7 @@ def search_spotify(query: str, types: str = "track,artist,album", limit: int = 1
         token = get_active_access_token()
         results = client.search(token, query, types=types, limit=min(limit, 50))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     out = {}
     for key, block in results.items():
         items = [
@@ -101,7 +101,7 @@ def get_spotify_album(album_id: str) -> dict:
         token = get_active_access_token()
         album = client.get_album(token, album_id)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     return {
         "id": album.get("id"),
         "uri": album.get("uri"),
@@ -125,7 +125,7 @@ def get_spotify_artist(artist_id: str) -> dict:
         top_tracks = client.get_artist_top_tracks(token, artist_id)
         albums = client.get_artist_albums(token, artist_id)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     return {
         "id": artist.get("id"),
         "uri": artist.get("uri"),
@@ -148,7 +148,7 @@ def get_spotify_track(track_id: str) -> dict:
         token = get_active_access_token()
         track = client.get_track(token, track_id)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     return {
         **_track_dict(track),
         "album": (track.get("album") or {}).get("name"),
@@ -174,7 +174,7 @@ def get_spotify_top_items(item_type: str = "tracks", time_range: str = "medium_t
         else:
             result = client.get_top_tracks(token, time_range=time_range, limit=min(limit, 50))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     items = [{"id": i.get("id"), "uri": i.get("uri"), "name": i.get("name")} for i in result.get("items", [])]
     compact = encode_compact_list(items)
     return {"items": compact if compact is not None else items}
@@ -187,7 +187,7 @@ def get_spotify_playlists() -> dict:
         token = get_active_access_token()
         result = client.get_current_user_playlists(token, limit=50)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     playlists = [
         {"id": p.get("id"), "name": p.get("name"), "track_count": (p.get("tracks") or {}).get("total", 0)}
         for p in result.get("items", [])
@@ -208,7 +208,7 @@ def get_spotify_playlist_tracks(playlist_id: str, limit: int = 50) -> dict:
         token = get_active_access_token()
         result = client.get_playlist_tracks(token, playlist_id, limit=min(limit, 100))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     tracks = [_track_dict(t["track"]) for t in result.get("items", []) if t.get("track")]
     compact = encode_compact_list(tracks)
     return {"tracks": compact if compact is not None else tracks}
@@ -225,7 +225,7 @@ def get_spotify_saved_tracks(limit: int = 20) -> dict:
         token = get_active_access_token()
         result = client.get_saved_tracks(token, limit=min(limit, 50))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     tracks = [_track_dict(i["track"]) for i in result.get("items", []) if i.get("track")]
     compact = encode_compact_list(tracks)
     return {"tracks": compact if compact is not None else tracks}
@@ -242,7 +242,7 @@ def get_spotify_followed_artists(limit: int = 20) -> dict:
         token = get_active_access_token()
         result = client.get_followed_artists(token, limit=min(limit, 50))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     artists = [{"id": a.get("id"), "name": a.get("name")} for a in (result.get("artists") or {}).get("items", [])]
     compact = encode_compact_list(artists)
     return {"artists": compact if compact is not None else artists}
@@ -259,7 +259,7 @@ def get_spotify_recently_played(limit: int = 20) -> dict:
         token = get_active_access_token()
         result = client.get_recently_played(token, limit=min(limit, 50))
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     items = [
         {**_track_dict(i["track"]), "played_at": i.get("played_at")}
         for i in result.get("items", [])
@@ -278,7 +278,7 @@ def get_spotify_currently_playing() -> dict:
         token = get_active_access_token()
         current = client.get_currently_playing(token)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     if not current or not current.get("item"):
         return {"is_playing": False}
     item = current["item"]
@@ -301,7 +301,7 @@ def get_spotify_playback_state() -> dict:
         token = get_active_access_token()
         state = client.get_playback_state(token)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     if not state:
         return {"is_playing": False}
     device = state.get("device") or {}
@@ -328,7 +328,7 @@ def get_spotify_devices() -> dict:
         token = get_active_access_token()
         result = client.get_devices(token)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     return {
         "devices": [
             {"id": d.get("id"), "name": d.get("name"), "type": d.get("type"), "is_active": d.get("is_active")}
@@ -344,7 +344,7 @@ def get_spotify_queue() -> dict:
         token = get_active_access_token()
         result = client.get_queue(token)
     except SpotifyError as exc:
-        return {"error": str(exc)}
+        return {"error": str(exc), "reason": exc.reason}
     currently = result.get("currently_playing") or {}
     queue = [_track_dict(t) for t in result.get("queue", [])]
     compact = encode_compact_list(queue)
@@ -375,7 +375,7 @@ def control_spotify_playback(action: str, device_id: str = "") -> dict:
         else:
             client.previous_track(token, device_id=did)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -398,7 +398,7 @@ def play_spotify_item(track_uris: list[str] | None = None, context_uri: str = ""
         token = get_active_access_token()
         client.play(token, device_id=device_id or None, uris=track_uris or None, context_uri=context_uri or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -415,7 +415,7 @@ def seek_spotify_playback(position_ms: int, device_id: str = "") -> dict:
         token = get_active_access_token()
         client.seek(token, position_ms, device_id=device_id or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -432,7 +432,7 @@ def set_spotify_volume(volume_percent: int, device_id: str = "") -> dict:
         token = get_active_access_token()
         client.set_volume(token, volume_percent, device_id=device_id or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -448,7 +448,7 @@ def set_spotify_shuffle(enabled: bool, device_id: str = "") -> dict:
         token = get_active_access_token()
         client.set_shuffle(token, enabled, device_id=device_id or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -466,7 +466,7 @@ def set_spotify_repeat(mode: str, device_id: str = "") -> dict:
         token = get_active_access_token()
         client.set_repeat(token, mode, device_id=device_id or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -483,7 +483,7 @@ def transfer_spotify_playback(device_id: str, start_playing: bool = False) -> di
         token = get_active_access_token()
         client.transfer_playback(token, device_id, play=start_playing)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -500,7 +500,7 @@ def add_to_spotify_queue(track_uri: str, device_id: str = "") -> dict:
         token = get_active_access_token()
         client.add_to_queue(token, track_uri, device_id=device_id or None)
     except SpotifyError as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
 
 
@@ -525,7 +525,7 @@ def save_spotify_tracks(track_ids: list[str]) -> dict:
         token = get_active_access_token()
         client.save_tracks(token, final_args["track_ids"])
     except SpotifyError as exc:
-        return {"saved": False, "error": str(exc)}
+        return {"saved": False, "error": str(exc), "reason": exc.reason}
     return {"saved": True}
 
 
@@ -550,7 +550,7 @@ def remove_spotify_saved_tracks(track_ids: list[str]) -> dict:
         token = get_active_access_token()
         client.remove_saved_tracks(token, final_args["track_ids"])
     except SpotifyError as exc:
-        return {"removed": False, "error": str(exc)}
+        return {"removed": False, "error": str(exc), "reason": exc.reason}
     return {"removed": True}
 
 
@@ -574,7 +574,7 @@ def follow_spotify_artists(artist_ids: list[str]) -> dict:
         token = get_active_access_token()
         client.follow_artists(token, final_args["artist_ids"])
     except SpotifyError as exc:
-        return {"followed": False, "error": str(exc)}
+        return {"followed": False, "error": str(exc), "reason": exc.reason}
     return {"followed": True}
 
 
@@ -598,7 +598,7 @@ def unfollow_spotify_artists(artist_ids: list[str]) -> dict:
         token = get_active_access_token()
         client.unfollow_artists(token, final_args["artist_ids"])
     except SpotifyError as exc:
-        return {"unfollowed": False, "error": str(exc)}
+        return {"unfollowed": False, "error": str(exc), "reason": exc.reason}
     return {"unfollowed": True}
 
 
@@ -631,7 +631,7 @@ def create_spotify_playlist(name: str, description: str, track_uris: list[str]) 
         if final_args.get("track_uris"):
             client.add_playlist_tracks(token, playlist["id"], final_args["track_uris"])
     except SpotifyError as exc:
-        return {"created": False, "error": str(exc)}
+        return {"created": False, "error": str(exc), "reason": exc.reason}
     return {"created": True, "playlist_id": playlist.get("id"), "url": (playlist.get("external_urls") or {}).get("spotify")}
 
 
@@ -666,7 +666,7 @@ def update_spotify_playlist_details(
             public=final_args.get("public"),
         )
     except SpotifyError as exc:
-        return {"updated": False, "error": str(exc)}
+        return {"updated": False, "error": str(exc), "reason": exc.reason}
     return {"updated": True}
 
 
@@ -691,7 +691,7 @@ def add_tracks_to_spotify_playlist(playlist_id: str, track_uris: list[str]) -> d
         token = get_active_access_token()
         client.add_playlist_tracks(token, final_args["playlist_id"], final_args["track_uris"])
     except SpotifyError as exc:
-        return {"added": False, "error": str(exc)}
+        return {"added": False, "error": str(exc), "reason": exc.reason}
     return {"added": True}
 
 
@@ -716,7 +716,7 @@ def remove_tracks_from_spotify_playlist(playlist_id: str, track_uris: list[str])
         token = get_active_access_token()
         client.remove_playlist_tracks(token, final_args["playlist_id"], final_args["track_uris"])
     except SpotifyError as exc:
-        return {"removed": False, "error": str(exc)}
+        return {"removed": False, "error": str(exc), "reason": exc.reason}
     return {"removed": True}
 
 

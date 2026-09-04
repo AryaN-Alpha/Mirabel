@@ -132,6 +132,23 @@ class ExtractFactsTests(TestCase):
 
         mock_get_provider.assert_called_once_with("deepseek")
 
+    @patch("memory.services.facts.get_provider")
+    def test_deepseek_reasoning_model_is_redirected_to_fast_model(self, mock_get_provider):
+        """Regression test: extract_facts used to call model=pref.model
+        directly, so a reasoning-tier DeepSeek config could burn the whole
+        300-token budget on hidden chain-of-thought before any JSON came
+        out, failing silently via the except Exception above. Confirms it
+        now goes through fast_model_for (see model_select.py)."""
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "deepseek", "model": "deepseek-v4-flash"}
+        )
+        mock_get_provider.return_value.generate_text.return_value = '{"facts": []}'
+
+        extract_facts("some message")
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "deepseek-chat")
+
 
 class BuildWeeklySummaryTests(TestCase):
     """Regression coverage for routing build_weekly_summary through
@@ -166,6 +183,27 @@ class BuildWeeklySummaryTests(TestCase):
 
         mock_get_provider.assert_called_once_with("deepseek")
         self.assertEqual(result["summary_text"], "A quiet week.")
+
+    @patch("memory.services.summary.get_provider")
+    def test_deepseek_reasoning_model_is_redirected_to_fast_model(self, mock_get_provider):
+        """Regression test: same reasoning-tax gap as facts.py — a 400-token
+        drafting budget shouldn't be spent on hidden chain-of-thought."""
+        from datetime import timedelta
+
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "deepseek", "model": "deepseek-v4-flash"}
+        )
+        mock_get_provider.return_value.generate_text.return_value = '{"summary": "A quiet week."}'
+
+        conversation = Conversation.objects.create()
+        self._make_messages(conversation, n=4)
+        period_end = datetime.now(timezone.utc)
+        period_start = period_end - timedelta(days=7)
+
+        build_weekly_summary(period_start=period_start, period_end=period_end)
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "deepseek-chat")
 
     @patch("memory.services.summary.get_provider")
     def test_unparseable_json_falls_back_to_raw_text(self, mock_get_provider):
@@ -244,6 +282,29 @@ class FindSupersededFactTests(TestCase):
         result = find_superseded_fact("Works at Globex", "biographical")
         self.assertIsNotNone(result)
         self.assertEqual(result["id"], "fact_old1")
+
+    @patch("memory.services.supersession.get_provider")
+    @patch("memory.services.supersession.query_memories")
+    def test_deepseek_reasoning_model_is_redirected_to_fast_model(self, mock_query, mock_get_provider):
+        """Regression test: this is the tightest budget in the app (50
+        tokens) for a single JSON boolean — under a reasoning-tier DeepSeek
+        config, hidden chain-of-thought alone could exceed it, truncating
+        `raw` before json.loads ever succeeds. That failure is invisible
+        (the except Exception below returns None, "assuming no
+        supersession") which is exactly why this needs its own regression
+        test rather than relying on the silent fallback to look correct."""
+        from core.models import ModelPreference
+
+        ModelPreference.objects.update_or_create(
+            pk=1, defaults={"provider": "deepseek", "model": "deepseek-v4-flash"}
+        )
+        mock_query.return_value = [self._hit(similarity=0.9)]
+        mock_get_provider.return_value.generate_text.return_value = '{"supersedes": true}'
+
+        find_superseded_fact("Works at Globex", "biographical")
+
+        called_model = mock_get_provider.return_value.generate_text.call_args.kwargs["model"]
+        self.assertEqual(called_model, "deepseek-chat")
 
     @patch("memory.services.supersession.get_provider")
     @patch("memory.services.supersession.query_memories")

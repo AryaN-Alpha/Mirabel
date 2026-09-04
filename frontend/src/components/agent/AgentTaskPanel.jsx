@@ -198,10 +198,16 @@ export default function AgentTaskPanel({ task, busy, onApprove, onReject, onAnsw
   const [edited, setEdited] = useState(null);
   const [answerText, setAnswerText] = useState("");
 
+  // Deliberately keyed on pending_action's *content*, not its object
+  // identity: the poll loop (agentTaskPolling.js, every 1.5s) hands back a
+  // freshly-parsed object each tick even when nothing actually changed, so
+  // keying on the reference reset answerText/edited on every poll tick —
+  // wiping out whatever the user was mid-typing into the answer box.
+  const pendingActionKey = JSON.stringify(task.pending_action);
   useEffect(() => {
     setEdited(null);
     setAnswerText("");
-  }, [task.id, task.pending_action]);
+  }, [task.id, pendingActionKey]);
 
   const btnBase = {
     display: "inline-flex",
