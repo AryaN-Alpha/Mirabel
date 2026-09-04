@@ -83,18 +83,29 @@ def tasks(request: Request) -> Response:
     return Response(_serialize(task), status=201)
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 # Polled every 1.5s while a task is running (see pollAgentTask) — the global
 # 30/min AnonRateThrottle (mirabel/settings.py) starts 429ing this well
 # before a longer-running task finishes. Read-only, cheap, no LLM/cost
 # surface, so exempting it doesn't reopen the DoS concern the throttle
 # otherwise guards against.
 @throttle_classes([])
-def task_detail(_request: Request, task_id: int) -> Response:
+def task_detail(request: Request, task_id: int) -> Response:
     try:
         task = AgentTask.objects.get(pk=task_id)
     except AgentTask.DoesNotExist:
         return Response({"error": "task not found"}, status=404)
+
+    if request.method == "DELETE":
+        TERMINAL = {AgentTask.Status.DONE, AgentTask.Status.FAILED, AgentTask.Status.CANCELLED}
+        if task.status not in TERMINAL:
+            return Response(
+                {"error": "Only finished tasks (done, failed, cancelled) can be deleted."},
+                status=409,
+            )
+        task.delete()
+        return Response(status=204)
+
     return Response(_serialize(task))
 
 

@@ -27,6 +27,7 @@ import CvPage from "./components/CvPage";
 import AgentPage from "./components/AgentPage";
 import AgentTasksTab from "./components/agent/AgentTasksTab";
 import AgentMemoriesTab from "./components/agent/AgentMemoriesTab";
+import AgentClearMemoriesTab from "./components/agent/AgentClearMemoriesTab";
 import KanbanPage from "./components/KanbanPage";
 import SpotifyPage, {
   SpotifyHomeRoute,
@@ -91,6 +92,7 @@ export default function App() {
               <Route index element={<Navigate to="tasks" replace />} />
               <Route path="tasks" element={<AgentTasksTab />} />
               <Route path="memories" element={<AgentMemoriesTab />} />
+              <Route path="clear" element={<AgentClearMemoriesTab />} />
             </Route>
             <Route path="tasks" element={<KanbanPage />} />
             <Route path="stats" element={<StatsPage />} />

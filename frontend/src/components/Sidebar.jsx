@@ -32,6 +32,7 @@ import {
   EyeOff,
   Menu,
   X,
+  Trash2,
 } from "lucide-react";
 import { fontHeading, text, accent, cream } from "./homeTheme";
 import useNameHidden from "../hooks/useNameHidden";
@@ -113,6 +114,7 @@ const NAV_ITEMS = [
     children: [
       { icon: Bot, label: "Tasks", to: "/home/agent/tasks" },
       { icon: Brain, label: "Memories", to: "/home/agent/memories" },
+      { icon: Trash2, label: "Clear memories", to: "/home/agent/clear" },
     ],
   },
   { icon: SquareKanban, label: "Tasks", to: "/home/tasks" },

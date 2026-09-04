@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ListTodo, Loader2 } from "lucide-react";
+import { ListTodo, Loader2, Trash2 } from "lucide-react";
 import {
   answerAgentTask,
   approveAgentTask,
   cancelAgentTask,
+  deleteAgentTask,
   listAgentTasks,
   rejectAgentTask,
   startAgentTask,
@@ -13,6 +14,7 @@ import { fontHeading, text, space, cream, accent } from "../homeTheme";
 import { EmptyState, ErrorNote, GhostLink, GlassPanel, PanelEyebrow } from "../homeWidgets";
 import ChatInput from "../ChatInput";
 import AgentTaskPanel from "./AgentTaskPanel";
+import ConfirmDialog from "../ConfirmDialog";
 
 const POLL_INTERVAL_MS = 1500;
 const PAGE_SIZE = 20;
@@ -56,89 +58,132 @@ function formatDate(iso) {
   });
 }
 
+const TERMINAL = new Set(["done", "failed", "cancelled"]);
+
 // Card-row treatment for a task record — mirrors AgentMemoriesTab's
 // MemoryRow (zebra + local hover highlight standing in for `.ds-table`'s
 // striping, which needs an actual <table> to apply to).
-function TaskRow({ task, zebra, busy, onDecision, onAnswer }) {
+function TaskRow({ task, zebra, busy, onDecision, onAnswer, onDelete }) {
   const [hovered, setHovered] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const isTerminal = TERMINAL.has(task.status);
   const needsAttention =
     task.status === "awaiting_confirmation" || task.status === "awaiting_clarification" || task.status === "running" || task.status === "done" || task.status === "failed";
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        padding: `${space[5] ?? 23}px ${space[4]}px`,
-        borderBottom: `1px solid ${cream(0.09)}`,
-        background: hovered ? cream(0.045) : zebra ? cream(0.018) : "transparent",
-        transition: "background 0.2s ease",
-      }}
-    >
-      <div className="flex items-baseline justify-between gap-4 flex-wrap">
-        <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
-        <span
-          className="flex items-center gap-1.5"
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: STATUS_COLOR[task.status] || cream(0.5),
-            whiteSpace: "nowrap",
-          }}
-        >
-          {task.status === "running" && <Loader2 size={12} className="animate-spin" />}
-          {STATUS_LABEL[task.status] || task.status}
-        </span>
-      </div>
-      <p style={{ fontSize: 13, marginTop: 4, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
-        {formatDate(task.created_at)}
-      </p>
-
-      {needsAttention && (
-        <div
-          style={{
-            marginTop: space[3],
-            padding: space[3],
-            border:
-              task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                ? `1px solid ${cream(0.14)}`
-                : "none",
-            borderRadius: 8,
-            background:
-              task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
-                ? "rgba(240,201,162,0.06)"
-                : "transparent",
-          }}
-        >
-          <AgentTaskPanel
-            task={task}
-            busy={busy}
-            palette={PANEL_PALETTE}
-            onApprove={(editedArgs) => onDecision(task.id, "approve", editedArgs)}
-            onReject={() => onDecision(task.id, "reject")}
-            onAnswer={(answer) => onAnswer(task.id, answer)}
-          />
+    <>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          padding: `${space[5] ?? 23}px ${space[4]}px`,
+          borderBottom: `1px solid ${cream(0.09)}`,
+          background: hovered ? cream(0.045) : zebra ? cream(0.018) : "transparent",
+          transition: "background 0.2s ease",
+        }}
+      >
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <span className="min-w-0" style={{ fontFamily: fontHeading, fontSize: 18, color: text.base }}>{task.instruction}</span>
+          <div className="flex items-center gap-3">
+            <span
+              className="flex items-center gap-1.5"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: STATUS_COLOR[task.status] || cream(0.5),
+                whiteSpace: "nowrap",
+              }}
+            >
+              {task.status === "running" && <Loader2 size={12} className="animate-spin" />}
+              {STATUS_LABEL[task.status] || task.status}
+            </span>
+            {isTerminal && (
+              <button
+                type="button"
+                title="Delete task"
+                onClick={() => setConfirmDelete(true)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 4,
+                  borderRadius: 6,
+                  color: hovered ? "rgba(224,140,140,0.7)" : cream(0.25),
+                  transition: "color 0.2s ease",
+                  lineHeight: 0,
+                }}
+              >
+                <Trash2 size={13} strokeWidth={1.6} />
+              </button>
+            )}
+          </div>
         </div>
-      )}
-
-      {task.steps?.length > 0 && (
-        <p style={{ fontSize: 12, marginTop: space[2], color: cream(0.4) }}>
-          {task.steps.length} step{task.steps.length === 1 ? "" : "s"} so far
+        <p style={{ fontSize: 13, marginTop: 4, color: cream(0.45), fontVariantNumeric: "tabular-nums" }}>
+          {formatDate(task.created_at)}
         </p>
-      )}
 
-      {task.status === "queued" && (
-        <GhostLink
-          muted
-          disabled={busy}
-          onClick={() => onDecision(task.id, "cancel")}
-          style={{ marginTop: space[3], fontSize: 13 }}
-        >
-          Cancel
-        </GhostLink>
+        {needsAttention && (
+          <div
+            style={{
+              marginTop: space[3],
+              padding: space[3],
+              border:
+                task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
+                  ? `1px solid ${cream(0.14)}`
+                  : "none",
+              borderRadius: 8,
+              background:
+                task.status === "awaiting_confirmation" || task.status === "awaiting_clarification"
+                  ? "rgba(240,201,162,0.06)"
+                  : "transparent",
+            }}
+          >
+            <AgentTaskPanel
+              task={task}
+              busy={busy}
+              palette={PANEL_PALETTE}
+              onApprove={(editedArgs) => onDecision(task.id, "approve", editedArgs)}
+              onReject={() => onDecision(task.id, "reject")}
+              onAnswer={(answer) => onAnswer(task.id, answer)}
+            />
+          </div>
+        )}
+
+        {task.steps?.length > 0 && (
+          <p style={{ fontSize: 12, marginTop: space[2], color: cream(0.4) }}>
+            {task.steps.length} step{task.steps.length === 1 ? "" : "s"} so far
+          </p>
+        )}
+
+        {task.status === "queued" && (
+          <GhostLink
+            muted
+            disabled={busy}
+            onClick={() => onDecision(task.id, "cancel")}
+            style={{ marginTop: space[3], fontSize: 13 }}
+          >
+            Cancel
+          </GhostLink>
+        )}
+      </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete this task?"
+          message="This permanently removes the task record. It cannot be undone."
+          confirmLabel="Delete"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onDelete(task.id);
+          }}
+        />
       )}
-    </div>
+    </>
   );
 }
 
@@ -225,6 +270,16 @@ export default function AgentTasksTab() {
     }
   }
 
+  async function handleDelete(id) {
+    try {
+      await deleteAgentTask(id);
+      setTasks((prev) => (prev || []).filter((t) => t.id !== id));
+      setTotal((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't delete that task."));
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -257,6 +312,7 @@ export default function AgentTasksTab() {
                   busy={busyId === task.id}
                   onDecision={handleDecision}
                   onAnswer={handleAnswer}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>

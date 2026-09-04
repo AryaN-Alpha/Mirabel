@@ -22,11 +22,21 @@ const COPY = {
     ),
     body: "Tell her what to handle — she'll queue it, work through it with tools of her own, and check in before anything irreversible.",
   },
+  clear: {
+    heading: (
+      <>
+        Forget on
+        <br />
+        <em style={{ fontStyle: "italic", color: accent[300] }}>your terms</em>
+      </>
+    ),
+    body: "Remove memories by date, type, or all at once. Deleted memories are gone from both the database and vector store — she won't recall them.",
+  },
 };
 
 export default function AgentPage() {
   const { pathname } = useLocation();
-  const copy = pathname.endsWith("/memories") ? COPY.memories : COPY.tasks;
+  const copy = pathname.endsWith("/clear") ? COPY.clear : pathname.endsWith("/memories") ? COPY.memories : COPY.tasks;
 
   return (
     <div style={{ animation: "home-rise 1s cubic-bezier(.2,.7,.2,1) .08s both" }}>

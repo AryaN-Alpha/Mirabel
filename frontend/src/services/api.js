@@ -142,6 +142,10 @@ export async function cancelAgentTask(id) {
   return data;
 }
 
+export async function deleteAgentTask(id) {
+  await client.delete(`/api/agent/tasks/${id}/`);
+}
+
 export async function getOutlookInbox({ domain, sender, page } = {}) {
   const params = {};
   if (domain) params.domain = domain;

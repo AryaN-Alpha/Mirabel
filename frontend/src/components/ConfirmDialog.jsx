@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "../utils/errors";
 import { space, cream } from "./homeTheme";
 import { ModalShell, OutlineButton, GhostLink, ErrorNote } from "./homeWidgets";
 
-// Generic confirm/delete dialog for the "hearth" redesign — built on the
-// shared ModalShell so it matches every other redesigned page's dialogs
-// instead of the old rounded-3xl gradient card style.
+// Generic confirm/delete dialog — portalled to document.body so the fixed
+// backdrop always covers the full viewport even when rendered inside an
+// ancestor that has a CSS transform/animation (which would otherwise create a
+// new stacking context and trap `position:fixed` children).
 export default function ConfirmDialog({ title, message, confirmLabel = "Delete", onCancel, onConfirm }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +24,7 @@ export default function ConfirmDialog({ title, message, confirmLabel = "Delete",
     }
   }
 
-  return (
+  return createPortal(
     <ModalShell onClose={onCancel} maxWidth={380} busy={busy}>
       <div className="flex flex-col" style={{ gap: space[2] }}>
         <p style={{ fontSize: 17, fontFamily: "inherit", color: "#f7ece4" }}>{title}</p>
@@ -40,6 +42,7 @@ export default function ConfirmDialog({ title, message, confirmLabel = "Delete",
           {confirmLabel}
         </OutlineButton>
       </div>
-    </ModalShell>
+    </ModalShell>,
+    document.body,
   );
 }
