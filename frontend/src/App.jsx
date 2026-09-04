@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { VoiceSessionProvider } from "./hooks/VoiceSessionProvider";
 import CozyFlow from "./components/CozyFlow";
-import CozyBackdrop from "./components/CozyBackdrop";
+import GalaxyBackdrop from "./components/GalaxyBackdrop";
 import HomeLayout from "./components/HomeLayout";
 import HomePage from "./components/HomePage";
 import AIModelPage from "./components/AIModelPage";
@@ -43,7 +43,7 @@ import StatsPage from "./components/StatsPage";
 
 export default function App() {
   return (
-    <CozyBackdrop>
+    <GalaxyBackdrop>
       <VoiceSessionProvider>
         <Routes>
           <Route path="/" element={<CozyFlow />} />
@@ -97,6 +97,6 @@ export default function App() {
           </Route>
         </Routes>
       </VoiceSessionProvider>
-    </CozyBackdrop>
+    </GalaxyBackdrop>
   );
 }

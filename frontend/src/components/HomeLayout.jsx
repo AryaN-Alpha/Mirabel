@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import HomeNavbar from "./HomeNavbar";
-import { bg, accent, accent2700, fontHeading, text } from "./homeTheme";
+import { fontHeading, text } from "./homeTheme";
 import { ScrollContainerProvider, useScrollContainer } from "./ScrollContainerContext";
 import SpotifyNowPlayingBar from "./spotify/SpotifyNowPlayingBar";
 import GlobalChatWidget from "./GlobalChatWidget";
@@ -18,16 +18,19 @@ const PAGE_TITLES = {
   "/home/stats": "Stats",
 };
 
-const EMBERS = [
-  { left: "18%", bottom: "6%", size: 2, duration: 14, delay: 0 },
-  { left: "29%", bottom: "12%", size: 3, duration: 19, delay: 3 },
-  { left: "41%", bottom: "2%", size: 2, duration: 16, delay: 7 },
-  { left: "55%", bottom: "18%", size: 2, duration: 21, delay: 1.5 },
-  { left: "66%", bottom: "4%", size: 3, duration: 18, delay: 9 },
-  { left: "74%", bottom: "22%", size: 2, duration: 24, delay: 5 },
-  { left: "87%", bottom: "8%", size: 2, duration: 20, delay: 12 },
-  { left: "94%", bottom: "30%", size: 2, duration: 27, delay: 2 },
-];
+// Commented out along with its render usage below — this was the warm-theme
+// "hearth ember" decoration; it clashes with (and, formerly, sat on an opaque
+// backdrop that fully hid) the galaxy canvas now rendering behind this page.
+// const EMBERS = [
+//   { left: "18%", bottom: "6%", size: 2, duration: 14, delay: 0 },
+//   { left: "29%", bottom: "12%", size: 3, duration: 19, delay: 3 },
+//   { left: "41%", bottom: "2%", size: 2, duration: 16, delay: 7 },
+//   { left: "55%", bottom: "18%", size: 2, duration: 21, delay: 1.5 },
+//   { left: "66%", bottom: "4%", size: 3, duration: 18, delay: 9 },
+//   { left: "74%", bottom: "22%", size: 2, duration: 24, delay: 5 },
+//   { left: "87%", bottom: "8%", size: 2, duration: 20, delay: 12 },
+//   { left: "94%", bottom: "30%", size: 2, duration: 27, delay: 2 },
+// ];
 
 function resolveTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
@@ -50,8 +53,11 @@ function HomeLayoutInner({ title }) {
   const scrollRef = useScrollContainer();
 
   return (
-    <div className="relative flex-1 min-h-0 w-full flex flex-col overflow-hidden" style={{ background: bg }}>
+    <div className="relative flex-1 min-h-0 w-full flex flex-col overflow-hidden">
       <div className="relative flex-1 min-h-0 w-full flex items-stretch overflow-hidden">
+        {/* Warm-theme "hearth glow" + ember decoration — commented out along with
+            EMBERS above; the galaxy canvas now renders behind this page and these
+            amber blobs/dots clash with (and used to fully hide) it.
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -90,6 +96,7 @@ function HomeLayoutInner({ title }) {
             />
           ))}
         </div>
+        */}
 
         <Sidebar />
 

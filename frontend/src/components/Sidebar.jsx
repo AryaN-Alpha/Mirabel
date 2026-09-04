@@ -33,7 +33,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { fontHeading, text, accent } from "./homeTheme";
+import { fontHeading, text, accent, cream } from "./homeTheme";
 import useNameHidden from "../hooks/useNameHidden";
 
 // Sidebar nav config. An item with `children` renders as an expandable tree
@@ -137,17 +137,21 @@ function NavRow({ icon: Icon, label, to, end, onNavigate }) {
     >
       {({ isActive }) => (
         <span
-          className="flex items-center gap-3 py-3 pl-3"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
           style={{
-            borderLeft: `1px solid ${isActive ? accent[400] : hovered ? accent[600] : text.divider}`,
             fontFamily: fontHeading,
-            fontSize: 17,
-            color: isActive || hovered ? text.base : text.muted,
-            paddingLeft: hovered ? 16 : 12,
-            transition: "color 0.4s ease, padding-left 0.4s ease, border-color 0.4s ease",
+            fontSize: 15.5,
+            color: isActive ? text.bright : hovered ? text.base : text.muted,
+            background: isActive
+              ? `linear-gradient(90deg, ${accent[600]}2e 0%, ${accent[600]}0d 100%)`
+              : hovered
+                ? cream(0.06)
+                : "transparent",
+            boxShadow: `inset 2px 0 0 0 ${isActive ? accent[400] : hovered ? accent[600] : "transparent"}`,
+            transition: "color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
           }}
         >
-          <Icon size={15} strokeWidth={1.6} />
+          <Icon size={15} strokeWidth={1.6} color={isActive ? accent[400] : undefined} />
           {label}
         </span>
       )}
@@ -165,14 +169,14 @@ function NavSubRow({ icon: Icon, label, to, onNavigate }) {
     <NavLink to={to} className="no-underline" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onNavigate}>
       {({ isActive }) => (
         <span
-          className="flex items-center gap-2.5 py-2 pl-3"
+          className="flex items-center gap-2.5 pl-3 pr-3 py-1.5 rounded-lg"
           style={{
-            borderLeft: `1px solid ${isActive ? accent[300] : hovered ? accent[600] : text.divider}`,
             fontFamily: fontHeading,
-            fontSize: 14,
+            fontSize: 13.5,
             color: isActive ? text.base : hovered ? text.base : text.faint,
-            paddingLeft: hovered ? 14 : 11,
-            transition: "color 0.4s ease, padding-left 0.4s ease, border-color 0.4s ease",
+            background: isActive ? cream(0.07) : hovered ? cream(0.045) : "transparent",
+            boxShadow: `inset 2px 0 0 0 ${isActive ? accent[300] : hovered ? accent[600] : "transparent"}`,
+            transition: "color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
           }}
         >
           {Icon && <Icon size={12} strokeWidth={1.6} />}
@@ -187,14 +191,14 @@ function NavSubRow({ icon: Icon, label, to, onNavigate }) {
 // mobile slide-over drawer, so the two never drift out of sync.
 function SidebarNav({ pathname, onNavigate }) {
   return (
-    <nav className="flex flex-col">
+    <nav className="flex flex-col gap-0.5">
       {NAV_ITEMS.map((item) => {
         const expanded = item.children && isSectionActive(pathname, item.to);
         return (
           <div key={item.to}>
             <NavRow icon={item.icon} label={item.label} to={item.to} end={item.end} onNavigate={onNavigate} />
             {expanded && (
-              <div className="flex flex-col ml-3" style={{ gap: 2, marginTop: 2, marginBottom: 6 }}>
+              <div className="flex flex-col ml-3" style={{ gap: 1, marginTop: 3, marginBottom: 6 }}>
                 {item.children.map((child) => (
                   <NavSubRow key={child.to} icon={child.icon} label={child.label} to={child.to} onNavigate={onNavigate} />
                 ))}
@@ -265,20 +269,22 @@ export default function Sidebar() {
         aria-label="Open navigation menu"
         className="md:hidden fixed top-4 left-4 z-40 grid place-items-center w-10 h-10 rounded-full"
         style={{
-          background: "rgba(15,12,10,0.75)",
-          border: `1px solid ${text.divider}`,
+          background: "rgba(8,8,9,0.7)",
+          border: `1px solid ${cream(0.12)}`,
           color: text.base,
-          backdropFilter: "blur(8px)",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 10px 28px -12px rgba(0,0,0,0.6)",
         }}
       >
         <Menu size={18} strokeWidth={1.8} />
       </button>
 
       <aside
-        className="hidden md:flex relative flex-col shrink-0 w-[264px] px-6 py-8 overflow-y-auto"
+        className="hidden md:flex relative flex-col shrink-0 w-[260px] m-4 px-5 py-7 overflow-y-auto rounded-[22px]"
         style={{
-          borderRight: `1px solid ${text.divider}`,
-          background: "rgba(15,12,10,0.55)",
+          background: "transparent",
+          border: `1px solid ${cream(0.04)}`,
+          boxShadow: "none",
         }}
       >
         <SidebarBrand nameHidden={nameHidden} toggleNameHidden={toggleNameHidden} />
@@ -292,14 +298,18 @@ export default function Sidebar() {
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div
             className="absolute inset-0"
-            style={{ background: "rgba(0,0,0,0.55)" }}
+            style={{ background: "rgba(2,2,4,0.6)", backdropFilter: "blur(2px)" }}
             onClick={() => setMobileOpen(false)}
           />
           <aside
-            className="relative flex flex-col w-[82vw] max-w-[300px] h-full px-6 py-8 overflow-y-auto"
+            className="relative flex flex-col w-[82vw] max-w-[300px] my-3 ml-3 px-5 py-7 overflow-y-auto rounded-[22px]"
             style={{
-              borderRight: `1px solid ${text.divider}`,
-              background: "#141110",
+              background: "linear-gradient(165deg, rgba(11,10,10,0.95) 0%, rgba(5,5,5,0.92) 100%)",
+              border: `1px solid ${cream(0.1)}`,
+              boxShadow: "0 24px 60px -18px rgba(0,0,0,0.8), 0 0 46px -18px rgba(221,43,15,0.2)",
+              backdropFilter: "blur(20px) saturate(108%)",
+              WebkitBackdropFilter: "blur(20px) saturate(108%)",
+              maxHeight: "calc(100% - 24px)",
             }}
           >
             <button

@@ -203,7 +203,7 @@ export default function SpotifyNowPlayingBar() {
   const deviceId = state?.device?.id;
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0 px-4 pt-2 pb-4">
       {error && (
         <div
           className="absolute left-1/2"
@@ -213,7 +213,7 @@ export default function SpotifyNowPlayingBar() {
             marginBottom: space[2],
             padding: `${space[1]}px ${space[3]}px`,
             borderRadius: radius.md,
-            background: "rgba(24,20,17,0.97)",
+            background: "rgba(10,10,10,0.95)",
             border: "1px solid rgba(224,140,140,0.4)",
             color: "rgba(224,140,140,0.95)",
             fontSize: 12.5,
@@ -226,11 +226,13 @@ export default function SpotifyNowPlayingBar() {
         </div>
       )}
       <div
-        className="flex items-center justify-between gap-2 sm:gap-4"
+        className="flex items-center justify-between gap-2 sm:gap-4 rounded-2xl"
         style={{
-          borderTop: `1px solid ${cream(0.1)}`,
-          background: "rgba(15,12,10,0.75)",
-          backdropFilter: "blur(16px)",
+          border: `1px solid ${cream(0.05)}`,
+          background: "linear-gradient(180deg, rgba(6,6,8,0.22) 0%, rgba(3,3,5,0.1) 100%)",
+          backdropFilter: "blur(32px) saturate(105%)",
+          WebkitBackdropFilter: "blur(32px) saturate(105%)",
+          boxShadow: "0 24px 60px -30px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.015)",
           padding: `${space[2]}px ${space[3]}px`,
         }}
       >
@@ -326,7 +328,7 @@ export default function SpotifyNowPlayingBar() {
               background: text.base,
               border: "none",
               cursor: "pointer",
-              color: "#171310",
+              color: "#0a0a0d",
             }}
             title={isPlaying ? "Pause" : "Play"}
           >
@@ -442,8 +444,8 @@ export default function SpotifyNowPlayingBar() {
               padding: space[3],
               border: `1px solid ${cream(0.14)}`,
               borderRadius: radius.md,
-              background: "rgba(24,20,17,0.97)",
-              backdropFilter: "blur(20px)",
+              background: "rgba(10,10,10,0.95)",
+              backdropFilter: "blur(20px) saturate(150%)",
               boxShadow: "0 16px 40px rgba(0,0,0,0.4)",
               gap: space[1],
               zIndex: 30,
