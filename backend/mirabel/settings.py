@@ -15,7 +15,26 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 # Encrypts ProviderCredential.api_key at rest (see core/models.py).
 CREDENTIAL_ENCRYPTION_KEY = os.environ["CREDENTIAL_ENCRYPTION_KEY"]
 DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# Base hosts — always allowed.
+_allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# Optional: add your Tailscale machine name (e.g. "my-pc.tail1234.ts.net")
+# so Django accepts the Host header when Vite or a browser hits Django
+# directly from the Tailscale network. Django rejects requests whose Host
+# header is not listed here, which would produce a 400 Bad Request.
+_tailscale_host = os.getenv("TAILSCALE_HOSTNAME", "").strip()
+if _tailscale_host and _tailscale_host not in _allowed_hosts:
+    _allowed_hosts.append(_tailscale_host)
+ALLOWED_HOSTS = _allowed_hosts
+
+# Required when Django receives requests over HTTPS (e.g. Tailscale Serve
+# terminates TLS and forwards to Django). Without this Django rejects CSRF
+# token checks for POST/PUT/DELETE requests from the HTTPS origin.
+_csrf_origins = ["http://localhost:5173", "http://127.0.0.1:5173",
+                 "http://localhost:8000", "http://127.0.0.1:8000"]
+if _tailscale_host:
+    _csrf_origins.append(f"https://{_tailscale_host}")
+    _csrf_origins.append(f"http://{_tailscale_host}")
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", ",".join(_csrf_origins)).split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

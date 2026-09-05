@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { VoiceSessionProvider } from "./hooks/VoiceSessionProvider";
 import CozyFlow from "./components/CozyFlow";
 import GalaxyBackdrop from "./components/GalaxyBackdrop";
@@ -45,6 +46,7 @@ import StatsPage from "./components/StatsPage";
 export default function App() {
   return (
     <GalaxyBackdrop>
+      <PWAInstallPrompt />
       <VoiceSessionProvider>
         <Routes>
           <Route path="/" element={<CozyFlow />} />

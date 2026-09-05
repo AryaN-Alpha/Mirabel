@@ -2,7 +2,9 @@ import axios from "axios";
 import { getActiveSpotifyDeviceId } from "./spotifyDeviceStore";
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
+  // Use relative paths by default (empty string) so requests hit Vite's
+  // proxy instead of mistakenly trying to hit localhost on remote devices.
+  baseURL: import.meta.env.VITE_API_URL || "",
   headers: { "Content-Type": "application/json" },
   // 15s was tight enough to abort legitimate slow requests (a Chroma-backed
   // memory retrieval on /api/chat/, a loaded DB under normal CRUD latency)
