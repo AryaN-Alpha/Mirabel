@@ -21,6 +21,12 @@ export class AudioQueue {
     // can tell it's stale once decodeAudioData resolves, instead of pushing
     // canceled audio back into the queue and restarting playback — see stop().
     this._generation = 0;
+    // Optional callbacks — called whenever the queue transitions between
+    // idle and playing. useVoiceSession uses these to pause the VAD
+    // (effectively muting the mic) while the agent is speaking so its
+    // voice can't re-trigger itself.
+    this.onPlaybackStart = null;
+    this.onPlaybackEnd = null;
   }
 
   _ensureCtx() {
@@ -74,10 +80,14 @@ export class AudioQueue {
   _playNext() {
     const buf = this.queue.shift();
     if (!buf) {
+      const wasPlaying = this.playing;
       this.playing = false;
       this.currentSource = null;
+      // Notify listener that playback fully finished (queue drained).
+      if (wasPlaying) this.onPlaybackEnd?.();
       return;
     }
+    const wasPlaying = this.playing;
     this.playing = true;
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
@@ -89,6 +99,8 @@ export class AudioQueue {
     this.startTime = startAt + buf.duration;
     this.currentSource = src;
     src.onended = () => this._playNext();
+    // Notify listener the first time we transition from idle → playing.
+    if (!wasPlaying) this.onPlaybackStart?.();
   }
 
   // Barge-in: cut audio immediately, drop the queue.
@@ -97,10 +109,14 @@ export class AudioQueue {
     this.queue = [];
     this._pendingChunks = [];
     this.startTime = 0;
+    const wasPlaying = this.playing;
     if (this.currentSource) {
       try { this.currentSource.stop(); } catch (_) { /* already stopped */ }
       this.currentSource = null;
     }
     this.playing = false;
+    // If we were playing and got barged-in on, treat it as playback ending
+    // so the VAD/mic can resume (barge-in re-enables it via onSpeechStart).
+    if (wasPlaying) this.onPlaybackEnd?.();
   }
 }

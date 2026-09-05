@@ -54,6 +54,16 @@ function isEditableTarget(el) {
 // nor onVADMisfire ever fires and the recorder is never told to stop.
 const MAX_UTTERANCE_MS = 20000;
 
+// Minimum real-speech duration before we bother sending utterance_end.
+// Sub-300ms clips are almost always noise bursts / echo blips — the backend
+// transcribes them to "" anyway, but rejecting early saves a round-trip.
+const MIN_UTTERANCE_MS = 300;
+
+// How long to wait after the VAD signals speech-end before actually stopping
+// the recorder. If a second speech start arrives within this window the stop
+// is cancelled, merging two rapid fragments into one unbroken utterance.
+const SPEECH_END_DEBOUNCE_MS = 350;
+
 export function useVoiceSession() {
   const [connected, setConnected] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -95,6 +105,12 @@ export function useVoiceSession() {
   const playbackAnalyserRef = useRef(null);
   const stopAgentPollRef = useRef(null);
   const utteranceTimeoutRef = useRef(null);
+  // Used for the speech-end debounce (fix 2) and minimum-length gate (fix 2).
+  const speechEndDebounceRef = useRef(null);
+  const utteranceStartTimeRef = useRef(null);
+  // True while the VAD has been paused specifically because the agent is
+  // speaking — distinct from the user deliberately turning off the mic.
+  const agentSpeakingPauseRef = useRef(false);
 
   // Voice mode can't rely on visual attention the way chat/Agent-tab UIs
   // can, so the moment a task needs a decision, the backend speaks it aloud
@@ -301,22 +317,49 @@ export function useVoiceSession() {
       _origWarn.apply(console, args);
     };
 
+    // ---- Fix 1: auto-mute mic while agent is speaking -----------------
+    // Wire playback callbacks so the VAD is paused for the duration of the
+    // agent's reply, preventing its own TTS from triggering a new turn.
+    // agentSpeakingPauseRef guards against re-pausing an already-paused
+    // VAD (e.g. if two sentences decode concurrently) and against resuming
+    // a VAD the user deliberately stopped (vadRef.current is null then).
+    audioQueueRef.current.onPlaybackStart = () => {
+      if (vadRef.current && !agentSpeakingPauseRef.current) {
+        agentSpeakingPauseRef.current = true;
+        vadRef.current.pause();
+      }
+    };
+    audioQueueRef.current.onPlaybackEnd = () => {
+      if (agentSpeakingPauseRef.current && vadRef.current) {
+        agentSpeakingPauseRef.current = false;
+        vadRef.current.start();
+      }
+      agentSpeakingPauseRef.current = false;
+    };
+
     // VAD owns the start/stop logic so the user never holds a button.
     const vad = await MicVAD.new({
       stream,
       model: "v5",
-      positiveSpeechThreshold: 0.5,
+      // Fix 2: slightly higher thresholds to reduce noise-triggered starts.
+      positiveSpeechThreshold: 0.6,
       negativeSpeechThreshold: 0.35,
-      minSpeechFrames: 4,
+      minSpeechFrames: 6,
       redemptionFrames: 16,
       // When the user manually pauses the mic, flush any in-progress speech
       // segment as a proper onSpeechEnd event instead of silently discarding.
       submitUserSpeechOnPause: true,
       onSpeechStart: () => {
+        // Fix 2: cancel any pending speech-end debounce — two rapid detections
+        // merge into one continuous utterance rather than cutting early.
+        clearTimeout(speechEndDebounceRef.current);
+        speechEndDebounceRef.current = null;
+
         // Barge-in: kill any audio currently playing
         audioQueueRef.current.stop();
         sendJSON({ type: "cancel" });
         if (recorder.state === "inactive") {
+          utteranceStartTimeRef.current = Date.now();
           recorder.start(250); // 250ms timeslice
           // Safety net: onSpeechStart fires on the first frame that merely
           // *crosses* the threshold, well before a segment is confirmed as
@@ -337,10 +380,32 @@ export function useVoiceSession() {
         }
       },
       onSpeechEnd: () => {
-        // Just stop the recorder — the onstop handler sends utterance_end
-        // AFTER the final ondataavailable chunk, preventing the race condition.
-        clearTimeout(utteranceTimeoutRef.current);
-        if (recorder.state === "recording") recorder.stop();
+        // Fix 2: debounce — wait briefly before stopping in case a second
+        // speech burst starts immediately (e.g. someone pausing mid-sentence).
+        // The safety-net MAX_UTTERANCE_MS timeout stays active during this
+        // window, so we can't get stuck.
+        clearTimeout(speechEndDebounceRef.current);
+        speechEndDebounceRef.current = setTimeout(() => {
+          speechEndDebounceRef.current = null;
+          clearTimeout(utteranceTimeoutRef.current);
+          // Fix 2: minimum-length gate — drop very short clips that are
+          // almost certainly noise or echo rather than real speech.
+          const elapsed = Date.now() - (utteranceStartTimeRef.current ?? 0);
+          if (elapsed < MIN_UTTERANCE_MS) {
+            // Too short — discard without sending utterance_end.
+            if (recorder.state === "recording") {
+              // Override onstop so this specific stop doesn't send utterance_end.
+              const origOnStop = recorder.onstop;
+              recorder.onstop = null;
+              recorder.stop();
+              recorder.onstop = origOnStop;
+            }
+            return;
+          }
+          // Long enough — stop normally; onstop sends utterance_end after
+          // the final ondataavailable chunk.
+          if (recorder.state === "recording") recorder.stop();
+        }, SPEECH_END_DEBOUNCE_MS);
       },
       onVADMisfire: () => {
         // A segment too short to count as real speech (often a trailing
@@ -350,8 +415,16 @@ export function useVoiceSession() {
         // Flushing it anyway is safe and cheap: the backend transcribes an
         // empty/noise clip to "" and no-ops (see _handle_utterance) rather
         // than driving a real turn.
+        clearTimeout(speechEndDebounceRef.current);
+        speechEndDebounceRef.current = null;
         clearTimeout(utteranceTimeoutRef.current);
-        if (recorder.state === "recording") recorder.stop();
+        if (recorder.state === "recording") {
+          // Override onstop — a misfire should never send utterance_end.
+          const origOnStop = recorder.onstop;
+          recorder.onstop = null;
+          recorder.stop();
+          recorder.onstop = origOnStop;
+        }
       },
     });
 
@@ -366,6 +439,14 @@ export function useVoiceSession() {
   const stopMic = useCallback(() => {
     clearTimeout(utteranceTimeoutRef.current);
     utteranceTimeoutRef.current = null;
+    clearTimeout(speechEndDebounceRef.current);
+    speechEndDebounceRef.current = null;
+    agentSpeakingPauseRef.current = false;
+
+    // Clear playback callbacks so a queued decodeAudioData that resolves
+    // after the mic is off doesn't try to pause a now-null VAD.
+    audioQueueRef.current.onPlaybackStart = null;
+    audioQueueRef.current.onPlaybackEnd = null;
 
     // Pause VAD first — with submitUserSpeechOnPause=true, this fires
     // onSpeechEnd (which stops the recorder) if the user was mid-speech.
