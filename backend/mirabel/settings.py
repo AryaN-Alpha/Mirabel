@@ -26,6 +26,21 @@ if _tailscale_host and _tailscale_host not in _allowed_hosts:
     _allowed_hosts.append(_tailscale_host)
 ALLOWED_HOSTS = _allowed_hosts
 
+# ==========================================
+# Environment mode: "development" | "production"
+#   development -> all callback/base URLs use localhost
+#   production  -> all callback/base URLs use the Tailscale hostname
+# ==========================================
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+_is_production = APP_ENV == "production"
+
+# Resolved base URL used for OAuth redirect URIs and any absolute links.
+# Override per-service in .env if you need a different host for a specific one.
+if _is_production and _tailscale_host:
+    BASE_URL = f"https://{_tailscale_host}"
+else:
+    BASE_URL = "http://localhost:8000"
+
 # Required when Django receives requests over HTTPS (e.g. Tailscale Serve
 # terminates TLS and forwards to Django). Without this Django rejects CSRF
 # token checks for POST/PUT/DELETE requests from the HTTPS origin.
@@ -192,8 +207,9 @@ AGENT_TASK_SOFT_TIME_LIMIT = int(os.getenv("AGENT_TASK_SOFT_TIME_LIMIT", "540"))
 # read lazily in outlook/services/oauth.py (like ANTHROPIC_API_KEY etc.), so
 # a dev without Azure credentials configured can still run the server.
 MS_TENANT_ID = os.getenv("MS_TENANT_ID", "common")
-MS_REDIRECT_URI = os.getenv("MS_REDIRECT_URI", "http://localhost:8000/api/outlook/auth/callback/")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+# Derived from BASE_URL (controlled by APP_ENV) unless overridden in .env.
+MS_REDIRECT_URI = os.getenv("MS_REDIRECT_URI", f"{BASE_URL}/api/outlook/auth/callback/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173" if not _is_production else f"https://{_tailscale_host}")
 OUTLOOK_ALLOWED_SENDER_DOMAIN = os.getenv("OUTLOOK_ALLOWED_SENDER_DOMAIN", "dgtdata.com")
 
 # --- LinkedIn ---
@@ -201,7 +217,7 @@ OUTLOOK_ALLOWED_SENDER_DOMAIN = os.getenv("OUTLOOK_ALLOWED_SENDER_DOMAIN", "dgtd
 # they're read lazily in linkedin/services/oauth.py (same reasoning as
 # MS_CLIENT_ID/MS_CLIENT_SECRET above), so a dev without a LinkedIn app
 # configured can still run the server.
-LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8000/api/linkedin/auth/callback/")
+LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", f"{BASE_URL}/api/linkedin/auth/callback/")
 LINKEDIN_SCOPES = os.getenv("LINKEDIN_SCOPES", "openid profile email w_member_social")
 LINKEDIN_API_VERSION = os.getenv("LINKEDIN_API_VERSION", "202608")
 # Standard self-serve LinkedIn apps don't get refresh tokens (partner-only
@@ -214,7 +230,7 @@ LINKEDIN_ENABLE_REFRESH_TOKEN = os.getenv("LINKEDIN_ENABLE_REFRESH_TOKEN", "Fals
 # reasoning as MS_CLIENT_ID/LINKEDIN_CLIENT_ID above), so a dev without a
 # Google Cloud OAuth client configured can still run the server.
 GOOGLE_CLASSROOM_REDIRECT_URI = os.getenv(
-    "GOOGLE_CLASSROOM_REDIRECT_URI", "http://localhost:8000/api/classroom/auth/callback/"
+    "GOOGLE_CLASSROOM_REDIRECT_URI", f"{BASE_URL}/api/classroom/auth/callback/"
 )
 GOOGLE_CLASSROOM_SCOPES = os.getenv(
     "GOOGLE_CLASSROOM_SCOPES",
@@ -233,7 +249,7 @@ GOOGLE_CLASSROOM_SCOPES = os.getenv(
 # MS_CLIENT_ID/LINKEDIN_CLIENT_ID/GOOGLE_CLASSROOM_CLIENT_ID above), so a dev
 # without a Spotify app configured can still run the server.
 SPOTIFY_REDIRECT_URI = os.getenv(
-    "SPOTIFY_REDIRECT_URI", "http://localhost:8000/api/spotify/auth/callback/"
+    "SPOTIFY_REDIRECT_URI", f"{BASE_URL}/api/spotify/auth/callback/"
 )
 # FRONTEND_URL above is reused for the Spotify OAuth redirect too.
 
