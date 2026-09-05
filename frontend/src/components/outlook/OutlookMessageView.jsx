@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import DOMPurify from "dompurify";
 import { Loader2 } from "lucide-react";
 import { generateOutlookReply, getOutlookMessage, replyOutlookMessage } from "../../services/api";

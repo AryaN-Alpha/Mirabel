@@ -3,7 +3,8 @@ import { cream, space } from "../homeTheme";
 import { TabLink, StatTile } from "../homeWidgets";
 import { SectionCard } from "./SectionCard";
 import DataTable from "./DataTable";
-import { formatMs, formatInt, formatPct, formatRate, providerLabel } from "./format";
+import { formatMs, formatPct, formatRate, providerLabel } from "./format";
+
 
 const gridStyle = { display: "grid", gap: space[3], gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" };
 

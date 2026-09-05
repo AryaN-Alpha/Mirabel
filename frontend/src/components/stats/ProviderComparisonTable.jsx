@@ -3,7 +3,7 @@ import { space, cream } from "../homeTheme";
 import { TabLink } from "../homeWidgets";
 import { SectionCard } from "./SectionCard";
 import DataTable from "./DataTable";
-import { formatTokens, formatInt, formatCost, formatMs, formatPct, providerLabel } from "./format";
+import { formatTokens, formatCost, formatMs, formatPct, providerLabel } from "./format";
 
 const PROVIDER_COLUMNS = [
   { key: "provider", label: "Provider", render: (r) => providerLabel(r.provider) },

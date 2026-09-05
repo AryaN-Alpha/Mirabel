@@ -3,7 +3,6 @@
 // galaxy palette (see GalaxyBackdrop.jsx / the source .dc.html design export):
 // near-black ground, a single red accent ramp, Archivo throughout.
 export const fontHeading = '"Archivo", system-ui, sans-serif';
-export const fontBody = '"Archivo", system-ui, sans-serif';
 // Reserved for numeric/telemetry readouts (masked keys, token counts, model
 // ids) — echoes the HUD reticle labels baked into GalaxyBackdrop's canvas.
 // Used sparingly: never for body copy or headings, only tabular data.

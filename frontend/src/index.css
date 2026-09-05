@@ -55,42 +55,6 @@ body,
   background: rgba(246, 248, 255, 0.2);
 }
 
-@keyframes cz-float-a {
-
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  50% {
-    transform: translate3d(6%, -5%, 0) scale(1.12);
-  }
-}
-
-@keyframes cz-float-b {
-
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1.05);
-  }
-
-  50% {
-    transform: translate3d(-7%, 6%, 0) scale(0.95);
-  }
-}
-
-@keyframes cz-float-c {
-
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(0.98);
-  }
-
-  50% {
-    transform: translate3d(4%, 7%, 0) scale(1.1);
-  }
-}
-
 @keyframes cz-breathe {
 
   0%,

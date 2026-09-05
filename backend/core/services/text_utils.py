@@ -90,7 +90,7 @@ def select_relevant_sentences(text: str, query: str, max_chars: int, *, label: s
 
     kept_indices: set[int] = set()
     used_chars = 0
-    for overlap, index, sentence in scored:
+    for _, index, sentence in scored:
         if used_chars + len(sentence) + 1 > max_chars:
             continue
         kept_indices.add(index)

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Bot, Pencil, Trash2, GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { fontHeading, text, accent, accent2700, space, cream, success, warning, danger, glassBorder, motion } from "../homeTheme";
+import { fontHeading, text, accent, space, cream, success, warning, danger, glassBorder, motion } from "../homeTheme";
 import { IconButton } from "../homeWidgets";
 
 const PRIORITY_COLOR = {

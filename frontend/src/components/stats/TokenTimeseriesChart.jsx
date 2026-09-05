@@ -4,7 +4,7 @@ import { SectionCard, Skeleton, ChartEmptyState } from "./SectionCard";
 import { INPUT_COLOR, OUTPUT_COLOR, GRID_COLOR, AXIS_COLOR, TOOLTIP_STYLE } from "./chartTheme";
 import { formatBucketLabel, formatTokens, formatInt, formatDateTime } from "./format";
 
-function CustomTooltip({ active, payload, label, granularity }) {
+function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   return (

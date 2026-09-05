@@ -14,7 +14,6 @@ export const SERIES = {
   deepseek: "#c98500", // yellow
   opencode: "#d55181", // magenta
 };
-export const SERIES_ORDER = ["anthropic", "openai", "gemini", "deepseek", "opencode"];
 export const OTHER_SERIES_COLOR = "#8a8578";
 
 export function seriesColor(key, index = 0) {
@@ -37,10 +36,6 @@ export const OUTPUT_COLOR = SERIES.openai;
 export const CACHE_READ_COLOR = SERIES.gemini;
 export const CACHE_WRITE_COLOR = SERIES.deepseek;
 
-// Colors below are pinned to homeTheme's cool "galaxy" palette values
-// directly (not imported) — this file has no JSX/React dependency and stays
-// a plain, tree-shakeable constants module recharts can consume as-is.
-export const CHART_SURFACE = "rgba(246,248,255,0.03)";
 export const GRID_COLOR = "rgba(246,248,255,0.08)";
 export const AXIS_COLOR = "rgba(246,248,255,0.4)";
 export const TOOLTIP_STYLE = {

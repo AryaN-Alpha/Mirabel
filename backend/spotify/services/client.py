@@ -110,9 +110,6 @@ def get_album(token: str, album_id: str) -> dict:
     return _get(token, f"/albums/{album_id}")
 
 
-def get_album_tracks(token: str, album_id: str, *, limit: int = 50, offset: int = 0) -> dict:
-    return _get(token, f"/albums/{album_id}/tracks", {"limit": limit, "offset": offset})
-
 
 def get_artist(token: str, artist_id: str) -> dict:
     return _get(token, f"/artists/{artist_id}")
@@ -148,9 +145,6 @@ def save_tracks(token: str, track_ids: list[str]) -> None:
 def remove_saved_tracks(token: str, track_ids: list[str]) -> None:
     _delete(token, "/me/tracks", {"ids": track_ids})
 
-
-def check_saved_tracks(token: str, track_ids: list[str]) -> list[bool]:
-    return _get(token, "/me/tracks/contains", {"ids": ",".join(track_ids)})
 
 
 def get_saved_albums(token: str, *, limit: int = 20, offset: int = 0) -> dict:
@@ -275,9 +269,6 @@ def follow_artists(token: str, artist_ids: list[str]) -> None:
 def unfollow_artists(token: str, artist_ids: list[str]) -> None:
     _delete(token, "/me/following", {"ids": artist_ids}, {"type": "artist"})
 
-
-def check_following_artists(token: str, artist_ids: list[str]) -> list[bool]:
-    return _get(token, "/me/following/contains", {"type": "artist", "ids": ",".join(artist_ids)})
 
 
 # --- Top artists / tracks ---------------------------------------------------

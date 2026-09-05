@@ -810,12 +810,52 @@ function GalaxySlider({ label, value, min, max, step, onChange }) {
   );
 }
 
+const STORAGE_KEY = "mirabel.galaxy.prefs";
+
+// Returns saved prefs from localStorage, or null when on localhost
+// (so dev changes never pollute the persisted values).
+function loadGalaxyPrefs() {
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveGalaxyPrefs(prefs) {
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // quota exceeded or private-mode — silently ignore
+  }
+}
+
 export default function GalaxyBackdrop({ children, speed: speedProp = 1, tilt: tiltProp = 0.34, bloom: bloomProp = 0.6, hud: hudProp = true }) {
   const canvasRef = useRef(null);
-  const [speed, setSpeed] = useState(speedProp);
-  const [tilt, setTilt] = useState(tiltProp);
-  const [bloom, setBloom] = useState(bloomProp);
-  const [hud, setHud] = useState(hudProp);
+
+  // Initialise from localStorage on non-localhost, fall back to prop defaults.
+  const saved = loadGalaxyPrefs();
+  const [speed, setSpeedRaw] = useState(saved?.speed ?? speedProp);
+  const [tilt, setTiltRaw] = useState(saved?.tilt ?? tiltProp);
+  const [bloom, setBloomRaw] = useState(saved?.bloom ?? bloomProp);
+  const [hud, setHudRaw] = useState(saved?.hud ?? hudProp);
+
+  // Wrap each setter so every change is persisted immediately.
+  const persist = (patch) => saveGalaxyPrefs({ speed, tilt, bloom, hud, ...patch });
+  const setSpeed = (v) => { setSpeedRaw(v); persist({ speed: v }); };
+  const setTilt  = (v) => { setTiltRaw(v);  persist({ tilt: v });  };
+  const setBloom = (v) => { setBloomRaw(v); persist({ bloom: v }); };
+  const setHud   = (fn) => {
+    setHudRaw((prev) => {
+      const next = typeof fn === "function" ? fn(prev) : fn;
+      persist({ hud: next });
+      return next;
+    });
+  };
+
   const propsRef = useRef({ speed, tilt, bloom, hud });
   propsRef.current = { speed, tilt, bloom, hud };
 

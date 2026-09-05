@@ -284,11 +284,6 @@ export async function syncLinkedInProfile() {
   return data;
 }
 
-export async function getLinkedInActivity(period = 30) {
-  const { data } = await client.get("/api/linkedin/activity/", { params: { period } });
-  return data;
-}
-
 export async function getLinkedInOverview(period = 30) {
   const { data } = await client.get("/api/linkedin/overview/", { params: { period } });
   return data;
@@ -357,18 +352,8 @@ export async function getSpotifyArtist(id) {
   return data;
 }
 
-export async function getSpotifyTrack(id) {
-  const { data } = await client.get(`/api/spotify/tracks/${id}/`);
-  return data;
-}
-
 export async function getSpotifySavedTracks({ limit, offset } = {}) {
   const { data } = await client.get("/api/spotify/me/library/tracks/", { params: { limit, offset } });
-  return data;
-}
-
-export async function saveSpotifyTracks(ids) {
-  const { data } = await client.put("/api/spotify/me/library/tracks/", { ids });
   return data;
 }
 
@@ -379,16 +364,6 @@ export async function removeSpotifySavedTracks(ids) {
 
 export async function getSpotifySavedAlbums({ limit, offset } = {}) {
   const { data } = await client.get("/api/spotify/me/library/albums/", { params: { limit, offset } });
-  return data;
-}
-
-export async function saveSpotifyAlbums(ids) {
-  const { data } = await client.put("/api/spotify/me/library/albums/", { ids });
-  return data;
-}
-
-export async function removeSpotifySavedAlbums(ids) {
-  const { data } = await client.delete("/api/spotify/me/library/albums/", { data: { ids } });
   return data;
 }
 
@@ -879,10 +854,6 @@ export async function getStatsTopUsage(filters, kind, limit, offset) {
   return data;
 }
 
-export async function getStatsPricing() {
-  const { data } = await client.get("/api/stats/pricing/");
-  return data.results;
-}
 
 export async function getStatsBudget() {
   const { data } = await client.get("/api/stats/budget/");
