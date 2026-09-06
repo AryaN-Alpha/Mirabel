@@ -714,35 +714,41 @@ function GalaxyControls({ speed, setSpeed, tilt, setTilt, bloom, setBloom, hud, 
   const [open, setOpen] = useState(false);
 
   return (
-    // top-right corner — clear of Sidebar (left) and GlobalChatWidget FAB (bottom-right)
-    <div className="fixed z-50" style={{ top: 16, right: 80 }}>
+    // top-right corner — cleanly positioned to the right of HomeNavbar's Open Chat button
+    <div className="fixed z-50 flex flex-col items-end" style={{ top: 28, right: 28 }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close galaxy background controls" : "Open galaxy background controls"}
-        className="grid place-items-center"
+        className="grid place-items-center transition-all duration-200"
         style={{
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           borderRadius: "50%",
-          border: "1px solid rgba(246,248,255,0.16)",
-          background: "rgba(10,9,13,0.92)",
-          color: "rgba(246,248,255,0.85)",
+          border: open ? "1px solid rgba(236,48,19,0.48)" : "1px solid rgba(246,248,255,0.12)",
+          background: open ? "rgba(236,48,19,0.22)" : "rgba(14,13,18,0.72)",
+          color: open ? "rgba(255,255,255,0.98)" : "rgba(246,248,255,0.85)",
+          boxShadow: open
+            ? "0 0 16px rgba(236,48,19,0.25), 0 4px 18px rgba(0,0,0,0.45)"
+            : "0 4px 18px rgba(0,0,0,0.35)",
           cursor: "pointer",
-          backdropFilter: "blur(8px)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
         }}
       >
-        {open ? <X size={17} strokeWidth={1.6} /> : <SlidersHorizontal size={17} strokeWidth={1.6} />}
+        {open ? <X size={16} strokeWidth={1.7} /> : <SlidersHorizontal size={16} strokeWidth={1.7} />}
       </button>
       {open && (
         <div
           className="flex items-center flex-wrap justify-center gap-x-6 gap-y-3 mt-2"
           style={{
-            background: "rgba(10,9,13,0.92)",
+            background: "rgba(12,11,16,0.94)",
             border: "1px solid rgba(246,248,255,0.12)",
-            borderRadius: 16,
+            borderRadius: 18,
             padding: "10px 20px",
-            backdropFilter: "blur(8px)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(236,48,19,0.08)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
             fontFamily: FONT,
             whiteSpace: "nowrap",
           }}

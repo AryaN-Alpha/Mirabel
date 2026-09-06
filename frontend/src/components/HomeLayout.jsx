@@ -7,6 +7,7 @@ import SpotifyNowPlayingBar from "./spotify/SpotifyNowPlayingBar";
 import GlobalChatWidget from "./GlobalChatWidget";
 
 const PAGE_TITLES = {
+  "/home": "Me",
   "/home/ai-model": "AI Model",
   "/home/outlook": "Outlook",
   "/home/linkedin": "LinkedIn",
@@ -21,7 +22,9 @@ const PAGE_TITLES = {
 
 function resolveTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
-  const prefix = Object.keys(PAGE_TITLES).find((path) => pathname.startsWith(`${path}/`));
+  const prefix = Object.keys(PAGE_TITLES)
+    .filter((path) => path !== "/home")
+    .find((path) => pathname.startsWith(`${path}/`));
   return prefix ? PAGE_TITLES[prefix] : undefined;
 }
 

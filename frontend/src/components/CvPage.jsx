@@ -1,6 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, FileText, Layers, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  FileText,
+  Layers,
+  RefreshCw,
+  User,
+  Briefcase,
+  GraduationCap,
+  FolderGit2,
+  Sparkles,
+  Award,
+  BadgeCheck,
+  Target,
+  Mail,
+  ShieldCheck,
+  Palette,
+  ChevronRight,
+} from "lucide-react";
 import {
   createCv,
   cvExportUrl,
@@ -12,7 +29,7 @@ import {
   updateCvStylePreference,
 } from "../services/api";
 import { getErrorMessage } from "../utils/errors";
-import { fontHeading, text, accent, danger, warning, space, cream } from "./homeTheme";
+import { fontHeading, text, accent, danger, warning, space, cream, success } from "./homeTheme";
 import { labelStyle, GhostLink, OutlineButton, GlassPanel, PanelEyebrow, StatusDot } from "./homeWidgets";
 import ConfirmDialog from "./ConfirmDialog";
 import CvUploadPrompt from "./cv/CvUploadPrompt";
@@ -21,6 +38,7 @@ import CvPreviewMinimal from "./cv/CvPreviewMinimal";
 import CvVersionTabs from "./cv/CvVersionTabs";
 import CvVersionModal from "./cv/CvVersionModal";
 import TailoringReportModal from "./cv/TailoringReportModal";
+import CvFloatingEditor from "./cv/CvFloatingEditor";
 import CvPersonalInfoTab from "./cv/CvPersonalInfoTab";
 import CvSummaryTab from "./cv/CvSummaryTab";
 import CvExperienceTab from "./cv/CvExperienceTab";
@@ -36,20 +54,59 @@ import CvConsistencyTab from "./cv/CvConsistencyTab";
 
 const AUTOSAVE_DELAY_MS = 800;
 
-const TABS = [
-  { id: "personal", label: "Personal info", Component: CvPersonalInfoTab },
-  { id: "summary", label: "Summary", Component: CvSummaryTab },
-  { id: "experience", label: "Experience", Component: CvExperienceTab },
-  { id: "education", label: "Education", Component: CvEducationTab },
-  { id: "projects", label: "Projects", Component: CvProjectsTab },
-  { id: "skills", label: "Skills", Component: CvSkillsTab },
-  { id: "strengths", label: "Strengths", Component: CvStrengthsTab },
-  { id: "certifications", label: "Certifications", Component: CvCertificationsTab },
-  { id: "tailor", label: "Tailor to job", Component: CvTailorTab },
-  { id: "cover-letter", label: "Cover letter", Component: CvCoverLetterTab },
-  { id: "consistency", label: "Consistency check", Component: CvConsistencyTab },
-  { id: "style", label: "Style", Component: CvStyleTab },
+const CORE_TABS = [
+  { id: "personal", label: "Personal Info", group: "core", icon: User, Component: CvPersonalInfoTab },
+  { id: "summary", label: "Summary", group: "core", icon: FileText, Component: CvSummaryTab },
+  { id: "experience", label: "Experience", group: "core", icon: Briefcase, Component: CvExperienceTab },
+  { id: "education", label: "Education", group: "core", icon: GraduationCap, Component: CvEducationTab },
+  { id: "projects", label: "Projects", group: "core", icon: FolderGit2, Component: CvProjectsTab },
+  { id: "skills", label: "Skills", group: "core", icon: Sparkles, Component: CvSkillsTab },
 ];
+
+const TOOL_TABS = [
+  { id: "strengths", label: "Strengths", group: "tools", icon: Award, Component: CvStrengthsTab },
+  { id: "certifications", label: "Certifications", group: "tools", icon: BadgeCheck, Component: CvCertificationsTab },
+  { id: "tailor", label: "Tailor to Job", group: "tools", icon: Target, Component: CvTailorTab },
+  { id: "cover-letter", label: "Cover Letter", group: "tools", icon: Mail, Component: CvCoverLetterTab },
+  { id: "consistency", label: "Consistency", group: "tools", icon: ShieldCheck, Component: CvConsistencyTab },
+  { id: "style", label: "Style & Layout", group: "tools", icon: Palette, Component: CvStyleTab },
+];
+
+const ALL_TABS = [...CORE_TABS, ...TOOL_TABS];
+
+function getTabBadge(tabId, sections, stylePref) {
+  if (!sections) return null;
+  switch (tabId) {
+    case "personal":
+      return sections.personal_info?.name ? "Active" : "Empty";
+    case "summary":
+      return sections.summary?.trim() ? "Added" : null;
+    case "experience":
+      return sections.experience?.length ? `${sections.experience.length} roles` : "0";
+    case "education":
+      return sections.education?.length ? `${sections.education.length} schools` : "0";
+    case "projects":
+      return sections.projects?.length ? `${sections.projects.length} projects` : "0";
+    case "skills": {
+      const count = sections.skill_groups?.reduce((acc, g) => acc + (g.skills?.length || 0), 0) || 0;
+      return count > 0 ? `${count} skills` : "0";
+    }
+    case "strengths":
+      return sections.strengths?.length ? `${sections.strengths.length} items` : null;
+    case "certifications":
+      return sections.certifications?.length ? `${sections.certifications.length} certs` : null;
+    case "tailor":
+      return "AI";
+    case "cover-letter":
+      return "AI";
+    case "consistency":
+      return "Audit";
+    case "style":
+      return stylePref?.template_choice === "minimal-single-column" ? "Minimal" : "Modern";
+    default:
+      return null;
+  }
+}
 
 const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
@@ -86,32 +143,94 @@ function SaveIndicator({ state }) {
   );
 }
 
-function SectionNavItem({ label, active, onClick }) {
+function SectionCard({ tab, badge, active, onClick }) {
   const [hovered, setHovered] = useState(false);
+  const Icon = tab.icon;
+
   return (
-    <a
-      href="#"
-      onClick={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      className="no-underline block"
+    <button
+      type="button"
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className="w-full text-left border-none cursor-pointer flex items-center justify-between transition-all duration-200"
       style={{
-        padding: `${space[3]}px ${space[3]}px`,
-        paddingLeft: active ? space[4] : space[3],
-        borderRadius: 6,
-        borderLeft: `2px solid ${active ? accent[400] : "transparent"}`,
-        background: active ? "rgba(255,151,131,0.06)" : hovered ? cream(0.04) : "transparent",
-        fontFamily: fontHeading,
-        fontSize: 16,
-        color: active ? text.base : hovered ? text.base : cream(0.62),
-        transition: "color 0.3s ease, background 0.3s ease, padding-left 0.3s ease, border-color 0.3s ease",
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: active
+          ? "linear-gradient(135deg, rgba(255, 151, 131, 0.18) 0%, rgba(255, 151, 131, 0.06) 100%)"
+          : hovered
+          ? "rgba(255, 255, 255, 0.05)"
+          : "rgba(255, 255, 255, 0.02)",
+        border: `1px solid ${
+          active ? accent[400] : hovered ? "rgba(255, 151, 131, 0.35)" : "rgba(246, 248, 255, 0.09)"
+        }`,
+        boxShadow: active
+          ? "0 4px 16px -3px rgba(255, 151, 131, 0.3)"
+          : hovered
+          ? "0 4px 12px rgba(0, 0, 0, 0.25)"
+          : "none",
+        transform: hovered && !active ? "translateY(-1px)" : "none",
       }}
     >
-      {label}
-    </a>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span
+          className="flex items-center justify-center shrink-0 rounded-lg transition-colors"
+          style={{
+            width: 32,
+            height: 32,
+            background: active
+              ? "rgba(255, 151, 131, 0.28)"
+              : hovered
+              ? "rgba(255, 151, 131, 0.12)"
+              : "rgba(255, 255, 255, 0.04)",
+            color: active ? "#ffffff" : hovered ? accent[300] : cream(0.65),
+            border: `1px solid ${active ? accent[400] : "rgba(255, 255, 255, 0.07)"}`,
+          }}
+        >
+          <Icon size={15} strokeWidth={1.8} />
+        </span>
+        <div className="min-w-0">
+          <div
+            style={{
+              fontFamily: fontHeading,
+              fontSize: 13.5,
+              fontWeight: active ? 600 : 500,
+              color: active ? "#ffffff" : hovered ? text.base : cream(0.8),
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {tab.label}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0 ml-1.5">
+        {badge && (
+          <span
+            className="text-[10.5px] px-1.5 py-0.5 rounded font-medium"
+            style={{
+              background: active ? "rgba(255, 151, 131, 0.25)" : "rgba(255, 255, 255, 0.06)",
+              color: active ? "#ffffff" : cream(0.6),
+              border: `1px solid ${active ? "rgba(255, 151, 131, 0.4)" : "rgba(255, 255, 255, 0.08)"}`,
+            }}
+          >
+            {badge}
+          </span>
+        )}
+        <span
+          className="transition-transform duration-200"
+          style={{
+            color: active ? accent[300] : cream(0.35),
+            transform: hovered || active ? "translateX(2px)" : "none",
+          }}
+        >
+          <ChevronRight size={13} />
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -145,6 +264,7 @@ export default function CvPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [activeTab, setActiveTab] = useState("personal");
+  const [editorOpen, setEditorOpen] = useState(false);
   const [saveState, setSaveState] = useState("idle");
   const [uploadNotice, setUploadNotice] = useState("");
   const [showReplace, setShowReplace] = useState(false);
@@ -388,8 +508,10 @@ export default function CvPage() {
     );
   }
 
-  const activeTabDef = TABS.find((t) => t.id === activeTab);
-  const ActiveComponent = activeTabDef.Component;
+  const tabsWithBadges = ALL_TABS.map((t) => ({
+    ...t,
+    badge: getTabBadge(t.id, cv?.sections, stylePref),
+  }));
 
   const versionTabs = (
     <CvVersionTabs
@@ -537,42 +659,33 @@ export default function CvPage() {
         </div>
       )}
 
+      {/* 3-Column Studio Layout: Left Core Rail | Center Live CV Preview | Right Studio Tools */}
       <div
-        className="grid items-start grid-cols-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,.65fr)]"
-        style={{ gap: space[8] * 1.1, marginTop: space[8] * 1.1 }}
+        className="grid items-start grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)_270px] xl:grid-cols-[290px_minmax(0,1fr)_290px]"
+        style={{ gap: space[6], marginTop: space[7] }}
       >
-        <div style={entrance(0.14)}>
-          <div style={{ marginBottom: space[4] }}>
-            <span style={labelStyle}>Live preview</span>
-          </div>
-          {stylePref?.template_choice === "minimal-single-column" ? (
-            <CvPreviewMinimal
-              sections={cv.sections}
-              fontFamily={stylePref.available.fonts[stylePref.font_choice]?.css}
-              accentColor={stylePref.available.themes[stylePref.theme_choice]?.accent}
-              sectionOrder={stylePref.section_order}
-            />
-          ) : (
-            <CvPreview
-              sections={cv.sections}
-              fontFamily={stylePref?.available.fonts[stylePref.font_choice]?.css}
-              sidebarBg={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_bg}
-              sidebarText={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_text}
-              accentColor={stylePref?.available.themes[stylePref.theme_choice]?.accent}
-              sectionOrder={stylePref?.section_order}
-            />
-          )}
-        </div>
-
-        <div style={entrance(0.2)}>
-          <GlassPanel float={2} delay={-2.3} style={{ padding: `${space[6]}px ${space[5]}px` }}>
-            <div className="flex items-center justify-between" style={{ marginBottom: space[3] }}>
-              <PanelEyebrow icon={Layers}>Sections</PanelEyebrow>
+        {/* ---- LEFT COLUMN: Core Content Sections ---- */}
+        <div style={entrance(0.12)}>
+          <GlassPanel float={0} style={{ padding: `${space[5]}px ${space[4]}px` }}>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <PanelEyebrow icon={Layers}>Content & Career</PanelEyebrow>
               <SaveIndicator state={saveState} />
             </div>
-            <div className="flex flex-col" style={{ gap: 2 }}>
-              {TABS.map(({ id, label }) => (
-                <SectionNavItem key={id} label={label} active={activeTab === id} onClick={() => setActiveTab(id)} />
+            <p className="text-xs mb-3 px-1" style={{ color: cream(0.45) }}>
+              Core CV sections. Click to edit.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {CORE_TABS.map((tab) => (
+                <SectionCard
+                  key={tab.id}
+                  tab={tab}
+                  badge={getTabBadge(tab.id, cv.sections, stylePref)}
+                  active={editorOpen && activeTab === tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setEditorOpen(true);
+                  }}
+                />
               ))}
             </div>
 
@@ -592,25 +705,121 @@ export default function CvPage() {
                 {uploadNotice}
               </p>
             )}
+          </GlassPanel>
+        </div>
 
-            <div style={{ marginTop: space[6], paddingTop: space[5], borderTop: `1px solid ${cream(0.09)}` }}>
-              <ActiveComponent
-                cvId={selectedCvId}
+        {/* ---- CENTER COLUMN: Live CV Preview Stage ---- */}
+        <div style={entrance(0.16)} className="flex flex-col items-center">
+          <div className="w-full flex items-center justify-between mb-3 px-2">
+            <div className="flex items-center gap-2">
+              <span style={labelStyle}>Live CV Preview</span>
+              <span
+                className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  background: "rgba(255, 151, 131, 0.12)",
+                  color: accent[300],
+                  border: `1px solid ${accent[400]}33`,
+                }}
+              >
+                {stylePref?.template_choice === "minimal-single-column" ? "Minimal Single-Column" : "Modern Two-Column"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center gap-1.5 text-xs"
+                style={{ color: editorOpen ? accent[300] : cream(0.45) }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: editorOpen ? accent[400] : success[400] }}
+                />
+                {editorOpen ? "Live editing" : "Synced"}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="w-full max-w-[820px] rounded-2xl shadow-2xl transition-all duration-300"
+            style={{
+              border: "1px solid rgba(246, 248, 255, 0.1)",
+              boxShadow: "0 25px 60px -15px rgba(0,0,0,0.85), 0 0 40px -15px rgba(255,151,131,0.1)",
+            }}
+          >
+            {stylePref?.template_choice === "minimal-single-column" ? (
+              <CvPreviewMinimal
                 sections={cv.sections}
-                updateSections={updateSections}
-                stylePref={stylePref}
-                onSaveStylePref={saveStylePref}
-                onJumpToTab={setActiveTab}
-                onTailoredCvCreated={handleTailoredCvCreated}
+                fontFamily={stylePref.available.fonts[stylePref.font_choice]?.css}
+                accentColor={stylePref.available.themes[stylePref.theme_choice]?.accent}
+                sectionOrder={stylePref.section_order}
               />
+            ) : (
+              <CvPreview
+                sections={cv.sections}
+                fontFamily={stylePref?.available.fonts[stylePref.font_choice]?.css}
+                sidebarBg={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_bg}
+                sidebarText={stylePref?.available.themes[stylePref.theme_choice]?.sidebar_text}
+                accentColor={stylePref?.available.themes[stylePref.theme_choice]?.accent}
+                sectionOrder={stylePref?.section_order}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ---- RIGHT COLUMN: Tools & Enhancements ---- */}
+        <div style={entrance(0.2)}>
+          <GlassPanel float={0} style={{ padding: `${space[5]}px ${space[4]}px` }}>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <PanelEyebrow icon={Sparkles}>Studio Tools & Style</PanelEyebrow>
+            </div>
+            <p className="text-xs mb-3 px-1" style={{ color: cream(0.45) }}>
+              AI tailoring, cover letter & design.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {TOOL_TABS.map((tab) => (
+                <SectionCard
+                  key={tab.id}
+                  tab={tab}
+                  badge={getTabBadge(tab.id, cv.sections, stylePref)}
+                  active={editorOpen && activeTab === tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setEditorOpen(true);
+                  }}
+                />
+              ))}
             </div>
 
-            <p style={{ marginTop: space[6], fontSize: 12, lineHeight: 1.8, color: cream(0.42) }}>
-              Edits save as you type. AI suggestions appear beside each section.
-            </p>
+            <div
+              className="mt-5 pt-4 px-1"
+              style={{ borderTop: "1px solid rgba(246, 248, 255, 0.08)" }}
+            >
+              <p style={{ fontSize: 11.5, lineHeight: 1.6, color: cream(0.4) }}>
+                💡 Select any section above to open the floating editor. Edits update the center CV preview live as you type.
+              </p>
+            </div>
           </GlassPanel>
         </div>
       </div>
+
+      {/* Floating Section Editor Modal / Drawer */}
+      <CvFloatingEditor
+        open={editorOpen}
+        tabId={activeTab}
+        tabs={tabsWithBadges}
+        onSelectTab={setActiveTab}
+        onClose={() => setEditorOpen(false)}
+        saveState={saveState}
+        cvId={selectedCvId}
+        sections={cv.sections}
+        updateSections={updateSections}
+        stylePref={stylePref}
+        onSaveStylePref={saveStylePref}
+        onJumpToTab={(id) => {
+          setActiveTab(id);
+          setEditorOpen(true);
+        }}
+        onTailoredCvCreated={handleTailoredCvCreated}
+      />
 
       {modals}
     </div>

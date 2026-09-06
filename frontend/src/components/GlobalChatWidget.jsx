@@ -6,13 +6,14 @@ import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
 import AgentTaskPanel from "./agent/AgentTaskPanel";
 import ChatInput from "./ChatInput";
 import { getErrorMessage } from "../utils/errors";
+import { fontHeading } from "./homeTheme";
 
 const AGENT_PALETTE = {
-  text: "rgba(250,242,236,0.92)",
-  muted: "rgba(243,233,226,0.45)",
-  border: "rgba(243,233,226,0.16)",
-  accent: "#f0c9a2",
-  danger: "rgba(224,140,140,0.95)",
+  text: "rgba(246,248,255,0.92)",
+  muted: "rgba(246,248,255,0.48)",
+  border: "rgba(236,48,19,0.22)",
+  accent: "#ec3013",
+  danger: "rgba(236,80,60,0.95)",
 };
 
 // Portable version of VoiceChatScreen — reads the same shared session (see
@@ -116,9 +117,9 @@ export default function GlobalChatWidget() {
     <>
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed border-none cursor-pointer grid place-items-center"
+        whileHover={{ scale: 1.07 }}
+        whileTap={{ scale: 0.94 }}
+        className="fixed border-none cursor-pointer grid place-items-center transition-all duration-300"
         style={{
           right: 24,
           bottom: 100,
@@ -127,20 +128,31 @@ export default function GlobalChatWidget() {
           height: 56,
           borderRadius: "50%",
           background: open
-            ? "rgba(10,9,13,0.95)"
-            : "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.55), rgba(10,9,13,0.95) 70%)",
-          border: "1px solid rgba(236,48,19,0.35)",
-          boxShadow: "0 12px 34px rgba(0,0,0,0.5), 0 0 18px rgba(236,48,19,0.15)",
-          color: "rgba(246,248,255,0.90)",
-          backdropFilter: "blur(8px)",
+            ? "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.35), rgba(12,11,16,0.96) 75%)"
+            : "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.70), rgba(12,11,16,0.95) 75%)",
+          border: open ? "1px solid rgba(236,48,19,0.50)" : "1px solid rgba(236,48,19,0.45)",
+          boxShadow: open
+            ? "0 12px 34px rgba(0,0,0,0.65), 0 0 22px rgba(236,48,19,0.25)"
+            : "0 12px 34px rgba(0,0,0,0.65), 0 0 26px rgba(236,48,19,0.35)",
+          color: "rgba(246,248,255,0.95)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
         }}
         aria-label={open ? "Close chat with Mirabel" : "Open chat with Mirabel"}
       >
-        {open ? <X size={22} strokeWidth={1.6} /> : <MessageCircle size={22} strokeWidth={1.6} />}
+        {open ? <X size={22} strokeWidth={1.8} /> : <MessageCircle size={22} strokeWidth={1.8} />}
         {!open && connected && (
           <span
             className="absolute rounded-full"
-            style={{ top: 7, right: 7, width: 9, height: 9, background: "#ec3013", border: "2px solid rgba(10,9,13,0.95)", boxShadow: "0 0 6px rgba(236,48,19,0.6)" }}
+            style={{
+              top: 7,
+              right: 7,
+              width: 9,
+              height: 9,
+              background: "#ec3013",
+              border: "2px solid rgba(12,11,16,0.95)",
+              boxShadow: "0 0 8px rgba(236,48,19,0.9)",
+            }}
           />
         )}
       </motion.button>
@@ -151,41 +163,67 @@ export default function GlobalChatWidget() {
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
             className="fixed flex flex-col"
             style={{
               right: 24,
               bottom: 168,
               zIndex: 50,
-              width: 380,
+              width: 384,
               maxWidth: "calc(100vw - 32px)",
               height: 580,
               maxHeight: "calc(100vh - 200px)",
               borderRadius: 24,
-              background: "rgba(8,7,12,0.97)",
-              border: "1px solid rgba(236,48,19,0.20)",
-              boxShadow: "0 26px 70px rgba(0,0,0,0.6), 0 0 40px rgba(236,48,19,0.06)",
-              backdropFilter: "blur(24px)",
+              background: "linear-gradient(170deg, rgba(14,13,18,0.92) 0%, rgba(8,7,12,0.97) 100%)",
+              border: "1px solid rgba(246,248,255,0.10)",
+              borderTop: "1px solid rgba(236,48,19,0.35)",
+              boxShadow: "0 28px 80px rgba(0,0,0,0.75), 0 0 35px rgba(236,48,19,0.10), inset 0 1px 0 rgba(255,255,255,0.06)",
+              backdropFilter: "blur(28px) saturate(120%)",
+              WebkitBackdropFilter: "blur(28px) saturate(120%)",
               overflow: "hidden",
             }}
           >
             <div
               className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 flex-shrink-0"
-              style={{ borderBottom: "1px solid rgba(236,48,19,0.15)" }}
+              style={{
+                borderBottom: "1px solid rgba(246,248,255,0.08)",
+                background: "linear-gradient(180deg, rgba(236,48,19,0.08) 0%, transparent 100%)",
+              }}
             >
               <div className="min-w-0">
-                <div className="font-serif text-[19px]" style={{ color: "rgba(246,248,255,0.95)" }}>
-                  Mirabel
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-[20px]"
+                    style={{
+                      fontFamily: fontHeading,
+                      fontStyle: "italic",
+                      color: "rgba(248,250,255,0.98)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    Mirabel
+                  </span>
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      background: connected ? "#ec3013" : "rgba(246,248,255,0.3)",
+                      boxShadow: connected ? "0 0 8px rgba(236,48,19,0.8)" : "none",
+                    }}
+                  />
                 </div>
-                <div className="mt-1 text-[12.5px] font-light leading-[1.5]" style={{ color: "rgba(246,248,255,0.45)" }}>
+                <div className="mt-1 text-[12px] font-light leading-[1.5]" style={{ color: "rgba(246,248,255,0.50)" }}>
                   {subline}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button
                   onClick={startNewChat}
-                  className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer"
-                  style={{ background: "rgba(246,248,255,0.06)", color: "rgba(246,248,255,0.55)" }}
+                  className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: "rgba(246,248,255,0.06)",
+                    border: "1px solid rgba(246,248,255,0.08)",
+                    color: "rgba(246,248,255,0.70)",
+                  }}
                   aria-label="Start a new chat"
                   title="Start a new chat"
                 >
@@ -193,8 +231,12 @@ export default function GlobalChatWidget() {
                 </button>
                 <button
                   onClick={() => setOpen(false)}
-                  className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer"
-                  style={{ background: "rgba(246,248,255,0.06)", color: "rgba(246,248,255,0.55)" }}
+                  className="w-8 h-8 grid place-items-center rounded-full border-none cursor-pointer transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: "rgba(246,248,255,0.06)",
+                    border: "1px solid rgba(246,248,255,0.08)",
+                    color: "rgba(246,248,255,0.70)",
+                  }}
                   aria-label="Close chat"
                 >
                   <X size={15} strokeWidth={1.8} />
@@ -202,8 +244,7 @@ export default function GlobalChatWidget() {
               </div>
             </div>
 
-
-            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 px-4 py-1">
+            <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 px-4 py-2">
               <AnimatePresence>
                 {transcript && (
                   <motion.div
@@ -213,12 +254,13 @@ export default function GlobalChatWidget() {
                     className="flex flex-col gap-1 items-end"
                   >
                     <div
-                      className="max-w-[85%] px-4 py-2.5 text-[13.5px] font-light leading-[1.6]"
+                      className="max-w-[85%] px-4 py-2.5 text-[13.5px] font-normal leading-[1.6]"
                       style={{
                         borderRadius: "18px 18px 5px 18px",
-                        background: "rgba(255,214,180,0.10)",
-                        border: "1px solid rgba(255,214,180,0.20)",
-                        color: "rgba(250,242,236,0.92)",
+                        background: "linear-gradient(135deg, rgba(236,48,19,0.22) 0%, rgba(180,30,10,0.16) 100%)",
+                        border: "1px solid rgba(236,48,19,0.36)",
+                        color: "rgba(248,250,255,0.95)",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.25), 0 0 12px rgba(236,48,19,0.12)",
                       }}
                     >
                       {transcript}
@@ -233,12 +275,13 @@ export default function GlobalChatWidget() {
                     className="flex flex-col gap-1 items-start"
                   >
                     <div
-                      className="max-w-[85%] px-4 py-2.5 text-[13.5px] font-light leading-[1.6]"
+                      className="max-w-[85%] px-4 py-2.5 text-[13.5px] font-normal leading-[1.6]"
                       style={{
                         borderRadius: "18px 18px 18px 5px",
-                        background: "rgba(243,233,226,0.055)",
-                        border: "1px solid rgba(243,233,226,0.10)",
-                        color: "rgba(250,242,236,0.92)",
+                        background: "rgba(246,248,255,0.05)",
+                        border: "1px solid rgba(246,248,255,0.09)",
+                        color: "rgba(242,244,251,0.92)",
+                        backdropFilter: "blur(12px)",
                       }}
                     >
                       {streamingText}
@@ -253,12 +296,13 @@ export default function GlobalChatWidget() {
                     className="flex flex-col gap-1 items-start"
                   >
                     <div
-                      className="max-w-[92%] px-4 py-3 text-[13.5px] font-light leading-[1.6]"
+                      className="max-w-[92%] px-4 py-3 text-[13.5px] font-normal leading-[1.6]"
                       style={{
                         borderRadius: "18px 18px 18px 5px",
-                        background: "rgba(243,233,226,0.055)",
-                        border: "1px solid rgba(243,233,226,0.10)",
-                        color: "rgba(250,242,236,0.92)",
+                        background: "rgba(246,248,255,0.05)",
+                        border: "1px solid rgba(236,48,19,0.22)",
+                        color: "rgba(246,248,255,0.92)",
+                        backdropFilter: "blur(12px)",
                       }}
                     >
                       <AgentTaskPanel
@@ -281,19 +325,25 @@ export default function GlobalChatWidget() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center gap-2 px-1"
+                    className="flex items-center gap-2 px-2 py-1"
                   >
                     <div className="flex space-x-1.5 items-center h-4">
-                      <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: "rgba(247,207,174,0.7)" }} />
-                      <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: "rgba(247,207,174,0.7)" }} />
-                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "rgba(247,207,174,0.7)" }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: "#ec3013", boxShadow: "0 0 6px rgba(236,48,19,0.7)" }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: "#ec3013", boxShadow: "0 0 6px rgba(236,48,19,0.7)" }} />
+                      <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#ec3013", boxShadow: "0 0 6px rgba(236,48,19,0.7)" }} />
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            <div className="flex-shrink-0 px-4 pt-3 pb-4 flex flex-col gap-3" style={{ borderTop: "1px solid rgba(236,48,19,0.12)" }}>
+            <div
+              className="flex-shrink-0 px-4 pt-3 pb-4 flex flex-col gap-3"
+              style={{
+                borderTop: "1px solid rgba(246,248,255,0.08)",
+                background: "linear-gradient(0deg, rgba(10,9,13,0.6) 0%, transparent 100%)",
+              }}
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                   <button
@@ -302,18 +352,20 @@ export default function GlobalChatWidget() {
                     style={
                       agentModeOn
                         ? {
-                            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                            color: "#2c1c16",
+                            background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
+                            border: "1px solid rgba(255,130,100,0.50)",
+                            color: "#ffffff",
+                            boxShadow: "0 0 14px rgba(236,48,19,0.35)",
                           }
                         : {
-                            background: "rgba(243,233,226,0.06)",
-                            border: "1px solid rgba(243,233,226,0.11)",
-                            color: "rgba(243,233,226,0.58)",
+                            background: "rgba(246,248,255,0.05)",
+                            border: "1px solid rgba(246,248,255,0.10)",
+                            color: "rgba(246,248,255,0.65)",
                           }
                     }
                     title="When on, what you send becomes a task Mirabel actually goes and does, instead of a reply."
                   >
-                    <Bot size={12} strokeWidth={1.8} />
+                    <Bot size={12} strokeWidth={1.8} style={{ color: agentModeOn ? "#ffffff" : "#ec3013" }} />
                     {agentModeOn ? "Agent Mode: on" : "Agent Mode"}
                   </button>
                   <button
@@ -322,13 +374,15 @@ export default function GlobalChatWidget() {
                     style={
                       recordingHotkey
                         ? {
-                            background: "linear-gradient(150deg, rgba(255,224,199,0.92), rgba(224,168,168,0.85))",
-                            color: "#2c1c16",
+                            background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
+                            border: "1px solid rgba(255,130,100,0.50)",
+                            color: "#ffffff",
+                            boxShadow: "0 0 14px rgba(236,48,19,0.35)",
                           }
                         : {
-                            background: "rgba(243,233,226,0.06)",
-                            border: "1px solid rgba(243,233,226,0.11)",
-                            color: "rgba(243,233,226,0.58)",
+                            background: "rgba(246,248,255,0.05)",
+                            border: "1px solid rgba(246,248,255,0.10)",
+                            color: "rgba(246,248,255,0.65)",
                           }
                     }
                     title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
@@ -340,18 +394,18 @@ export default function GlobalChatWidget() {
                 <button
                   onClick={toggleMic}
                   disabled={!connected}
-                  className="flex-shrink-0 w-10 h-10 rounded-full border-none cursor-pointer grid place-items-center transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 w-10 h-10 rounded-full border-none cursor-pointer grid place-items-center transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105"
                   style={{
-                    border: micOn ? "1px solid rgba(236,48,19,0.50)" : "1px solid rgba(246,248,255,0.12)",
+                    border: micOn ? "1px solid rgba(255,130,100,0.60)" : "1px solid rgba(246,248,255,0.12)",
                     background: micOn
-                      ? "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.45), rgba(10,9,13,0.90) 70%)"
-                      : "rgba(246,248,255,0.05)",
-                    color: "rgba(246,248,255,0.85)",
-                    boxShadow: micOn ? "0 0 14px rgba(236,48,19,0.25)" : "none",
+                      ? "radial-gradient(circle at 40% 35%, rgba(236,48,19,0.85), rgba(150,20,8,0.92) 80%)"
+                      : "rgba(246,248,255,0.06)",
+                    color: micOn ? "#ffffff" : "rgba(246,248,255,0.85)",
+                    boxShadow: micOn ? "0 0 18px rgba(236,48,19,0.5), inset 0 0 8px rgba(255,255,255,0.2)" : "none",
                   }}
                   aria-label={micOn ? "stop listening" : "start listening"}
                 >
-                  {micOn ? <MicOff size={16} strokeWidth={1.6} /> : <Mic size={16} strokeWidth={1.6} />}
+                  {micOn ? <MicOff size={16} strokeWidth={1.8} /> : <Mic size={16} strokeWidth={1.8} />}
                 </button>
               </div>
               <ChatInput onSend={sendText} disabled={!connected} />

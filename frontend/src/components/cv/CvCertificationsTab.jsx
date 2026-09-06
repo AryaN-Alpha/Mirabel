@@ -4,12 +4,15 @@ import { GhostLink, IconButton, EmptyState } from "../homeWidgets";
 
 const cellInputStyle = {
   width: "100%",
-  background: "transparent",
-  border: 0,
+  background: "rgba(15, 14, 22, 0.7)",
+  border: "1px solid rgba(246, 248, 255, 0.16)",
+  borderRadius: 5,
   outline: "none",
-  color: cream(0.85),
+  color: "#f8faff",
   fontSize: 13,
-  padding: `${space[2]}px 0`,
+  padding: `${space[2]}px ${space[3]}px`,
+  margin: "4px 0",
+  transition: "border-color 0.2s ease, background 0.2s ease",
 };
 
 function emptyCertification() {

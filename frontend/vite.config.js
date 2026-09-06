@@ -58,7 +58,10 @@ export default defineConfig(({ mode }) => {
           categories: ["productivity", "utilities"],
         },
 
-        // Workbox build options
+        // Workbox / injectManifest build options
+        injectManifest: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB to allow app bundle precaching
+        },
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         },
