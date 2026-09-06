@@ -1,9 +1,12 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone as dt_timezone
 
 import requests
 
 from classroom.services.oauth import ClassroomError, error_detail, reason_for_status
+
+logger = logging.getLogger("classroom.services.client")
 
 API_BASE = "https://classroom.googleapis.com/v1"
 _TIMEOUT = 15
@@ -87,6 +90,10 @@ def list_courses(token: str) -> list[dict]:
     )
 
 
+def get_course(token: str, course_id: str) -> dict:
+    return _get(token, f"/courses/{course_id}")
+
+
 def list_coursework(token: str, course_id: str) -> list[dict]:
     return _list_all(
         token,
@@ -148,21 +155,35 @@ def parse_due_datetime(item: dict) -> datetime | None:
     if not due:
         return None
     due_time = item.get("dueTime") or {}
-    return datetime(
-        due.get("year", 1970),
-        due.get("month", 1),
-        due.get("day", 1),
-        due_time.get("hours", 23),
-        due_time.get("minutes", 59),
-        tzinfo=dt_timezone.utc,
-    )
+    year = due.get("year") or 1970
+    month = due.get("month") or 1
+    day = due.get("day") or 1
+    hours = due_time.get("hours")
+    hours = 23 if hours is None else hours
+    minutes = due_time.get("minutes")
+    minutes = 59 if minutes is None else minutes
+    try:
+        return datetime(year, month, day, hours, minutes, tzinfo=dt_timezone.utc)
+    except (ValueError, TypeError):
+        return None
 
 
 def _coursework_for_course(token: str, course: dict) -> list[dict]:
     course_id = course["id"]
     course_name = course.get("name", "")
+    try:
+        coursework_items = list_coursework(token, course_id)
+    except ClassroomError as exc:
+        logger.warning(
+            "Couldn't load coursework for course %s (%s): %s",
+            course_id,
+            course_name,
+            exc,
+        )
+        return []
+
     results = []
-    for item in list_coursework(token, course_id):
+    for item in coursework_items:
         if item.get("workType") == "MATERIAL":
             continue
         item = dict(item)

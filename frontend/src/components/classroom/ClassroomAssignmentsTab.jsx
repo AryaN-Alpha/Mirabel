@@ -86,6 +86,7 @@ export default function ClassroomAssignmentsTab({ disabled, onSolved }) {
       await solveClassroomCoursework({
         course_id: item.course_id,
         coursework_id: item.id,
+        course_name: item.course_name,
         extra_instructions: instructions[item.id],
       });
       onSolved?.();

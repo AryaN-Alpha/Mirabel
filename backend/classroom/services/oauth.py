@@ -53,6 +53,8 @@ def _require_client_credentials() -> tuple[str, str]:
 def error_detail(resp: requests.Response) -> str:
     try:
         body = resp.json()
+        if isinstance(body.get("error"), dict):
+            return body["error"].get("message") or resp.text
         return body.get("error_description") or body.get("error") or resp.text
     except ValueError:
         return resp.text
@@ -63,6 +65,8 @@ def reason_for_status(status_code: int) -> str:
         return "token_expired"
     if status_code == 403:
         return "insufficient_scope"
+    if status_code == 404:
+        return "not_found"
     if status_code == 429:
         return "rate_limited"
     return "unknown"

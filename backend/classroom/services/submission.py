@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from classroom.models import ClassroomSubmissionDraft
 from classroom.services import client, drive_client, oauth
+from classroom.services.oauth import ClassroomError
 
 
 def turn_in_submission(draft: ClassroomSubmissionDraft) -> None:
@@ -20,6 +21,15 @@ def turn_in_submission(draft: ClassroomSubmissionDraft) -> None:
     it raises before the final save, matching the pre-extraction behavior.
     """
     token = oauth.get_active_access_token()
+    if not draft.google_submission_id:
+        submissions = client.list_student_submissions(
+            token, draft.course_id, draft.coursework_id
+        )
+        if not submissions:
+            raise ClassroomError(
+                "No submission found for this coursework.", reason="not_found"
+            )
+        draft.google_submission_id = submissions[0]["id"]
     if draft.work_type == ClassroomSubmissionDraft.WorkType.SHORT_ANSWER_QUESTION:
         client.patch_short_answer(
             token,

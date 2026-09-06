@@ -93,8 +93,15 @@ def solve_classroom_coursework(course_id: str, coursework_id: str, extra_instruc
             if attachment_text:
                 break
 
+    course_name = ""
+    try:
+        course = client.get_course(token, course_id)
+        course_name = course.get("name", "")
+    except ClassroomError:
+        pass
+
     result = _solve_coursework(
-        coursework=coursework, course_name="", attachment_text=attachment_text, extra_instructions=extra_instructions
+        coursework=coursework, course_name=course_name, attachment_text=attachment_text, extra_instructions=extra_instructions
     )
     if result["error"]:
         return {"error": "Couldn't generate a solution.", "reason": result["reason"]}
@@ -102,6 +109,7 @@ def solve_classroom_coursework(course_id: str, coursework_id: str, extra_instruc
     due = client.parse_due_datetime(coursework)
     draft = ClassroomSubmissionDraft.objects.create(
         course_id=course_id,
+        course_name=course_name,
         coursework_id=coursework_id,
         coursework_title=coursework.get("title", ""),
         coursework_description=coursework.get("description", ""),

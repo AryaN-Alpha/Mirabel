@@ -55,7 +55,11 @@ def create_solution_doc(token: str, *, title: str, body_text: str) -> tuple[str,
     (file_id, web_view_link) so it can be attached to a student submission.
     Two-call approach: Drive creates the (empty) Doc, Docs batchUpdate writes
     the body text — this is Google's own documented pattern for this, and
-    more predictable than Drive's implicit plain-text-to-Doc conversion."""
+    more predictable than Drive's implicit plain-text-to-Doc conversion.
+
+    If the batchUpdate step fails the newly-created (empty) Drive file is
+    deleted before re-raising, so a transient Docs API error doesn't leave an
+    orphaned blank document in the user's Drive."""
     try:
         create_resp = requests.post(
             f"{DRIVE_API_BASE}/files",
@@ -74,6 +78,18 @@ def create_solution_doc(token: str, *, title: str, body_text: str) -> tuple[str,
     file_id = created["id"]
     web_view_link = created.get("webViewLink", "")
 
+    def _delete_orphan() -> None:
+        """Best-effort cleanup of the empty Drive file we created.
+        Swallows all errors — the caller's original exception is what matters."""
+        try:
+            requests.delete(
+                f"{DRIVE_API_BASE}/files/{file_id}",
+                headers=_headers(token),
+                timeout=_TIMEOUT,
+            )
+        except Exception:
+            pass
+
     try:
         update_resp = requests.post(
             f"{DOCS_API_BASE}/documents/{file_id}:batchUpdate",
@@ -86,8 +102,10 @@ def create_solution_doc(token: str, *, title: str, body_text: str) -> tuple[str,
             timeout=_TIMEOUT,
         )
     except requests.RequestException as exc:
+        _delete_orphan()
         raise ClassroomError(f"Couldn't reach Google Docs: {exc}") from exc
     if not update_resp.ok:
+        _delete_orphan()
         raise ClassroomError(
             error_detail(update_resp), reason=reason_for_status(update_resp.status_code)
         )

@@ -20,6 +20,7 @@ _STATUS_FOR_REASON = {
     "token_expired": 401,
     "insufficient_scope": 403,
     "not_connected": 401,
+    "not_found": 404,
 }
 
 _SUPPORTED_WORK_TYPES = {
@@ -53,6 +54,11 @@ def auth_callback(request: HttpRequest) -> HttpResponse:
         )
 
     code = request.GET.get("code")
+    error = request.GET.get("error")
+    if error:
+        return HttpResponseRedirect(
+            f"{settings.FRONTEND_URL}/home/classroom?error={error}"
+        )
     if not code:
         return HttpResponseRedirect(
             f"{settings.FRONTEND_URL}/home/classroom?error=No+authorization+code+returned"
@@ -152,6 +158,16 @@ def coursework_detail(
                 break
 
     detail["attachment_text"] = attachment_text
+    detail["course_id"] = course_id
+    detail["due_datetime"] = client.parse_due_datetime(detail)
+
+    if not detail.get("course_name"):
+        try:
+            course = client.get_course(token, course_id)
+            detail["course_name"] = course.get("name", "")
+        except ClassroomError:
+            detail["course_name"] = ""
+
     return Response(detail)
 
 
@@ -232,7 +248,16 @@ def solve_view(request: Request) -> Response:
             if attachment_text:
                 break
 
-    course_name = coursework.get("course_name", "")
+    course_name = (
+        request.data.get("course_name") or coursework.get("course_name") or ""
+    ).strip()
+    if not course_name:
+        try:
+            course = client.get_course(token, course_id)
+            course_name = course.get("name", "")
+        except ClassroomError:
+            course_name = ""
+
     result = solve_coursework(
         coursework=coursework,
         course_name=course_name,
@@ -269,7 +294,7 @@ def drafts(_request: Request) -> Response:
     return Response({"drafts": [_serialize_draft(d) for d in items]})
 
 
-@api_view(["GET", "PUT", "DELETE"])
+@api_view(["GET", "PUT", "PATCH", "DELETE"])
 def draft_detail(request: Request, draft_id: int) -> Response:
     try:
         draft = ClassroomSubmissionDraft.objects.get(pk=draft_id)
@@ -280,6 +305,11 @@ def draft_detail(request: Request, draft_id: int) -> Response:
         return Response(_serialize_draft(draft))
 
     if request.method == "DELETE":
+        if draft.status == ClassroomSubmissionDraft.Status.TURNED_IN:
+            return Response(
+                {"error": "This draft has already been turned in and can't be deleted."},
+                status=400,
+            )
         draft.delete()
         return Response({"deleted": True})
 
@@ -297,7 +327,7 @@ def draft_detail(request: Request, draft_id: int) -> Response:
                 status=400,
             )
         draft.answer_text = answer_text
-    draft.save()
+        draft.save()
     return Response(_serialize_draft(draft))
 
 

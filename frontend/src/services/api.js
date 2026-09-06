@@ -580,10 +580,15 @@ export async function getClassroomCourseworkDetail(courseId, courseworkId) {
   return data;
 }
 
-export async function solveClassroomCoursework({ course_id, coursework_id, extra_instructions }) {
+export async function solveClassroomCoursework({ course_id, coursework_id, course_name, extra_instructions }) {
   const { data } = await client.post(
     "/api/classroom/solve/",
-    { course_id, coursework_id, extra_instructions: extra_instructions || undefined },
+    {
+      course_id,
+      coursework_id,
+      course_name: course_name || undefined,
+      extra_instructions: extra_instructions || undefined,
+    },
     { timeout: AI_CALL_TIMEOUT_MS }
   );
   return data;
