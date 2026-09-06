@@ -55,6 +55,7 @@ SCOPES = (
     "user-read-playback-state",
     "user-modify-playback-state",
     "user-read-currently-playing",
+    "user-read-recently-played",
 )
 
 _REFRESH_SKEW = timedelta(minutes=5)
@@ -176,7 +177,7 @@ def get_auth_url(state: str) -> str:
         "redirect_uri": settings.SPOTIFY_REDIRECT_URI,
         "state": state,
         "scope": " ".join(SCOPES),
-        "show_dialog": "false",
+        "show_dialog": "true",
     }
     return f"{AUTHORIZE_URL}?{urlencode(params)}"
 

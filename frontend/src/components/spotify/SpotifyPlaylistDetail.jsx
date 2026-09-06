@@ -142,7 +142,9 @@ export default function SpotifyPlaylistDetail({ playlistId, onBack }) {
       .then(([p, t]) => {
         setPlaylist(p);
         setDescription(p.description || "");
-        setTracks((t.items || []).filter((i) => i.track));
+        // Spotify's /playlists/{id}/items API returns the track under "item" (newer shape)
+        // but some older responses may still use "track". Support both.
+        setTracks((t.items || []).filter((i) => i.track || i.item).map((i) => ({ ...i, track: i.track || i.item })));
       })
       .catch((err) => setError(getErrorMessage(err, "Couldn't load this playlist.")))
       .finally(() => setLoading(false));
@@ -155,7 +157,7 @@ export default function SpotifyPlaylistDetail({ playlistId, onBack }) {
     setBusy(true);
     try {
       await removeSpotifyPlaylistTracks(playlistId, [uri]);
-      setTracks((prev) => prev.filter((i) => i.track.uri !== uri));
+      setTracks((prev) => prev.filter((i) => (i.track?.uri ?? i.item?.uri) !== uri));
       setPendingRemove(null);
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't remove that track."));

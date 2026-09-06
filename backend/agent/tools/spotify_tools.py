@@ -33,11 +33,12 @@ from spotify.models import SpotifyCredential
 from spotify.services import client
 from spotify.services.oauth import SpotifyError, get_active_access_token
 
-# Spotify's actual cap on /playlists/{id}/tracks add/remove is 100 URIs per
-# call (distinct from the 50-id cap on /me/tracks, /me/albums, /me/following
-# — see spotify/views.py::MAX_IDS_PER_REQUEST for that one).
+# Spotify's actual cap on /playlists/{id}/items add/remove is 100 URIs per
+# call. The unified /me/library endpoint (save/remove tracks, albums, and
+# follow/unfollow artists) is capped at 40 URIs per call — client.py enforces
+# this with [:40] slicing, so this constant must match.
 _MAX_TRACKS_PER_PLAYLIST_OP = 100
-_MAX_IDS_PER_REQUEST = 50
+_MAX_IDS_PER_REQUEST = 40
 
 
 def _track_dict(t: dict) -> dict:
@@ -624,9 +625,8 @@ def create_spotify_playlist(name: str, description: str, track_uris: list[str]) 
 
     try:
         token = get_active_access_token()
-        cred = SpotifyCredential.current()
         playlist = client.create_playlist(
-            token, cred.spotify_user_id, final_args["name"], description=final_args.get("description", "")
+            token, name=final_args["name"], description=final_args.get("description", "")
         )
         if final_args.get("track_uris"):
             client.add_playlist_tracks(token, playlist["id"], final_args["track_uris"])

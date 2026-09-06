@@ -12,10 +12,10 @@ from spotify.services.oauth import SpotifyError, exchange_code_for_token, get_ac
 from spotify.services import oauth as oauth_service
 
 SESSION_STATE_KEY = "spotify_oauth_state"
-# Spotify's own per-call caps differ by endpoint: /me/tracks, /me/albums,
-# and /me/following all cap at 50 ids; /playlists/{id}/tracks add/remove
-# caps at 100 URIs. Two constants rather than one blanket one, so neither
-# endpoint is silently under- or over-capped relative to the real API.
+# View-layer caps: MAX_IDS_PER_REQUEST guards incoming request body size for
+# endpoints that accept id/uri lists. The unified /me/library endpoint that
+# backs save/remove/follow/unfollow is capped at 40 by client.py's [:40] slice.
+# /playlists/{id}/items add/remove caps at 100 URIs per call.
 MAX_IDS_PER_REQUEST = 50
 MAX_PLAYLIST_TRACK_URIS_PER_REQUEST = 100
 
@@ -254,10 +254,8 @@ def playlists(request: Request) -> Response:
         name = (request.data.get("name") or "").strip()
         if not name:
             return Response({"error": "name is required"}, status=400)
-        cred = SpotifyCredential.current()
         created = client.create_playlist(
             token,
-            cred.spotify_user_id,
             name,
             description=(request.data.get("description") or "").strip(),
             public=bool(request.data.get("public", False)),
@@ -394,7 +392,7 @@ def top_artists(request: Request) -> Response:
 @api_view(["GET"])
 def top_tracks(request: Request) -> Response:
     time_range = request.query_params.get("time_range") or "medium_term"
-    if time_range not in client._VALID_TIME_RANGES:
+    if time_range not in client.VALID_TIME_RANGES:
         return Response({"error": "invalid time_range"}, status=400)
     try:
         token = get_active_access_token()

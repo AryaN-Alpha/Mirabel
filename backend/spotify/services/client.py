@@ -124,7 +124,22 @@ def get_artist_albums(token: str, artist_id: str, *, limit: int = 20, offset: in
 
 
 def get_artist_top_tracks(token: str, artist_id: str, *, market: str = "from_token") -> dict:
-    return _get(token, f"/artists/{artist_id}/top-tracks", {"market": market})
+    try:
+        return _get(token, f"/artists/{artist_id}/top-tracks", {"market": market})
+    except SpotifyError as exc:
+        # Spotify restricted /artists/{id}/top-tracks for development-mode apps (returns 403 Forbidden).
+        # Fall back to searching tracks by the artist name so the artist view and tools don't crash.
+        logger.info("get_artist_top_tracks failed (%s); falling back to artist search", exc)
+        try:
+            artist = get_artist(token, artist_id)
+            name = artist.get("name")
+            if name:
+                results = search(token, f"artist:{name}", types="track", limit=10)
+                items = (results.get("tracks") or {}).get("items") or []
+                return {"tracks": items}
+        except Exception:
+            pass
+        return {"tracks": []}
 
 
 def get_track(token: str, track_id: str) -> dict:
@@ -139,12 +154,18 @@ def get_saved_tracks(token: str, *, limit: int = 20, offset: int = 0) -> dict:
 
 
 def save_tracks(token: str, track_ids: list[str]) -> None:
-    _put(token, "/me/tracks", {"ids": track_ids})
+    # Spotify unified user library operations into /me/library?uris=... (max 40 items)
+    if not track_ids:
+        return
+    uris = ",".join(t if t.startswith("spotify:track:") else f"spotify:track:{t}" for t in track_ids[:40])
+    _put(token, "/me/library", None, {"uris": uris})
 
 
 def remove_saved_tracks(token: str, track_ids: list[str]) -> None:
-    _delete(token, "/me/tracks", {"ids": track_ids})
-
+    if not track_ids:
+        return
+    uris = ",".join(t if t.startswith("spotify:track:") else f"spotify:track:{t}" for t in track_ids[:40])
+    _delete(token, "/me/library", None, {"uris": uris})
 
 
 def get_saved_albums(token: str, *, limit: int = 20, offset: int = 0) -> dict:
@@ -152,11 +173,17 @@ def get_saved_albums(token: str, *, limit: int = 20, offset: int = 0) -> dict:
 
 
 def save_albums(token: str, album_ids: list[str]) -> None:
-    _put(token, "/me/albums", {"ids": album_ids})
+    if not album_ids:
+        return
+    uris = ",".join(a if a.startswith("spotify:album:") else f"spotify:album:{a}" for a in album_ids[:40])
+    _put(token, "/me/library", None, {"uris": uris})
 
 
 def remove_saved_albums(token: str, album_ids: list[str]) -> None:
-    _delete(token, "/me/albums", {"ids": album_ids})
+    if not album_ids:
+        return
+    uris = ",".join(a if a.startswith("spotify:album:") else f"spotify:album:{a}" for a in album_ids[:40])
+    _delete(token, "/me/library", None, {"uris": uris})
 
 
 # --- Playlists + track CRUD -----------------------------------------------
@@ -171,11 +198,17 @@ def get_playlist(token: str, playlist_id: str) -> dict:
 
 
 def create_playlist(
-    token: str, user_id: str, name: str, *, description: str = "", public: bool = False
+    token: str,
+    name: str = "",
+    *,
+    description: str = "",
+    public: bool = False,
 ) -> dict:
+    # Spotify deprecated POST /v1/users/{user_id}/playlists (which returns 403 Forbidden);
+    # POST /v1/me/playlists is the current standard endpoint.
     return _post(
         token,
-        f"/users/{user_id}/playlists",
+        "/me/playlists",
         {"name": name, "description": description, "public": public},
     )
 
@@ -199,18 +232,18 @@ def update_playlist_details(
 
 
 def get_playlist_tracks(token: str, playlist_id: str, *, limit: int = 50, offset: int = 0) -> dict:
-    return _get(token, f"/playlists/{playlist_id}/tracks", {"limit": limit, "offset": offset})
+    return _get(token, f"/playlists/{playlist_id}/items", {"limit": limit, "offset": offset})
 
 
 def add_playlist_tracks(token: str, playlist_id: str, track_uris: list[str], *, position: int | None = None) -> dict:
     body: dict = {"uris": track_uris}
     if position is not None:
         body["position"] = position
-    return _post(token, f"/playlists/{playlist_id}/tracks", body)
+    return _post(token, f"/playlists/{playlist_id}/items", body)
 
 
 def remove_playlist_tracks(token: str, playlist_id: str, track_uris: list[str]) -> dict:
-    return _delete(token, f"/playlists/{playlist_id}/tracks", {"tracks": [{"uri": uri} for uri in track_uris]})
+    return _delete(token, f"/playlists/{playlist_id}/items", {"items": [{"uri": uri} for uri in track_uris]})
 
 
 def reorder_playlist_tracks(
@@ -218,7 +251,7 @@ def reorder_playlist_tracks(
 ) -> dict:
     return _put(
         token,
-        f"/playlists/{playlist_id}/tracks",
+        f"/playlists/{playlist_id}/items",
         {"range_start": range_start, "range_length": range_length, "insert_before": insert_before},
     )
 
@@ -263,11 +296,18 @@ def get_followed_artists(token: str, *, limit: int = 20, after: str | None = Non
 
 
 def follow_artists(token: str, artist_ids: list[str]) -> None:
-    _put(token, "/me/following", {"ids": artist_ids}, {"type": "artist"})
+    # Spotify unified follow operations into /me/library?uris=spotify:artist:... (max 40 items)
+    if not artist_ids:
+        return
+    uris = ",".join(a if a.startswith("spotify:artist:") else f"spotify:artist:{a}" for a in artist_ids[:40])
+    _put(token, "/me/library", None, {"uris": uris})
 
 
 def unfollow_artists(token: str, artist_ids: list[str]) -> None:
-    _delete(token, "/me/following", {"ids": artist_ids}, {"type": "artist"})
+    if not artist_ids:
+        return
+    uris = ",".join(a if a.startswith("spotify:artist:") else f"spotify:artist:{a}" for a in artist_ids[:40])
+    _delete(token, "/me/library", None, {"uris": uris})
 
 
 
@@ -296,7 +336,13 @@ def get_currently_playing(token: str) -> dict:
 
 
 def get_recently_played(token: str, *, limit: int = 20) -> dict:
-    return _get(token, "/me/player/recently-played", {"limit": limit})
+    try:
+        return _get(token, "/me/player/recently-played", {"limit": limit})
+    except SpotifyError as exc:
+        if exc.reason == "insufficient_scope":
+            logger.warning("get_recently_played: missing user-read-recently-played scope")
+            return {"items": []}
+        raise
 
 
 # --- Playback controls -------------------------------------------------------
