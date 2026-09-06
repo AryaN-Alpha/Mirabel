@@ -6,6 +6,7 @@ import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream } from "../homeTheme";
 import { GhostLink, OutlineButton, EmptyState, ErrorNote, ModalShell, GlassPanel, PanelEyebrow } from "../homeWidgets";
 import { MediaCard, imageUrl, fieldStyle } from "./spotifyShared";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 function CreatePlaylistModal({ onClose, onCreated }) {
   const [name, setName] = useState("");
@@ -63,6 +64,10 @@ export default function SpotifyPlaylistsTab({ onOpenPlaylist }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  // Re-fetch when the agent creates/updates/modifies a Spotify playlist.
+  usePageRefresh("/home/spotify/playlists", () => setReloadToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +78,7 @@ export default function SpotifyPlaylistsTab({ onOpenPlaylist }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   return (
     <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Loader2, LayoutGrid, TriangleAlert } from "lucide-react";
 import {
@@ -32,6 +32,7 @@ import BraindumpPanel from "./kanban/BraindumpPanel";
 import ProjectTabs from "./kanban/ProjectTabs";
 import ProjectModal from "./kanban/ProjectModal";
 import ConfirmDialog from "./kanban/ConfirmDialog";
+import { usePageRefresh } from "../hooks/usePageRefresh";
 
 const COLUMNS = [
   { id: "todo", label: "To do" },
@@ -248,6 +249,15 @@ export default function KanbanPage() {
     loadTasks(selectedProjectId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProjectId]);
+
+  // Re-fetch tasks when the voice agent completes a Kanban write (create /
+  // update / braindump). selectedProjectId is captured in the callback so
+  // this always refreshes whichever board is currently on screen.
+  const handleAgentRefresh = useCallback(() => {
+    loadTasks(selectedProjectId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId]);
+  usePageRefresh("/home/tasks", handleAgentRefresh);
 
   const columns = useMemo(() => {
     const byStatus = { todo: [], in_progress: [], done: [] };

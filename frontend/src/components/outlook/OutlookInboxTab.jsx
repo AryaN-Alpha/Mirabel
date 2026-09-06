@@ -6,6 +6,7 @@ import { fontHeading, fontMono, text, accent, space, radius, cream, surface } fr
 import { GhostLink, GlassPanel, PanelEyebrow, EmptyState, labelStyle } from "../homeWidgets";
 import { fieldStyle } from "../OutlookPage";
 import OutlookMessageView from "./OutlookMessageView";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 // Compact select variant of the shared sunken field — same recipe as
 // fieldStyle but sized for an inline filter control rather than a
@@ -42,6 +43,9 @@ export default function OutlookInboxTab({ defaultDomain }) {
   const [filterType, setFilterType] = useState("domain");
   const [filterInput, setFilterInput] = useState("");
   const [appliedFilter, setAppliedFilter] = useState({ type: "all", value: "" });
+
+  // Re-fetch when the agent sends/replies to an Outlook message.
+  usePageRefresh("/home/outlook/inbox", () => setReloadToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;

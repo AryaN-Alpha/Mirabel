@@ -104,6 +104,12 @@ export function useVoiceSession() {
   const micAnalyserRef = useRef(null);
   const playbackAnalyserRef = useRef(null);
   const stopAgentPollRef = useRef(null);
+  // Callback set by VoiceSessionProvider after mount — called with the
+  // finished AgentTask whenever pollAgentTask's onSettled fires. Kept as a
+  // ref (not a prop/param) so the hook's public API stays unchanged and the
+  // pollAgentTask closure always sees the latest value without needing to be
+  // recreated.
+  const onTaskSettledRef = useRef(null);
   const utteranceTimeoutRef = useRef(null);
   // Used for the speech-end debounce (fix 2) and minimum-length gate (fix 2).
   const speechEndDebounceRef = useRef(null);
@@ -214,7 +220,10 @@ export function useVoiceSession() {
           setAgentTask({ id: msg.task_id, status: "queued", current_step: "" });
           stopAgentPollRef.current = pollAgentTask(msg.task_id, {
             onUpdate: (task) => setAgentTask(task),
-            onSettled: (task) => setAgentTask(task),
+            onSettled: (task) => {
+              setAgentTask(task);
+              onTaskSettledRef.current?.(task);
+            },
           });
           break;
         }
@@ -583,6 +592,7 @@ export function useVoiceSession() {
     approveCurrentAgentTask,
     rejectCurrentAgentTask,
     answerCurrentAgentTask,
+    onTaskSettledRef,
   };
 }
 

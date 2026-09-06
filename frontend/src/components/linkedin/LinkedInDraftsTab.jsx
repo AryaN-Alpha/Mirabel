@@ -9,6 +9,7 @@ import {
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, cream, surface, glassBorder, radius, motion, success } from "../homeTheme";
 import { GhostLink, OutlineButton, EmptyState, ErrorNote, GlassPanel, PanelEyebrow } from "../homeWidgets";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
@@ -35,6 +36,9 @@ export default function LinkedInDraftsTab({ disabled, onPublished }) {
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
+
+  // Re-fetch when the agent creates a new LinkedIn draft.
+  usePageRefresh("/home/linkedin/drafts", () => setReloadToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;

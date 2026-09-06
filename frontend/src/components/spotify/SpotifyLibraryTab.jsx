@@ -6,6 +6,7 @@ import { getErrorMessage } from "../../utils/errors";
 import { space, cream } from "../homeTheme";
 import { TabLink, EmptyState, ErrorNote, GlassPanel } from "../homeWidgets";
 import { MediaCard, TrackRow, artistNames, imageUrl, withPlaybackError } from "./spotifyShared";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 export default function SpotifyLibraryTab({ onOpenAlbum }) {
   const [sub, setSub] = useState("tracks");
@@ -13,6 +14,10 @@ export default function SpotifyLibraryTab({ onOpenAlbum }) {
   const [albums, setAlbums] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [agentRefreshToken, setAgentRefreshToken] = useState(0);
+
+  // Re-fetch when the agent saves/removes tracks from the Spotify library.
+  usePageRefresh("/home/spotify/library", () => setAgentRefreshToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +35,7 @@ export default function SpotifyLibraryTab({ onOpenAlbum }) {
     return () => {
       cancelled = true;
     };
-  }, [sub]);
+  }, [sub, agentRefreshToken]);
 
   async function removeTrack(trackId) {
     try {

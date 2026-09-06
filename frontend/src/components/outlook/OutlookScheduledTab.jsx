@@ -4,6 +4,7 @@ import { cancelOutlookScheduled, getOutlookScheduled } from "../../services/api"
 import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, fontMono, text, warning, success, danger, space, radius, cream } from "../homeTheme";
 import { GhostLink, GlassPanel, PanelEyebrow, EmptyState, ErrorNote } from "../homeWidgets";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -27,6 +28,9 @@ export default function OutlookScheduledTab() {
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [cancellingId, setCancellingId] = useState(null);
+
+  // Re-fetch when the agent schedules a new Outlook email.
+  usePageRefresh("/home/outlook/scheduled", () => setReloadToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;

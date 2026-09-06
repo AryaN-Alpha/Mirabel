@@ -4,6 +4,7 @@ import { getLinkedInOverview } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
 import { text, accent, space, cream, glassBorder } from "../homeTheme";
 import { EmptyState, ErrorNote, GlassPanel, PanelEyebrow, StatTile } from "../homeWidgets";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
@@ -32,6 +33,9 @@ export default function LinkedInOverviewTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Re-fetch when the agent posts a LinkedIn comment.
+  usePageRefresh("/home/linkedin/overview", load);
 
   if (loading) {
     return (

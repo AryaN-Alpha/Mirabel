@@ -10,6 +10,7 @@ import { downloadTextFile } from "../../utils/download";
 import { fontHeading, fontMono, text, space, radius, cream } from "../homeTheme";
 import { GhostLink, OutlineButton, GlassPanel, PanelEyebrow, EmptyState, ErrorNote } from "../homeWidgets";
 import { fieldStyle } from "../ClassroomPage";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 const UNSUPPORTED_WORK_TYPES = new Set(["MULTIPLE_CHOICE_QUESTION", "MATERIAL"]);
 
@@ -48,6 +49,11 @@ export default function ClassroomAssignmentsTab({ disabled, onSolved }) {
   useEffect(() => {
     load("");
   }, []);
+
+  // Re-fetch when the agent turns in a Classroom assignment.
+  // Passes the current date filter so the refreshed list respects any
+  // filter the user already applied.
+  usePageRefresh("/home/classroom/assignments", () => load(date));
 
   function toggleExpand(item) {
     const nextId = expandedId === item.id ? null : item.id;

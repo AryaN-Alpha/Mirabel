@@ -6,6 +6,7 @@ import { getErrorMessage } from "../../utils/errors";
 import { fontHeading, text, space, radius, cream, bg } from "../homeTheme";
 import { underlineSelectStyle, TabLink, EmptyState, ErrorNote, GlassPanel } from "../homeWidgets";
 import { imageUrl } from "./spotifyShared";
+import { usePageRefresh } from "../../hooks/usePageRefresh";
 
 const TIME_RANGES = [
   { value: "short_term", label: "Last 4 Weeks" },
@@ -19,6 +20,10 @@ export default function SpotifyArtistsTab({ onOpenArtist }) {
   const [items, setItems] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [agentRefreshToken, setAgentRefreshToken] = useState(0);
+
+  // Re-fetch when the agent follows/unfollows Spotify artists.
+  usePageRefresh("/home/spotify/artists", () => setAgentRefreshToken((n) => n + 1));
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +41,7 @@ export default function SpotifyArtistsTab({ onOpenArtist }) {
     return () => {
       cancelled = true;
     };
-  }, [sub, timeRange]);
+  }, [sub, timeRange, agentRefreshToken]);
 
   return (
     <div style={{ animation: "home-rise 0.9s cubic-bezier(.2,.7,.2,1) .05s both" }}>
