@@ -92,14 +92,14 @@ export default function VoiceChatScreen() {
   const subline = micError
     ? micError
     : wsError
-    ? wsError
-    : agentTaskNudge
-    ? agentTaskNudge
-    : agentModeOn
-    ? "Agent mode. Tell me what to do and I'll go actually do it."
-    : micOn
-    ? "I am listening. Say anything — there is no wrong way to start."
-    : "Resting quietly. Tap the circle whenever you want me back.";
+      ? wsError
+      : agentTaskNudge
+        ? agentTaskNudge
+        : agentModeOn
+          ? "Agent mode. Tell me what to do and I'll go actually do it."
+          : micOn
+            ? "I am listening. Say anything — there is no wrong way to start."
+            : "Resting quietly. Tap the circle whenever you want me back.";
 
   return (
     <div className="relative w-full max-w-[880px] flex-1 min-h-0 flex flex-col items-center px-6 pt-8">
@@ -245,15 +245,15 @@ export default function VoiceChatScreen() {
               style={
                 agentModeOn
                   ? {
-                      background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
-                      color: "rgba(246,248,255,0.95)",
-                      boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
-                    }
+                    background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
+                    color: "rgba(246,248,255,0.95)",
+                    boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
+                  }
                   : {
-                      background: "rgba(246,248,255,0.05)",
-                      border: "1px solid rgba(246,248,255,0.10)",
-                      color: "rgba(246,248,255,0.50)",
-                    }
+                    background: "rgba(246,248,255,0.05)",
+                    border: "1px solid rgba(246,248,255,0.10)",
+                    color: "rgba(246,248,255,0.50)",
+                  }
               }
               title="When on, what you say becomes a task Mirabel actually goes and does, instead of a reply."
             >
@@ -266,15 +266,15 @@ export default function VoiceChatScreen() {
               style={
                 recordingHotkey
                   ? {
-                      background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
-                      color: "rgba(246,248,255,0.95)",
-                      boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
-                    }
+                    background: "linear-gradient(150deg, rgba(236,48,19,0.80), rgba(180,30,10,0.70))",
+                    color: "rgba(246,248,255,0.95)",
+                    boxShadow: "0 6px 22px rgba(236,48,19,0.28)",
+                  }
                   : {
-                      background: "rgba(246,248,255,0.05)",
-                      border: "1px solid rgba(246,248,255,0.10)",
-                      color: "rgba(246,248,255,0.50)",
-                    }
+                    background: "rgba(246,248,255,0.05)",
+                    border: "1px solid rgba(246,248,255,0.10)",
+                    color: "rgba(246,248,255,0.50)",
+                  }
               }
               title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
             >
@@ -282,8 +282,8 @@ export default function VoiceChatScreen() {
               {recordingHotkey
                 ? "Press any key… (Esc to cancel)"
                 : pushToTalkKeyLabel
-                ? `Push-to-talk: ${pushToTalkKeyLabel}`
-                : "Set push-to-talk key"}
+                  ? `Push-to-talk: ${pushToTalkKeyLabel}`
+                  : "Set push-to-talk key"}
             </button>
           </div>
           <button

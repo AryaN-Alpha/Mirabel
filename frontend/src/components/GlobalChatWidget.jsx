@@ -104,14 +104,14 @@ export default function GlobalChatWidget() {
   const subline = micError
     ? micError
     : wsError
-    ? wsError
-    : agentTaskNudge
-    ? agentTaskNudge
-    : agentModeOn
-    ? "Agent mode. Tell me what to do and I'll go actually do it."
-    : micOn
-    ? "I am listening. Say anything — there is no wrong way to start."
-    : "Type, or tap the mic — I'm right here.";
+      ? wsError
+      : agentTaskNudge
+        ? agentTaskNudge
+        : agentModeOn
+          ? "Agent mode. Tell me what to do and I'll go actually do it."
+          : micOn
+            ? "I am listening. Say anything — there is no wrong way to start."
+            : "Type, or tap the mic — I'm right here.";
 
   return (
     <>
@@ -352,16 +352,16 @@ export default function GlobalChatWidget() {
                     style={
                       agentModeOn
                         ? {
-                            background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
-                            border: "1px solid rgba(255,130,100,0.50)",
-                            color: "#ffffff",
-                            boxShadow: "0 0 14px rgba(236,48,19,0.35)",
-                          }
+                          background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
+                          border: "1px solid rgba(255,130,100,0.50)",
+                          color: "#ffffff",
+                          boxShadow: "0 0 14px rgba(236,48,19,0.35)",
+                        }
                         : {
-                            background: "rgba(246,248,255,0.05)",
-                            border: "1px solid rgba(246,248,255,0.10)",
-                            color: "rgba(246,248,255,0.65)",
-                          }
+                          background: "rgba(246,248,255,0.05)",
+                          border: "1px solid rgba(246,248,255,0.10)",
+                          color: "rgba(246,248,255,0.65)",
+                        }
                     }
                     title="When on, what you send becomes a task Mirabel actually goes and does, instead of a reply."
                   >
@@ -374,16 +374,16 @@ export default function GlobalChatWidget() {
                     style={
                       recordingHotkey
                         ? {
-                            background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
-                            border: "1px solid rgba(255,130,100,0.50)",
-                            color: "#ffffff",
-                            boxShadow: "0 0 14px rgba(236,48,19,0.35)",
-                          }
+                          background: "linear-gradient(135deg, rgba(236,48,19,0.88), rgba(180,25,8,0.82))",
+                          border: "1px solid rgba(255,130,100,0.50)",
+                          color: "#ffffff",
+                          boxShadow: "0 0 14px rgba(236,48,19,0.35)",
+                        }
                         : {
-                            background: "rgba(246,248,255,0.05)",
-                            border: "1px solid rgba(246,248,255,0.10)",
-                            color: "rgba(246,248,255,0.65)",
-                          }
+                          background: "rgba(246,248,255,0.05)",
+                          border: "1px solid rgba(246,248,255,0.10)",
+                          color: "rgba(246,248,255,0.65)",
+                        }
                     }
                     title="Bind a keyboard key to toggle the mic on/off from anywhere in the app"
                   >

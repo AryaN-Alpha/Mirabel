@@ -366,3 +366,9 @@ GROQ_STT_MODEL = os.environ.get("GROQ_STT_MODEL", "whisper-large-v3-turbo")
 EDGE_TTS_VOICE = os.environ.get("EDGE_TTS_VOICE", "en-US-JennyNeural")
 EDGE_TTS_RATE = os.environ.get("EDGE_TTS_RATE", "+5%")
 EDGE_TTS_PITCH = os.environ.get("EDGE_TTS_PITCH", "+2Hz")
+
+# --- Cartesia TTS (primary; edge-tts is fallback when key is absent) ---
+CARTESIA_API_KEY = os.environ.get("CARTESIA_API_KEY", "")
+CARTESIA_VOICE_ID = os.environ.get("CARTESIA_VOICE_ID", "f6ff7c0c-e396-40a9-a70b-f7607edb6937")
+CARTESIA_MODEL_ID = os.environ.get("CARTESIA_MODEL_ID", "sonic-3.6")
+CARTESIA_LANGUAGE = os.environ.get("CARTESIA_LANGUAGE", "en")

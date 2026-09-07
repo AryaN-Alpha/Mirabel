@@ -57,6 +57,7 @@ uvicorn[standard]==0.34.0
 
 groq==0.15.0
 edge-tts==7.2.8
+cartesia>=1.0.0
 
 # Sentence segmentation for streaming TTS — pure-python, no model download
 pysbd==0.3.4
