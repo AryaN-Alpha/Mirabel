@@ -26,21 +26,6 @@ from memory.services.chroma_client import delete_memories, get_collection
 logger = logging.getLogger(__name__)
 
 
-def _build_range_where(
-    date_from: str | None, date_to: str | None, kind: str | None
-) -> dict[str, Any] | None:
-    conditions: list[dict[str, Any]] = []
-    if kind in ("turn", "summary", "fact"):
-        conditions.append({"kind": kind})
-    if date_from:
-        conditions.append({"created_at": {"$gte": date_from}})
-    if date_to:
-        conditions.append({"created_at": {"$lte": date_to}})
-    if not conditions:
-        return None
-    if len(conditions) == 1:
-        return conditions[0]
-    return {"$and": conditions}
 
 
 def _matching_rows(
@@ -50,14 +35,23 @@ def _matching_rows(
     matches the entire collection — callers decide whether that's intended
     (delete_all) or a mistake (delete_range requires at least one filter)."""
     collection = get_collection()
-    where = _build_range_where(date_from, date_to, kind)
     kwargs: dict[str, Any] = {"include": ["metadatas"]}
-    if where:
-        kwargs["where"] = where
+    if kind in ("turn", "summary", "fact"):
+        kwargs["where"] = {"kind": kind}
     raw = collection.get(**kwargs)
     ids = raw["ids"] or []
     metas = raw["metadatas"] or []
-    return [{"id": mid, "metadata": meta or {}} for mid, meta in zip(ids, metas)]
+    
+    rows = []
+    for mid, meta in zip(ids, metas):
+        meta = meta or {}
+        created_at = meta.get("created_at")
+        if date_from and (not created_at or created_at < date_from):
+            continue
+        if date_to and (not created_at or created_at > date_to):
+            continue
+        rows.append({"id": mid, "metadata": meta})
+    return rows
 
 
 def _delete_rows(rows: list[dict[str, Any]]) -> dict[str, int]:

@@ -73,6 +73,7 @@ export function useVoiceSession() {
   const [wsError, setWsError] = useState("");
   const [agentTask, setAgentTask] = useState(null);
   const [agentTaskNudge, setAgentTaskNudge] = useState("");
+  const [ttsQuotaError, setTtsQuotaError] = useState(null);
   // Owned here (not by each screen) since the session — and the mic/VAD
   // instance underneath it — is now shared across screens (see
   // VoiceSessionProvider). A screen-local boolean would desync from the
@@ -255,6 +256,9 @@ export function useVoiceSession() {
           // wsError, just a transient status line.
           setThinking(false);
           setAgentTaskNudge(msg.message || "");
+          break;
+        case "tts_quota_error":
+          setTtsQuotaError({ keyName: msg.key_name, message: msg.message });
           break;
         case "error":
           console.error("server error:", msg.message);
@@ -572,6 +576,8 @@ export function useVoiceSession() {
     thinking,
     wsError,
     agentTaskNudge,
+    ttsQuotaError,
+    clearTtsQuotaError: () => setTtsQuotaError(null),
     micOn,
     micError,
     agentModeOn,

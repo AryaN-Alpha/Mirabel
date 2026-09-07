@@ -53,6 +53,7 @@ const NAV_ITEMS = [
       { label: "OpenAI", to: "/home/ai-model/openai" },
       { label: "DeepSeek", to: "/home/ai-model/deepseek" },
       { label: "OpenCode", to: "/home/ai-model/opencode" },
+      { label: "TTS (Cartesia)", to: "/home/ai-model/tts" },
     ],
   },
   {

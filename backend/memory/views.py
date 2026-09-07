@@ -25,13 +25,6 @@ def _build_where(request: Request) -> dict[str, Any] | None:
     if kind in ("turn", "summary", "fact"):
         conditions.append({"kind": kind})
 
-    date_from = (request.GET.get("date_from") or "").strip()
-    if date_from:
-        conditions.append({"created_at": {"$gte": date_from}})
-
-    date_to = (request.GET.get("date_to") or "").strip()
-    if date_to:
-        conditions.append({"created_at": {"$lte": date_to}})
 
     min_salience = (request.GET.get("min_salience") or "").strip()
     if min_salience:
@@ -80,11 +73,16 @@ def memories(request: Request) -> Response:
 
     where = _build_where(request)
     where_document = {"$contains": q} if q else None
+    
+    date_from = (request.GET.get("date_from") or "").strip() or None
+    date_to = (request.GET.get("date_to") or "").strip() or None
 
     try:
         total, page_items = list_memories(
             where=where,
             where_document=where_document,
+            date_from=date_from,
+            date_to=date_to,
             sort=sort,
             limit=page_size,
             offset=(page - 1) * page_size,

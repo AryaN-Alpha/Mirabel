@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/spotify/", include("spotify.urls")),
     path("api/memory/", include("memory.urls")),
     path("api/agent/", include("agent.urls")),
+    path("api/tts/", include("voice.urls")),
     path("api/", include("kanban.urls")),
 ]
 

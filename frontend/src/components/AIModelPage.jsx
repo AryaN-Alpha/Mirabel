@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader2, Cpu, KeyRound, SlidersHorizontal, Atom, Gem, CircleDot, Radar, Code2, ChevronDown } from "lucide-react";
+import { Loader2, Cpu, KeyRound, SlidersHorizontal, Atom, Gem, CircleDot, Radar, Code2, ChevronDown, Mic } from "lucide-react";
 import {
   clearProviderCredential,
   getModelPreference,
@@ -11,6 +11,7 @@ import {
 import { getErrorMessage } from "../utils/errors";
 import { fontHeading, fontMono, text, accent, success, danger, space, radius, cream, surface, glassBorder, motion } from "./homeTheme";
 import { GhostLink, OutlineButton, GlassPanel, PanelEyebrow, StatusDot, NumberField, ToggleSwitch, ErrorNote, labelStyle } from "./homeWidgets";
+import TtsTab from "./tts/TtsTab";
 
 const PROVIDER_LABELS = {
   anthropic: "Anthropic",
@@ -54,9 +55,77 @@ const fieldStyle = {
 
 const entrance = (delay) => ({ animation: `home-rise 0.9s cubic-bezier(.2,.7,.2,1) ${delay}s both` });
 
+// ---------------------------------------------------------------------------
+// Tab switcher bar (LLM providers vs TTS)
+// ---------------------------------------------------------------------------
+function TabBar({ activeTab, onSwitch }) {
+  const tabs = [
+    { id: "llm",  label: "LLM Providers", icon: Cpu },
+    { id: "tts",  label: "TTS (Cartesia)", icon: Mic },
+  ];
+  return (
+    <div
+      className="flex items-center"
+      style={{
+        gap: space[2],
+        marginBottom: space[5],
+        padding: "5px",
+        borderRadius: radius.xl,
+        background: "rgba(7,6,8,0.55)",
+        border: `1px solid ${glassBorder.soft}`,
+        width: "fit-content",
+      }}
+    >
+      {tabs.map(({ id, label, icon: Icon }) => {
+        const active = activeTab === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onSwitch(id)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: `${space[2]}px ${space[5]}px`,
+              borderRadius: radius.lg,
+              border: "none",
+              background: active
+                ? "linear-gradient(135deg, rgba(255,151,131,0.18), rgba(255,100,70,0.10))"
+                : "transparent",
+              boxShadow: active ? `0 0 18px -8px ${accent[400]}66` : "none",
+              color: active ? accent[300] : cream(0.5),
+              fontSize: 13,
+              fontFamily: fontHeading,
+              letterSpacing: active ? "-0.01em" : "0",
+              cursor: "pointer",
+              transition: `all ${motion.hover}`,
+              outline: "none",
+            }}
+          >
+            <Icon size={14} strokeWidth={active ? 2 : 1.5} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AIModelPage() {
   const { provider: providerParam } = useParams();
   const navigate = useNavigate();
+
+  // "llm" or "tts" — derived from whether we're at /home/ai-model/tts
+  const activeTab = providerParam === "tts" ? "tts" : "llm";
+
+  function handleTabSwitch(tab) {
+    if (tab === "tts") {
+      navigate("/home/ai-model/tts", { replace: false });
+    } else {
+      navigate("/home/ai-model", { replace: false });
+    }
+  }
 
   const [available, setAvailable] = useState(null);
   const [credentials, setCredentials] = useState({});
@@ -278,7 +347,16 @@ export default function AIModelPage() {
     // right-aligned numeric readouts) ever sits under GlobalChatWidget's
     // fixed bubble (right:24 bottom:100, 56px, present on every /home page).
     <div className="flex flex-col" style={{ marginTop: space[8] * 1.4, gap: space[6], maxWidth: 1080, paddingBottom: space[8] * 2.6 }}>
-      {/* ---- hero: currently active provider/model ---- */}
+
+      {/* ---- tab switcher ---- */}
+      <TabBar activeTab={activeTab} onSwitch={handleTabSwitch} />
+
+      {/* ---- TTS tab ---- */}
+      {activeTab === "tts" && <TtsTab />}
+
+      {/* ---- LLM provider UI (hidden when TTS tab active) ---- */}
+      {activeTab !== "tts" && (
+        <>
       <div style={entrance(0.05)}>
         <GlassPanel elevated glow float={1} delay={0} style={{ padding: `${space[6]}px ${space[7]}px` }}>
           <div className="flex items-start justify-between flex-wrap" style={{ gap: space[5] }}>
@@ -502,6 +580,8 @@ export default function AIModelPage() {
           </div>
         </GlassPanel>
       </div>
+      </>
+      )}
     </div>
   );
 }

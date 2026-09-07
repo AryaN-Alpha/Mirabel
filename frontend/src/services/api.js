@@ -55,6 +55,57 @@ export async function clearProviderCredential(provider) {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// TTS Key Vault
+// ---------------------------------------------------------------------------
+
+export async function listTtsKeys() {
+  const { data } = await client.get("/api/tts/keys/");
+  return data;
+}
+
+export async function createTtsKey(name, apiKey) {
+  const { data } = await client.post("/api/tts/keys/", { name, api_key: apiKey });
+  return data;
+}
+
+export async function updateTtsKey(id, { name, apiKey } = {}) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (apiKey !== undefined) body.api_key = apiKey;
+  const { data } = await client.put(`/api/tts/keys/${id}/`, body);
+  return data;
+}
+
+export async function deleteTtsKey(id) {
+  const { data } = await client.delete(`/api/tts/keys/${id}/`);
+  return data;
+}
+
+export async function activateTtsKey(id) {
+  const { data } = await client.post(`/api/tts/keys/${id}/activate/`);
+  return data;
+}
+
+export async function testTtsKey(id) {
+  const { data } = await client.post(`/api/tts/keys/${id}/test/`, {}, { timeout: 20000 });
+  return data;
+}
+
+export async function getTtsConfig() {
+  const { data } = await client.get("/api/tts/config/");
+  return data;
+}
+
+export async function saveTtsConfig(modelId, language) {
+  const { data } = await client.put("/api/tts/config/", {
+    model_id: modelId,
+    language,
+  });
+  return data;
+}
+
+
 export function outlookConnectUrl() {
   // The OAuth dance needs auth/start and auth/callback on the same origin
   // (the callback lands wherever MS_REDIRECT_URI points, which must be

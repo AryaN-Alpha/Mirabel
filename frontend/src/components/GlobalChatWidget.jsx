@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Bot, Keyboard, Mic, MicOff, MessageCircle, SquarePen, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
@@ -29,6 +30,8 @@ export default function GlobalChatWidget() {
     thinking,
     wsError,
     agentTaskNudge,
+    ttsQuotaError,
+    clearTtsQuotaError,
     micOn,
     micError,
     agentModeOn,
@@ -243,6 +246,41 @@ export default function GlobalChatWidget() {
                 </button>
               </div>
             </div>
+
+            {ttsQuotaError && (
+              <div
+                className="mx-4 mt-3 p-3 rounded-lg flex items-start gap-3 relative"
+                style={{
+                  background: "rgba(236,80,60,0.12)",
+                  border: "1px solid rgba(236,80,60,0.25)",
+                  color: "rgba(246,248,255,0.85)",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  flexShrink: 0,
+                }}
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="block mb-1 font-semibold" style={{ color: "rgba(236,80,60,0.95)" }}>
+                    Cartesia Quota Exceeded
+                  </span>
+                  {ttsQuotaError.message}{" "}
+                  <Link
+                    to="/home/ai-model/tts"
+                    onClick={() => { setOpen(false); clearTtsQuotaError(); }}
+                    style={{ color: "rgba(236,80,60,0.95)", textDecoration: "underline", whiteSpace: "nowrap" }}
+                  >
+                    Fix it &rarr;
+                  </Link>
+                </div>
+                <button
+                  onClick={clearTtsQuotaError}
+                  className="shrink-0 p-1 bg-transparent border-none cursor-pointer hover:opacity-100 opacity-60"
+                  style={{ color: "rgba(246,248,255,0.85)" }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
 
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 px-4 py-2">
               <AnimatePresence>

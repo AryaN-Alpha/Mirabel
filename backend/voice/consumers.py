@@ -37,7 +37,7 @@ from voice.services.intents import classify_stop, classify_yes_no
 from voice.services.protocol import ProtocolParser
 from voice.services.sentence_buffer import StreamingSentenceBuffer
 from voice.services.stt import transcribe
-from voice.services.tts import stream_tts
+from voice.services.tts import CartesiaQuotaError, stream_tts
 
 logger = logging.getLogger(__name__)
 
@@ -560,6 +560,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # Per-sentence boundary marker — lets the client play gaplessly
                     # but know where utterances split if it ever needs to.
                     await self._send_json({"type": "audio_sentence_end"})
+                except CartesiaQuotaError:
+                    # The quota-exceeded path: stream_tts already marked the DB
+                    # key and fell back to edge-tts for this sentence (the audio
+                    # was yielded before the exception propagated here from the
+                    # Cartesia call).  We just need to tell the frontend to show
+                    # the "fix it" toast — the user still heard the response.
+                    active_key_name = await self._get_active_tts_key_name()
+                    logger.warning(
+                        "tts: Cartesia quota exceeded for key %r — notifying client",
+                        active_key_name,
+                    )
+                    await self._send_json({
+                        "type": "tts_quota_error",
+                        "key_name": active_key_name,
+                        "message": (
+                            f"Cartesia key \u2018{active_key_name}\u2019 hit its quota. "
+                            "TTS fell back to edge-tts. Go to AI Model → TTS to switch keys."
+                        ),
+                    })
+                    await self._send_json({"type": "audio_sentence_end"})
                 except asyncio.CancelledError:
                     raise
                 except Exception:
@@ -603,6 +623,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _send_json(self, payload: dict[str, Any]) -> None:
         await self.send(text_data=json.dumps(payload))
+
+    @database_sync_to_async
+    def _get_active_tts_key_name(self) -> str:
+        """Return the name of the currently active Cartesia vault key, or a fallback label."""
+        try:
+            from voice.models import CartesiaTTSKey  # noqa: PLC0415
+            active = CartesiaTTSKey.get_active()
+            return active.name if active else ".env key"
+        except Exception:
+            return "active key"
 
     @database_sync_to_async
     def _current_model_preference(self) -> tuple[str, str, int, float]:

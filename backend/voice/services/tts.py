@@ -23,6 +23,17 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Custom exception — raised when Cartesia returns a quota / billing error
+# (HTTP 402, 429, or a message containing "quota" / "credits").  Caught
+# separately by consumers.py so it can send a tts_quota_error WS event
+# and mark the active DB key as exhausted.
+# ---------------------------------------------------------------------------
+class CartesiaQuotaError(Exception):
+    """Cartesia API quota or billing limit exceeded."""
+
+
 # ---------------------------------------------------------------------------
 # UUID validation pattern — guards against bad .env values reaching the API.
 # ---------------------------------------------------------------------------
@@ -94,7 +105,16 @@ async def _get_cartesia_client():
     """Return a cached AsyncCartesia instance, or None if unavailable."""
     global _cartesia_client
 
-    api_key = getattr(settings, "CARTESIA_API_KEY", "")
+    # DB vault key takes priority over the .env setting — this allows the
+    # user to manage keys from the UI without touching environment variables.
+    # Imported here (not at module top) to avoid an import cycle on startup
+    # before Django's app registry is ready.
+    try:
+        from voice.models import CartesiaTTSKey  # noqa: PLC0415
+        api_key = CartesiaTTSKey.get_active_raw_key()
+    except Exception:
+        api_key = getattr(settings, "CARTESIA_API_KEY", "")
+
     if not api_key:
         return None
 
@@ -166,6 +186,12 @@ async def stream_tts(text: str) -> AsyncIterator[bytes]:
                 yield chunk
             _record_success()
             return
+        except CartesiaQuotaError:
+            # Mark the active vault key as exhausted in the DB so the UI can
+            # show it, then re-raise so consumers.py can send a WS event.
+            _mark_active_key_quota_exceeded()
+            _record_failure()
+            raise  # ← consumers.py catches this specifically
         except Exception:
             logger.warning(
                 "cartesia: TTS failed — falling back to edge-tts for %r",
@@ -201,20 +227,49 @@ async def _cartesia_stream(client, text: str) -> AsyncIterator[bytes]:
 
     # The SDK accepts voice as Union[str, TTSRequestVoiceObject]; a plain
     # UUID string is the documented short-form.
-    response = await client.tts.generate(
-        model_id=model_id,
-        transcript=text,
-        voice=raw_voice_id,
-        output_format={
-            "container": "mp3",
-            "bit_rate": 128000,
-            "sample_rate": 44100,
-        },
-        language=language,
-    )
+    try:
+        response = await client.tts.generate(
+            model_id=model_id,
+            transcript=text,
+            voice=raw_voice_id,
+            output_format={
+                "container": "mp3",
+                "bit_rate": 128000,
+                "sample_rate": 44100,
+            },
+            language=language,
+        )
+    except Exception as exc:
+        _maybe_raise_quota(exc)
+        raise
     async for chunk in response.iter_bytes():
         if chunk:
             yield chunk
+
+
+def _maybe_raise_quota(exc: Exception) -> None:
+    """Re-raise as CartesiaQuotaError if the exception signals quota/billing."""
+    msg = str(exc).lower()
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    is_quota = (
+        status in (402, 429)
+        or any(w in msg for w in ("quota", "credit", "rate limit", "rate_limit", "billing"))
+    )
+    if is_quota:
+        raise CartesiaQuotaError(str(exc)) from exc
+
+
+def _mark_active_key_quota_exceeded() -> None:
+    """Synchronously mark the active vault key as quota_exceeded in the DB."""
+    try:
+        from voice.models import CartesiaTTSKey  # noqa: PLC0415
+        active = CartesiaTTSKey.get_active()
+        if active:
+            active.status = CartesiaTTSKey.Status.QUOTA_EXCEEDED
+            active.status_note = "Quota exceeded — switch to a different key."
+            active.save(update_fields=["status", "status_note", "updated_at"])
+    except Exception:
+        pass  # Best-effort; the WS event is more important than this DB write.
 
 
 # ---------------------------------------------------------------------------

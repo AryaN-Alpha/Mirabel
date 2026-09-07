@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Keyboard, Mic, MicOff, SquarePen } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bot, Keyboard, Mic, MicOff, SquarePen, X } from "lucide-react";
 import { useVoiceSessionContext } from "../hooks/VoiceSessionProvider";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +24,8 @@ export default function VoiceChatScreen() {
     thinking,
     wsError,
     agentTaskNudge,
+    ttsQuotaError,
+    clearTtsQuotaError,
     micOn,
     micError,
     agentModeOn,
@@ -129,6 +132,41 @@ export default function VoiceChatScreen() {
 
 
       <div className="w-full max-w-[720px] flex-1 min-h-0 flex flex-col gap-4">
+        {ttsQuotaError && (
+          <div
+            className="w-full mx-auto p-4 rounded-xl flex items-start gap-4 relative"
+            style={{
+              background: "rgba(236,80,60,0.12)",
+              border: "1px solid rgba(236,80,60,0.25)",
+              color: "rgba(246,248,255,0.85)",
+              fontSize: 14.5,
+              lineHeight: 1.5,
+              flexShrink: 0,
+            }}
+          >
+            <div className="flex-1 min-w-0">
+              <span className="block mb-1.5 font-semibold" style={{ color: "rgba(236,80,60,0.95)", fontSize: 15.5 }}>
+                Cartesia Quota Exceeded
+              </span>
+              {ttsQuotaError.message}{" "}
+              <Link
+                to="/home/ai-model/tts"
+                onClick={clearTtsQuotaError}
+                style={{ color: "rgba(236,80,60,0.95)", textDecoration: "underline", whiteSpace: "nowrap" }}
+              >
+                Fix it &rarr;
+              </Link>
+            </div>
+            <button
+              onClick={clearTtsQuotaError}
+              className="shrink-0 p-1 bg-transparent border-none cursor-pointer hover:opacity-100 opacity-60"
+              style={{ color: "rgba(246,248,255,0.85)" }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
         <div
           ref={scrollRef}
           className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 px-1 py-1"

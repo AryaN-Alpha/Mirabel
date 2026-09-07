@@ -57,6 +57,8 @@ def list_memories(
     *,
     where: dict[str, Any] | None = None,
     where_document: dict[str, Any] | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
     sort: str = "created_at",
     limit: int,
     offset: int,
@@ -82,10 +84,15 @@ def list_memories(
     docs = raw["documents"] or []
     metas = raw["metadatas"] or []
 
-    items = [
-        {"id": mid, "text": doc, "metadata": meta or {}}
-        for mid, doc, meta in zip(ids, docs, metas)
-    ]
+    items = []
+    for mid, doc, meta in zip(ids, docs, metas):
+        meta = meta or {}
+        created_at = meta.get("created_at")
+        if date_from and (not created_at or created_at < date_from):
+            continue
+        if date_to and (not created_at or created_at > date_to):
+            continue
+        items.append({"id": mid, "text": doc, "metadata": meta})
 
     sort_key = "salience" if sort == "salience" else "created_at"
     items.sort(key=lambda item: item["metadata"].get(sort_key, ""), reverse=True)
