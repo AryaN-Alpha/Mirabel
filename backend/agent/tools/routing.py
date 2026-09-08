@@ -26,6 +26,7 @@ from agent.tools import (
     memory_tools,
     outlook_tools,
     spotify_tools,
+    threads_tools,
 )
 from agent.tools.registry import ALL_TOOLS
 from core.services.telemetry import log_optimization_event
@@ -46,6 +47,10 @@ _DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
     "linkedin": (
         "linkedin", "li post", "post to linkedin", "comment on", "connections",
     ),
+    "threads": (
+        "thread", "threads", "threads post", "meta threads", "post to threads",
+        "threads reply", "reply on threads",
+    ),
     "outlook": (
         "outlook", "email", "e-mail", "inbox", "mailbox", "reply to",
         "send an email", "compose",
@@ -65,6 +70,7 @@ _DOMAIN_TOOLS: dict[str, list] = {
     "kanban": kanban_tools.TOOLS,
     "cv": cv_tools.TOOLS,
     "linkedin": linkedin_tools.TOOLS,
+    "threads": threads_tools.TOOLS,
     "outlook": outlook_tools.TOOLS,
     "classroom": classroom_tools.TOOLS,
     "spotify": spotify_tools.TOOLS,

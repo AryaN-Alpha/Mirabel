@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "cv",
     "kanban",
     "spotify",
+    "threads",
     "agent",
 ]
 
@@ -224,6 +225,17 @@ LINKEDIN_API_VERSION = os.getenv("LINKEDIN_API_VERSION", "202608")
 # program) — leave this False unless LinkedIn has granted yours that.
 LINKEDIN_ENABLE_REFRESH_TOKEN = os.getenv("LINKEDIN_ENABLE_REFRESH_TOKEN", "False") == "True"
 
+# --- Threads (Meta) ---
+# THREADS_APP_ID / THREADS_APP_SECRET are read lazily in threads/services/oauth.py
+# so a dev without Meta credentials configured can still run the server.
+THREADS_AUTHORIZE_URL = os.getenv("THREADS_AUTHORIZE_URL", "https://www.threads.com/oauth/authorize")
+THREADS_REDIRECT_URI = os.getenv("THREADS_REDIRECT_URI", f"{BASE_URL}/api/threads/auth/callback/")
+THREADS_SCOPES = os.getenv(
+    "THREADS_SCOPES",
+    "threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights,threads_delete",
+)
+THREADS_API_VERSION = os.getenv("THREADS_API_VERSION", "v1.0")
+
 # --- Google Classroom ---
 # GOOGLE_CLASSROOM_CLIENT_ID / GOOGLE_CLASSROOM_CLIENT_SECRET are deliberately
 # not read here — they're read lazily in classroom/services/oauth.py (same
@@ -302,6 +314,11 @@ LOGGING = {
             "propagate": False,
         },
         "linkedin": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "threads": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": False,

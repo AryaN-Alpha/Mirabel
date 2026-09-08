@@ -19,6 +19,15 @@ import LinkedInPage, {
 import LinkedInOverviewTab from "./components/linkedin/LinkedInOverviewTab";
 import LinkedInAutomationsTab from "./components/linkedin/LinkedInAutomationsTab";
 import LinkedInResearchTab from "./components/linkedin/LinkedInResearchTab";
+import ThreadsPage, {
+  ThreadsOverviewRoute,
+  ThreadsProfileRoute,
+  ThreadsCreatePostRoute,
+  ThreadsDraftsRoute,
+  ThreadsAutomationsRoute,
+  ThreadsResearchRoute,
+  ThreadsSettingsRoute,
+} from "./components/ThreadsPage";
 import ClassroomPage, {
   ClassroomAssignmentsRoute,
   ClassroomDraftsRoute,
@@ -70,6 +79,16 @@ export default function App() {
               <Route path="automations" element={<LinkedInAutomationsTab />} />
               <Route path="research" element={<LinkedInResearchTab />} />
               <Route path="settings" element={<LinkedInSettingsRoute />} />
+            </Route>
+            <Route path="threads" element={<ThreadsPage />}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<ThreadsOverviewRoute />} />
+              <Route path="profile" element={<ThreadsProfileRoute />} />
+              <Route path="create" element={<ThreadsCreatePostRoute />} />
+              <Route path="drafts" element={<ThreadsDraftsRoute />} />
+              <Route path="automations" element={<ThreadsAutomationsRoute />} />
+              <Route path="research" element={<ThreadsResearchRoute />} />
+              <Route path="settings" element={<ThreadsSettingsRoute />} />
             </Route>
             <Route path="classroom" element={<ClassroomPage />}>
               <Route index element={<Navigate to="assignments" replace />} />

@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/", include("core.urls")),
     path("api/outlook/", include("outlook.urls")),
     path("api/linkedin/", include("linkedin.urls")),
+    path("api/threads/", include("threads.urls")),
     path("api/classroom/", include("classroom.urls")),
     path("api/cv/", include("cv.urls")),
     path("api/spotify/", include("spotify.urls")),

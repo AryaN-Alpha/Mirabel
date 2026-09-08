@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { fontHeading, text, accent, cream } from "./homeTheme";
 import useNameHidden from "../hooks/useNameHidden";
+import ThreadsIcon from "./threads/ThreadsIcon";
 
 // Sidebar nav config. An item with `children` renders as an expandable tree
 // node — its sub-items appear indented beneath it whenever the current route
@@ -79,6 +80,20 @@ const NAV_ITEMS = [
       { icon: Repeat2, label: "Automations", to: "/home/linkedin/automations" },
       { icon: Search, label: "AI Research", to: "/home/linkedin/research" },
       { icon: Settings, label: "Settings", to: "/home/linkedin/settings" },
+    ],
+  },
+  {
+    icon: ThreadsIcon,
+    label: "Threads",
+    to: "/home/threads",
+    children: [
+      { icon: Activity, label: "Overview", to: "/home/threads/overview" },
+      { icon: User, label: "Profile", to: "/home/threads/profile" },
+      { icon: PenSquare, label: "Create post", to: "/home/threads/create" },
+      { icon: FileText, label: "Drafts", to: "/home/threads/drafts" },
+      { icon: Repeat2, label: "Automations", to: "/home/threads/automations" },
+      { icon: Search, label: "AI Research", to: "/home/threads/research" },
+      { icon: Settings, label: "Settings", to: "/home/threads/settings" },
     ],
   },
   {

@@ -21,12 +21,14 @@ from agent.tools import (
     memory_tools,
     outlook_tools,
     spotify_tools,
+    threads_tools,
 )
 
 ALL_TOOLS = (
     kanban_tools.TOOLS
     + cv_tools.TOOLS
     + linkedin_tools.TOOLS
+    + threads_tools.TOOLS
     + outlook_tools.TOOLS
     + classroom_tools.TOOLS
     + spotify_tools.TOOLS

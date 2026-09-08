@@ -97,6 +97,26 @@ def _kanban_board(result: dict) -> dict | None:
     return {"label": "View Kanban board", "path": "/home/tasks"}
 
 
+def _threads_draft_created(result: dict) -> dict | None:
+    if not result.get("id"):
+        return None
+    return {"label": "View Threads drafts", "path": "/home/threads/drafts"}
+
+
+def _threads_post_published(result: dict) -> dict | None:
+    if not result.get("published") or not result.get("permalink"):
+        return None
+    return {"label": "View post on Threads", "url": result["permalink"]}
+
+
+def _threads_reply_posted(result: dict) -> dict | None:
+    if not result.get("posted"):
+        return None
+    if result.get("permalink"):
+        return {"label": "View reply on Threads", "url": result["permalink"]}
+    return {"label": "View on Threads", "path": "/home/threads/overview"}
+
+
 _RESOLVERS: dict[str, _Resolver] = {
     "create_spotify_playlist": _spotify_playlist_created,
     "update_spotify_playlist_details": _spotify_playlists_page("updated"),
@@ -109,6 +129,9 @@ _RESOLVERS: dict[str, _Resolver] = {
     "create_linkedin_draft": _linkedin_draft_created,
     "publish_linkedin_draft": _linkedin_post_published,
     "post_linkedin_comment": _linkedin_comment_posted,
+    "create_threads_draft": _threads_draft_created,
+    "publish_threads_draft": _threads_post_published,
+    "post_threads_reply": _threads_reply_posted,
     "reply_outlook_message_now": _outlook_reply_sent,
     "schedule_outlook_email": _outlook_email_scheduled,
     "turn_in_classroom_assignment": _classroom_assignment_turned_in,

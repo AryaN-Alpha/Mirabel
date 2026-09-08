@@ -371,6 +371,152 @@ export async function listLinkedInAutomationRuns(automationId) {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Meta Threads API
+// ---------------------------------------------------------------------------
+
+export function threadsConnectUrl() {
+  return `${client.defaults.baseURL}/api/threads/auth/start/`;
+}
+
+export async function getThreadsStatus() {
+  const { data } = await client.get("/api/threads/status/");
+  return data;
+}
+
+export async function disconnectThreads() {
+  const { data } = await client.post("/api/threads/disconnect/");
+  return data;
+}
+
+export async function listThreadsDrafts(status) {
+  const { data } = await client.get("/api/threads/drafts/", {
+    params: status ? { status } : {},
+  });
+  return data;
+}
+
+export async function createThreadsDraft(draft) {
+  const { data } = await client.post("/api/threads/drafts/", draft);
+  return data;
+}
+
+export async function updateThreadsDraft(id, draft) {
+  const { data } = await client.patch(`/api/threads/drafts/${id}/`, draft);
+  return data;
+}
+
+export async function deleteThreadsDraft(id) {
+  await client.delete(`/api/threads/drafts/${id}/`);
+}
+
+export async function publishThreadsDraft(id) {
+  const { data } = await client.post(`/api/threads/drafts/${id}/publish/`);
+  return data;
+}
+
+export async function publishThreadsPost(post) {
+  const { data } = await client.post("/api/threads/posts/", post);
+  return data;
+}
+
+export async function generateThreadsPost(prompt, tone, length) {
+  const { data } = await client.post("/api/threads/posts/generate/", { prompt, tone, length });
+  return data;
+}
+
+export async function uploadThreadsImage(draftId, file) {
+  const form = new FormData();
+  if (draftId) form.append("draft_id", draftId);
+  form.append("image", file);
+  const { data } = await client.post("/api/threads/images/", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function postThreadsReply(parentThreadId, message) {
+  const { data } = await client.post("/api/threads/replies/", {
+    parent_thread_id: parentThreadId,
+    message,
+  });
+  return data;
+}
+
+export async function generateThreadsReply(postContext, instructions) {
+  const { data } = await client.post("/api/threads/replies/generate/", {
+    post_context: postContext,
+    instructions,
+  });
+  return data;
+}
+
+export async function getThreadsProfile() {
+  const { data } = await client.get("/api/threads/profile/");
+  return data;
+}
+
+export async function getThreadsProfileHistory() {
+  const { data } = await client.get("/api/threads/profile/history/");
+  return data;
+}
+
+export async function syncThreadsProfile() {
+  const { data } = await client.post("/api/threads/sync/");
+  return data;
+}
+
+export async function getThreadsOverview(period = 30) {
+  const { data } = await client.get("/api/threads/overview/", { params: { period } });
+  return data;
+}
+
+export async function getThreadsActivity(period = 30) {
+  const { data } = await client.get("/api/threads/activity/", { params: { period } });
+  return data;
+}
+
+export async function getThreadsRateLimit() {
+  const { data } = await client.get("/api/threads/rate-limit/");
+  return data;
+}
+
+export async function getUserThreads() {
+  const { data } = await client.get("/api/threads/user-threads/");
+  return data;
+}
+
+export async function listThreadsAutomations() {
+  const { data } = await client.get("/api/threads/automations/");
+  return data;
+}
+
+export async function createThreadsAutomation(automation) {
+  const { data } = await client.post("/api/threads/automations/", automation);
+  return data;
+}
+
+export async function updateThreadsAutomation(id, patch) {
+  const { data } = await client.patch(`/api/threads/automations/${id}/`, patch);
+  return data;
+}
+
+export async function deleteThreadsAutomation(id) {
+  await client.delete(`/api/threads/automations/${id}/`);
+}
+
+export async function runThreadsAutomationNow(id) {
+  const { data } = await client.post(`/api/threads/automations/${id}/run/`);
+  return data;
+}
+
+export async function listThreadsAutomationRuns(automationId) {
+  const { data } = await client.get("/api/threads/automation-runs/", {
+    params: automationId ? { automation_id: automationId } : {},
+  });
+  return data;
+}
+
 export function spotifyConnectUrl() {
   const base = import.meta.env.VITE_SPOTIFY_API_URL || client.defaults.baseURL;
   return `${base}/api/spotify/auth/start/`;
