@@ -41,13 +41,43 @@ _MAX_TRACKS_PER_PLAYLIST_OP = 100
 _MAX_IDS_PER_REQUEST = 40
 
 
-def _track_dict(t: dict) -> dict:
+def _format_artists(artists) -> str:
+    if isinstance(artists, str):
+        return artists
+    if not isinstance(artists, list):
+        return ""
+    names = []
+    for a in artists:
+        if isinstance(a, dict) and a.get("name"):
+            names.append(str(a["name"]))
+        elif isinstance(a, str) and a:
+            names.append(a)
+    return ", ".join(names)
+
+
+def _track_dict(t: dict | None) -> dict:
+    if not t or not isinstance(t, dict):
+        return {}
     return {
         "id": t.get("id"),
         "uri": t.get("uri"),
         "name": t.get("name"),
-        "artists": ", ".join(a["name"] for a in t.get("artists", [])),
+        "artists": _format_artists(t.get("artists")),
     }
+
+
+def _extract_track(item: dict | None) -> dict | None:
+    """Spotify's /playlists/{id}/items endpoint returns tracks under 'item' in newer
+    API responses, but older endpoints or /tracks use 'track'. Handles both, plus direct
+    track dicts."""
+    if not isinstance(item, dict):
+        return None
+    track = item.get("track") or item.get("item")
+    if isinstance(track, dict) and (track.get("id") or track.get("uri") or track.get("name")):
+        return track
+    if item.get("id") or item.get("uri") or item.get("name"):
+        return item
+    return None
 
 
 @tool
@@ -183,15 +213,21 @@ def get_spotify_top_items(item_type: str = "tracks", time_range: str = "medium_t
 
 @tool
 def get_spotify_playlists() -> dict:
-    """List the connected user's Spotify playlists (id, name, track count)."""
+    """List the connected user's Spotify playlists (id, name, track count, uri)."""
     try:
         token = get_active_access_token()
         result = client.get_current_user_playlists(token, limit=50)
     except SpotifyError as exc:
         return {"error": str(exc), "reason": exc.reason}
     playlists = [
-        {"id": p.get("id"), "name": p.get("name"), "track_count": (p.get("tracks") or {}).get("total", 0)}
+        {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "uri": p.get("uri") or f"spotify:playlist:{p.get('id')}",
+            "track_count": (p.get("tracks") or p.get("items") or {}).get("total", 0),
+        }
         for p in result.get("items", [])
+        if isinstance(p, dict)
     ]
     compact = encode_compact_list(playlists)
     return {"playlists": compact if compact is not None else playlists}
@@ -210,7 +246,18 @@ def get_spotify_playlist_tracks(playlist_id: str, limit: int = 50) -> dict:
         result = client.get_playlist_tracks(token, playlist_id, limit=min(limit, 100))
     except SpotifyError as exc:
         return {"error": str(exc), "reason": exc.reason}
-    tracks = [_track_dict(t["track"]) for t in result.get("items", []) if t.get("track")]
+
+    raw_items = result.get("items")
+    if raw_items is None and isinstance(result.get("tracks"), dict):
+        raw_items = result["tracks"].get("items")
+    raw_items = raw_items or []
+
+    tracks = []
+    for t in raw_items:
+        track_obj = _extract_track(t)
+        if track_obj:
+            tracks.append(_track_dict(track_obj))
+
     compact = encode_compact_list(tracks)
     return {"tracks": compact if compact is not None else tracks}
 
@@ -227,7 +274,11 @@ def get_spotify_saved_tracks(limit: int = 20) -> dict:
         result = client.get_saved_tracks(token, limit=min(limit, 50))
     except SpotifyError as exc:
         return {"error": str(exc), "reason": exc.reason}
-    tracks = [_track_dict(i["track"]) for i in result.get("items", []) if i.get("track")]
+    tracks = []
+    for i in result.get("items", []):
+        track_obj = _extract_track(i)
+        if track_obj:
+            tracks.append(_track_dict(track_obj))
     compact = encode_compact_list(tracks)
     return {"tracks": compact if compact is not None else tracks}
 
@@ -261,11 +312,11 @@ def get_spotify_recently_played(limit: int = 20) -> dict:
         result = client.get_recently_played(token, limit=min(limit, 50))
     except SpotifyError as exc:
         return {"error": str(exc), "reason": exc.reason}
-    items = [
-        {**_track_dict(i["track"]), "played_at": i.get("played_at")}
-        for i in result.get("items", [])
-        if i.get("track")
-    ]
+    items = []
+    for i in result.get("items", []):
+        track_obj = _extract_track(i)
+        if track_obj:
+            items.append({**_track_dict(track_obj), "played_at": i.get("played_at")})
     compact = encode_compact_list(items)
     return {"items": compact if compact is not None else items}
 
@@ -395,9 +446,41 @@ def play_spotify_item(track_uris: list[str] | None = None, context_uri: str = ""
     """
     if not track_uris and not context_uri:
         return {"error": "Provide either track_uris or context_uri."}
+
+    # Normalize context_uri if a bare ID or URL was provided
+    if context_uri and not context_uri.startswith("spotify:"):
+        if "playlist/" in context_uri:
+            pid = context_uri.split("playlist/")[1].split("?")[0]
+            context_uri = f"spotify:playlist:{pid}"
+        elif "album/" in context_uri:
+            aid = context_uri.split("album/")[1].split("?")[0]
+            context_uri = f"spotify:album:{aid}"
+        elif "artist/" in context_uri:
+            arid = context_uri.split("artist/")[1].split("?")[0]
+            context_uri = f"spotify:artist:{arid}"
+        elif "track/" in context_uri:
+            tid = context_uri.split("track/")[1].split("?")[0]
+            context_uri = f"spotify:track:{tid}"
+        else:
+            context_uri = f"spotify:playlist:{context_uri}"
+
+    normalized_track_uris = None
+    if track_uris:
+        normalized_track_uris = []
+        for u in track_uris:
+            if not u:
+                continue
+            if u.startswith("spotify:track:"):
+                normalized_track_uris.append(u)
+            elif "track/" in u:
+                tid = u.split("track/")[1].split("?")[0]
+                normalized_track_uris.append(f"spotify:track:{tid}")
+            else:
+                normalized_track_uris.append(f"spotify:track:{u}")
+
     try:
         token = get_active_access_token()
-        client.play(token, device_id=device_id or None, uris=track_uris or None, context_uri=context_uri or None)
+        client.play(token, device_id=device_id or None, uris=normalized_track_uris or None, context_uri=context_uri or None)
     except SpotifyError as exc:
         return {"ok": False, "error": str(exc), "reason": exc.reason}
     return {"ok": True}
@@ -632,7 +715,13 @@ def create_spotify_playlist(name: str, description: str, track_uris: list[str]) 
             client.add_playlist_tracks(token, playlist["id"], final_args["track_uris"])
     except SpotifyError as exc:
         return {"created": False, "error": str(exc), "reason": exc.reason}
-    return {"created": True, "playlist_id": playlist.get("id"), "url": (playlist.get("external_urls") or {}).get("spotify")}
+    return {
+        "created": True,
+        "playlist_id": playlist.get("id"),
+        "uri": playlist.get("uri") or (f"spotify:playlist:{playlist.get('id')}" if playlist.get("id") else None),
+        "url": (playlist.get("external_urls") or {}).get("spotify"),
+        "track_count": len(final_args.get("track_uris") or []),
+    }
 
 
 @tool

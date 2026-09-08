@@ -37,6 +37,30 @@ _TIME_LIMIT = settings.AGENT_TASK_TIME_LIMIT
 _SOFT_TIME_LIMIT = settings.AGENT_TASK_SOFT_TIME_LIMIT
 
 
+def _build_initial_messages(task: AgentTask) -> list[tuple[str, str]]:
+    """Build the initial messages for LangGraph, including recent conversational history
+    from task.conversation if available, so follow-up commands with pronouns (e.g.
+    'play any songs from it') understand which playlist/item was discussed in previous turns."""
+    if not task.conversation_id:
+        return [("user", task.instruction)]
+
+    recent = list(
+        Message.objects.filter(conversation_id=task.conversation_id)
+        .order_by("-id")[:8]
+    )
+    # If the most recent message in the DB is this exact instruction (e.g. persisted by voice consumer),
+    # drop it from history so it only appears once as the final prompt.
+    if recent and recent[0].role == "user" and recent[0].text.strip() == task.instruction.strip():
+        recent = recent[1:]
+
+    # Take up to 6 prior messages in chronological order
+    history = [
+        ("user" if m.role == "user" else "assistant", m.text)
+        for m in reversed(recent[:6])
+    ]
+    return history + [("user", task.instruction)]
+
+
 @shared_task(
     name="agent.tasks.run_agent_task",
     queue="agent",
@@ -51,7 +75,8 @@ def run_agent_task(agent_task_id: int) -> None:
     task.save(update_fields=["status", "started_at", "current_step"])
 
     try:
-        _run_graph(task, {"messages": [("user", task.instruction)]})
+        messages = _build_initial_messages(task)
+        _run_graph(task, {"messages": messages})
     except Exception:
         _fail(task, "Something went wrong running that.")
 

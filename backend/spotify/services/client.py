@@ -232,28 +232,69 @@ def update_playlist_details(
 
 
 def get_playlist_tracks(token: str, playlist_id: str, *, limit: int = 50, offset: int = 0) -> dict:
-    return _get(token, f"/playlists/{playlist_id}/items", {"limit": limit, "offset": offset})
+    # Try /items first (Spotify's current standard endpoint), falling back to
+    # /tracks if /items fails or returns no items.
+    res = None
+    try:
+        res = _get(token, f"/playlists/{playlist_id}/items", {"limit": limit, "offset": offset})
+        if res and res.get("items"):
+            return res
+    except SpotifyError:
+        pass
+
+    try:
+        tracks_res = _get(token, f"/playlists/{playlist_id}/tracks", {"limit": limit, "offset": offset})
+        if tracks_res and (tracks_res.get("items") or not res):
+            return tracks_res
+    except SpotifyError:
+        pass
+
+    return res or {"items": []}
 
 
 def add_playlist_tracks(token: str, playlist_id: str, track_uris: list[str], *, position: int | None = None) -> dict:
-    body: dict = {"uris": track_uris}
+    normalized_uris = []
+    for u in track_uris:
+        if not u:
+            continue
+        if u.startswith("spotify:track:"):
+            normalized_uris.append(u)
+        elif "track/" in u:
+            tid = u.split("track/")[1].split("?")[0]
+            normalized_uris.append(f"spotify:track:{tid}")
+        else:
+            normalized_uris.append(f"spotify:track:{u}")
+
+    body: dict = {"uris": normalized_uris}
     if position is not None:
         body["position"] = position
-    return _post(token, f"/playlists/{playlist_id}/items", body)
+    try:
+        return _post(token, f"/playlists/{playlist_id}/items", body)
+    except SpotifyError:
+        return _post(token, f"/playlists/{playlist_id}/tracks", body)
 
 
 def remove_playlist_tracks(token: str, playlist_id: str, track_uris: list[str]) -> dict:
-    return _delete(token, f"/playlists/{playlist_id}/items", {"items": [{"uri": uri} for uri in track_uris]})
+    normalized_uris = [
+        u if u.startswith("spotify:track:") else (f"spotify:track:{u.split('track/')[1].split('?')[0]}" if "track/" in u else f"spotify:track:{u}")
+        for u in track_uris
+        if u
+    ]
+    body = {"items": [{"uri": uri} for uri in normalized_uris]}
+    try:
+        return _delete(token, f"/playlists/{playlist_id}/items", body)
+    except SpotifyError:
+        return _delete(token, f"/playlists/{playlist_id}/tracks", body)
 
 
 def reorder_playlist_tracks(
     token: str, playlist_id: str, range_start: int, insert_before: int, *, range_length: int = 1
 ) -> dict:
-    return _put(
-        token,
-        f"/playlists/{playlist_id}/items",
-        {"range_start": range_start, "range_length": range_length, "insert_before": insert_before},
-    )
+    body = {"range_start": range_start, "range_length": range_length, "insert_before": insert_before}
+    try:
+        return _put(token, f"/playlists/{playlist_id}/items", body)
+    except SpotifyError:
+        return _put(token, f"/playlists/{playlist_id}/tracks", body)
 
 
 # --- Custom playlist covers ------------------------------------------------

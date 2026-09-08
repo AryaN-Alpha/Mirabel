@@ -503,3 +503,86 @@ class PlayerPlayViewTests(APITestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(mock_play.call_args.kwargs["preserve_queue"])
+
+
+class PlaylistTracksFallbackAndSchemaTests(TestCase):
+    def setUp(self):
+        _connected_credential(token_expires_at=timezone.now() + timedelta(hours=1))
+
+    def _response(self, body, status_code=200):
+        return Mock(ok=(status_code < 400), status_code=status_code, content=b"1", json=Mock(return_value=body), headers={})
+
+    @patch("spotify.services.client.requests.request")
+    def test_get_playlist_tracks_falls_back_to_tracks_when_items_errors(self, mock_request):
+        mock_request.side_effect = [
+            Mock(ok=False, status_code=404, json=Mock(return_value={}), text="", headers={}),
+            self._response({"items": [{"track": {"id": "t1", "name": "Song 1", "uri": "spotify:track:t1"}}]}),
+        ]
+        res = client.get_playlist_tracks("tok", "pl-1")
+        self.assertEqual(len(res["items"]), 1)
+        self.assertEqual(res["items"][0]["track"]["name"], "Song 1")
+
+    @patch("spotify.services.client.requests.request")
+    def test_get_playlist_tracks_falls_back_to_tracks_when_items_empty(self, mock_request):
+        mock_request.side_effect = [
+            self._response({"items": []}),
+            self._response({"items": [{"item": {"id": "t2", "name": "Song 2", "uri": "spotify:track:t2"}}]}),
+        ]
+        res = client.get_playlist_tracks("tok", "pl-1")
+        self.assertEqual(len(res["items"]), 1)
+        self.assertEqual(res["items"][0]["item"]["name"], "Song 2")
+
+    @patch("agent.tools.spotify_tools.client.get_playlist_tracks")
+    def test_tool_handles_item_key_schema(self, mock_client_tracks):
+        from agent.tools.spotify_tools import get_spotify_playlist_tracks
+
+        mock_client_tracks.return_value = {
+            "items": [
+                {
+                    "item": {
+                        "id": "trk-1",
+                        "uri": "spotify:track:trk-1",
+                        "name": "Ambient Beat",
+                        "artists": [{"name": "Producer A"}],
+                    }
+                }
+            ]
+        }
+        res = get_spotify_playlist_tracks.invoke({"playlist_id": "pl-1"})
+        self.assertIn("tracks", res)
+        tracks = res["tracks"]
+        self.assertEqual(len(tracks), 1)
+        self.assertEqual(tracks[0]["name"], "Ambient Beat")
+        self.assertEqual(tracks[0]["artists"], "Producer A")
+
+    @patch("agent.tools.spotify_tools.client.get_playlist_tracks")
+    def test_tool_handles_track_key_schema(self, mock_client_tracks):
+        from agent.tools.spotify_tools import get_spotify_playlist_tracks
+
+        mock_client_tracks.return_value = {
+            "items": [
+                {
+                    "track": {
+                        "id": "trk-2",
+                        "uri": "spotify:track:trk-2",
+                        "name": "Jazz Night",
+                        "artists": [{"name": "Pianist B"}],
+                    }
+                }
+            ]
+        }
+        res = get_spotify_playlist_tracks.invoke({"playlist_id": "pl-1"})
+        self.assertIn("tracks", res)
+        tracks = res["tracks"]
+        self.assertEqual(len(tracks), 1)
+        self.assertEqual(tracks[0]["name"], "Jazz Night")
+
+    @patch("agent.tools.spotify_tools.client.play")
+    def test_play_spotify_item_normalizes_context_uri(self, mock_play):
+        from agent.tools.spotify_tools import play_spotify_item
+
+        res = play_spotify_item.invoke({"context_uri": "pl-12345"})
+        self.assertTrue(res["ok"])
+        mock_play.assert_called_once()
+        self.assertEqual(mock_play.call_args.kwargs["context_uri"], "spotify:playlist:pl-12345")
+

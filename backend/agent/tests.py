@@ -14,7 +14,7 @@ from agent.services.lifecycle import (
 from agent.tasks import _message_text, _record_step
 from agent.tools import linkedin_tools, spotify_tools
 from agent.tools.links import resolve_result_link
-from core.models import Conversation
+from core.models import Conversation, Message
 from linkedin.models import LinkedInAutomation, LinkedInDraft
 from spotify.services.oauth import SpotifyError
 
@@ -650,3 +650,29 @@ class RecordStepResultLinksTests(APITestCase):
 
         task.refresh_from_db()
         self.assertEqual(task.result_links, [])
+
+
+class BuildInitialMessagesTests(APITestCase):
+    def test_task_without_conversation_returns_instruction_only(self):
+        from agent.tasks import _build_initial_messages
+
+        task = AgentTask.objects.create(instruction="play any songs from it")
+        messages = _build_initial_messages(task)
+        self.assertEqual(messages, [("user", "play any songs from it")])
+
+    def test_task_with_conversation_includes_prior_dialogue(self):
+        from agent.tasks import _build_initial_messages
+
+        conv = Conversation.objects.create()
+        Message.objects.create(conversation=conv, role="user", text="Create a playlist called Gym Beats")
+        Message.objects.create(conversation=conv, role="assistant", text="Created playlist Gym Beats with 5 tracks.")
+        Message.objects.create(conversation=conv, role="user", text="play any songs from it")
+
+        task = AgentTask.objects.create(instruction="play any songs from it", conversation=conv)
+        messages = _build_initial_messages(task)
+
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0], ("user", "Create a playlist called Gym Beats"))
+        self.assertEqual(messages[1], ("assistant", "Created playlist Gym Beats with 5 tracks."))
+        self.assertEqual(messages[2], ("user", "play any songs from it"))
+
