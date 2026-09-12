@@ -33,6 +33,8 @@ import {
   Menu,
   X,
   Trash2,
+  Wand2,
+  Film,
 } from "lucide-react";
 import { fontHeading, text, accent, cream } from "./homeTheme";
 import useNameHidden from "../hooks/useNameHidden";
@@ -134,6 +136,16 @@ const NAV_ITEMS = [
     ],
   },
   { icon: SquareKanban, label: "Tasks", to: "/home/tasks" },
+  {
+    icon: Wand2,
+    label: "Creative Studio",
+    to: "/home/creative",
+    children: [
+      { icon: Wand2, label: "Studio", to: "/home/creative?tab=studio" },
+      { icon: Sparkles, label: "Gallery", to: "/home/creative?tab=gallery" },
+      { icon: Film, label: "Jobs", to: "/home/creative?tab=jobs" },
+    ],
+  },
   { icon: BarChart3, label: "Stats", to: "/home/stats" },
 ];
 

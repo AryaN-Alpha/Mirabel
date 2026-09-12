@@ -27,6 +27,7 @@ from agent.tools import (
     outlook_tools,
     spotify_tools,
     threads_tools,
+    media_tools,
 )
 from agent.tools.registry import ALL_TOOLS
 from core.services.telemetry import log_optimization_event
@@ -62,7 +63,13 @@ _DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
     "spotify": (
         "spotify", "playlist", "song", "songs", "track", "album", "artist",
         "play", "play music", "currently playing", "now playing", "queue", "shuffle",
-        "repeat", "volume", "skip", "device", "follow", "liked songs",
+        "repeat", "volume", "skip", "device", "follow artist", "follow artists", "liked songs",
+    ),
+    "media": (
+        "image", "images", "picture", "pictures", "photo", "photos",
+        "generate image", "generate video", "video", "videos", "animation",
+        "animate", "creative studio", "visual", "visuals", "media asset",
+        "media assets", "illustration", "artwork",
     ),
 }
 
@@ -74,6 +81,7 @@ _DOMAIN_TOOLS: dict[str, list] = {
     "outlook": outlook_tools.TOOLS,
     "classroom": classroom_tools.TOOLS,
     "spotify": spotify_tools.TOOLS,
+    "media": media_tools.TOOLS,
 }
 
 _MAX_DOMAINS = 2

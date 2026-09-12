@@ -22,6 +22,7 @@ from agent.tools import (
     outlook_tools,
     spotify_tools,
     threads_tools,
+    media_tools,
 )
 
 ALL_TOOLS = (
@@ -32,6 +33,7 @@ ALL_TOOLS = (
     + outlook_tools.TOOLS
     + classroom_tools.TOOLS
     + spotify_tools.TOOLS
+    + media_tools.TOOLS
     + memory_tools.TOOLS
     + conversation_tools.TOOLS
 )

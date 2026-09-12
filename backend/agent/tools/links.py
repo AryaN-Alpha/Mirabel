@@ -117,6 +117,20 @@ def _threads_reply_posted(result: dict) -> dict | None:
     return {"label": "View on Threads", "path": "/home/threads/overview"}
 
 
+def _media_image_generated(result: dict) -> dict | None:
+    asset = result.get("asset")
+    if not isinstance(asset, dict) or not asset.get("id"):
+        return None
+    return {"label": "View in Creative Studio", "path": f"/home/creative?asset={asset['id']}"}
+
+
+def _media_video_submitted(result: dict) -> dict | None:
+    job_id = result.get("job_id")
+    if not job_id:
+        return None
+    return {"label": "View in Creative Studio", "path": f"/home/creative?job={job_id}"}
+
+
 _RESOLVERS: dict[str, _Resolver] = {
     "create_spotify_playlist": _spotify_playlist_created,
     "update_spotify_playlist_details": _spotify_playlists_page("updated"),
@@ -138,6 +152,9 @@ _RESOLVERS: dict[str, _Resolver] = {
     "create_kanban_task": _kanban_board,
     "update_kanban_task": _kanban_board,
     "braindump_to_kanban_tasks": _kanban_board,
+    "generate_image": _media_image_generated,
+    "generate_video": _media_video_submitted,
+    "generate_image_to_video": _media_video_submitted,
 }
 
 

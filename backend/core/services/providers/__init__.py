@@ -1,6 +1,6 @@
 from .anthropic_provider import AnthropicProvider
 from .base import Provider, ProviderError
-from .credentials import ENV_VAR_NAMES as ENV_VAR_NAMES
+from .credentials import ENV_VAR_NAMES as ENV_VAR_NAMES, get_api_key
 from .deepseek_provider import DeepSeekProvider
 from .gemini_provider import GeminiProvider
 from .opencode_provider import OpenCodeProvider
@@ -46,3 +46,29 @@ def get_provider(name: str) -> Provider:
         return _PROVIDERS[name]
     except KeyError:
         raise ProviderError(f"Unknown provider: {name!r}") from None
+
+
+from .google_media_provider import GoogleMediaProvider
+from .media_base import (
+    MediaCapability,
+    MediaGenerationError,
+    MediaProvider,
+    ProviderAuthenticationError,
+    ProviderImageResult,
+    ProviderPolicyRejection,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    ProviderVideoJobResult,
+    UnsupportedMediaOperation,
+)
+
+_MEDIA_PROVIDERS: dict[str, MediaProvider] = {
+    "google": GoogleMediaProvider(),
+}
+
+
+def get_media_provider(name: str = "google") -> MediaProvider:
+    try:
+        return _MEDIA_PROVIDERS[name]
+    except KeyError:
+        raise UnsupportedMediaOperation(f"Unknown media provider: {name!r}") from None

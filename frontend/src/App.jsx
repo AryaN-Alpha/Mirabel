@@ -51,6 +51,7 @@ import SpotifyQueueTab from "./components/spotify/SpotifyQueueTab";
 import SpotifyStatisticsTab from "./components/spotify/SpotifyStatisticsTab";
 import SpotifyAIPlaylistTab from "./components/spotify/SpotifyAIPlaylistTab";
 import StatsPage from "./components/StatsPage";
+import CreativePage from "./components/creative/CreativePage";
 
 export default function App() {
   return (
@@ -116,6 +117,7 @@ export default function App() {
               <Route path="clear" element={<AgentClearMemoriesTab />} />
             </Route>
             <Route path="tasks" element={<KanbanPage />} />
+            <Route path="creative" element={<CreativePage />} />
             <Route path="stats" element={<StatsPage />} />
           </Route>
         </Routes>

@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "spotify",
     "threads",
     "agent",
+    "media_assets",
 ]
 
 MIDDLEWARE = [
@@ -182,16 +183,16 @@ MEMORY_RETRIEVAL_CACHE_TTL_SECONDS = int(os.getenv("MEMORY_RETRIEVAL_CACHE_TTL_S
 # Lifecycle pruning: only deletes a memory that is BOTH older than this AND
 # was never above the salience ceiling — age alone never triggers deletion.
 MEMORY_PRUNE_MAX_AGE_DAYS = int(os.getenv("MEMORY_PRUNE_MAX_AGE_DAYS", "180"))
-MEMORY_PRUNE_SALIENCE_CEILING = float(os.getenv("MEMORY_PRUNE_SALIENCE_CEILING", "0.25"))
+MEMORY_PRUNE_SALIENCE_CEILING = float(os.getenv("MEMORY_PRUNE_SALIENCE_CEILING", "0.50"))
 # Near-duplicate write guard — deliberately tight (only catches
 # near-identical repeat text, not "similar topic"), see memory/services/dedup.py.
-MEMORY_DEDUP_SIMILARITY_THRESHOLD = float(os.getenv("MEMORY_DEDUP_SIMILARITY_THRESHOLD", "0.97"))
+MEMORY_DEDUP_SIMILARITY_THRESHOLD = float(os.getenv("MEMORY_DEDUP_SIMILARITY_THRESHOLD", "0.95"))
 # Fact extraction spends a real LLM call, so the gate is deliberately higher
 # than embed_and_store's 0.20 storage floor — see memory/services/facts.py.
 MEMORY_FACT_EXTRACTION_SALIENCE_MIN = float(os.getenv("MEMORY_FACT_EXTRACTION_SALIENCE_MIN", "0.6"))
 # Below dedup's 0.97 near-dup bar on purpose — this catches "related, maybe
 # conflicting" candidates worth a supersession judgment call, not near-identical text.
-MEMORY_FACT_SUPERSESSION_SIMILARITY_THRESHOLD = float(os.getenv("MEMORY_FACT_SUPERSESSION_SIMILARITY_THRESHOLD", "0.55"))
+MEMORY_FACT_SUPERSESSION_SIMILARITY_THRESHOLD = float(os.getenv("MEMORY_FACT_SUPERSESSION_SIMILARITY_THRESHOLD", "0.50"))
 
 # --- Agent tuning ---
 # Cap on tool-call steps per run — a cost/DoS guard, same spirit as
@@ -269,6 +270,14 @@ SPOTIFY_REDIRECT_URI = os.getenv(
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# --- Google AI Media Generation ---
+GOOGLE_IMAGE_MODEL = os.getenv("GOOGLE_IMAGE_MODEL", "imagen-3.0-generate-002")
+GOOGLE_VIDEO_MODEL = os.getenv("GOOGLE_VIDEO_MODEL", "veo-2.0-generate-001")
+GOOGLE_AI_TIMEOUT = int(os.getenv("GOOGLE_AI_TIMEOUT", "300"))
+GOOGLE_AI_MAX_RETRIES = int(os.getenv("GOOGLE_AI_MAX_RETRIES", "3"))
+MEDIA_VIDEO_TASK_TIME_LIMIT = int(os.getenv("MEDIA_VIDEO_TASK_TIME_LIMIT", "600"))
+MEDIA_VIDEO_TASK_SOFT_TIME_LIMIT = int(os.getenv("MEDIA_VIDEO_TASK_SOFT_TIME_LIMIT", "540"))
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -339,6 +348,11 @@ LOGGING = {
             "propagate": False,
         },
         "agent": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "media_assets": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": False,

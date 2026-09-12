@@ -267,6 +267,8 @@ export async function listLinkedInDrafts() {
   return data;
 }
 
+export const listLinkedinDrafts = listLinkedInDrafts;
+
 export async function createLinkedInDraft(draft) {
   const { data } = await client.post("/api/linkedin/drafts/", draft);
   return data;
@@ -1070,4 +1072,70 @@ export async function setStatsBudget({ monthly_budget_usd, alert_thresholds }) {
 export function statsExportUrl(section, filters) {
   const params = new URLSearchParams({ section, ...filters });
   return `${client.defaults.baseURL}/api/stats/export/?${params.toString()}`;
+}
+
+// --- Creative Studio / Media Generation ---
+
+export async function listMediaAssets(params = {}) {
+  const { data } = await client.get("/api/media/assets/", { params });
+  return data;
+}
+
+export async function getMediaAsset(id) {
+  const { data } = await client.get(`/api/media/assets/${id}/`);
+  return data;
+}
+
+export async function deleteMediaAsset(id) {
+  const { data } = await client.delete(`/api/media/assets/${id}/`);
+  return data;
+}
+
+export async function generateImage(payload) {
+  const { data } = await client.post("/api/media/generate/image/", payload, {
+    timeout: 120000,
+  });
+  return data;
+}
+
+export async function generateVideo(payload) {
+  const { data } = await client.post("/api/media/generate/video/", payload);
+  return data;
+}
+
+export async function generateImageToVideo(payload) {
+  const { data } = await client.post("/api/media/generate/image-to-video/", payload);
+  return data;
+}
+
+export async function generateMediaVariations(id, count = 1) {
+  const { data } = await client.post(`/api/media/assets/${id}/variations/`, { count }, {
+    timeout: 120000,
+  });
+  return data;
+}
+
+export async function analyzeMediaAsset(id, focus = "") {
+  const { data } = await client.post(`/api/media/assets/${id}/analyze/`, { focus }, {
+    timeout: 60000,
+  });
+  return data;
+}
+
+export async function getMediaJob(id) {
+  const { data } = await client.get(`/api/media/jobs/${id}/`);
+  return data;
+}
+
+export async function listMediaJobs() {
+  const { data } = await client.get("/api/media/jobs/");
+  return data;
+}
+
+export async function attachMediaAssetToDraft(assetId, platform, draftId) {
+  const { data } = await client.post(`/api/media/assets/${assetId}/attach/`, {
+    platform,
+    draft_id: draftId,
+  });
+  return data;
 }
