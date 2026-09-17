@@ -11,18 +11,26 @@
      large, uneven blank gaps between every line in the exported PDF while
      the on-screen React preview (real browser, real defaults) looked fine. */
   div, p, h1, h2, ul, li { margin: 0; padding: 0; }
-  @page { size: A4; margin: 0; }
+  @page {
+    size: A4;
+    margin-top: 26pt;
+    margin-bottom: 26pt;
+    margin-left: 0;
+    margin-right: 0;
+    {% if sidebar_bg_data_uri %}background-image: '{{ sidebar_bg_data_uri }}';{% endif %}
+  }
   body { font-family: "{{ font_family }}"; font-size: 9.5pt; color: #222222; margin: 0; }
   table.layout { width: 100%; border-collapse: collapse; }
-  td.sidebar { width: 34%; background-color: {{ sidebar_bg }}; color: {{ sidebar_text }}; padding: 26pt 16pt; height: 820pt; }
-  td.main { width: 66%; padding: 26pt 24pt; }
+  td.sidebar { width: 34%; {% if not sidebar_bg_data_uri %}background-color: {{ sidebar_bg }};{% endif %} color: {{ sidebar_text }}; padding: 0 16pt; vertical-align: top; }
+  td.main { width: 66%; padding: 0 24pt; vertical-align: top; }
 
   h1.name { font-size: 21pt; font-weight: bold; color: #111111; margin: 0 0 3pt 0; }
   p.tagline { font-size: 10.5pt; color: #555555; margin: 0 0 12pt 0; letter-spacing: 0.5pt; text-transform: uppercase; }
   hr.divider { border: none; border-top: 1pt solid #dddddd; margin: 0 0 12pt 0; }
 
-  .side-h { font-size: 10pt; font-weight: bold; color: #ffffff; letter-spacing: 1.5pt; margin: 0 0 8pt 0; border-bottom: 1pt solid #555555; padding-bottom: 4pt; }
+  .side-h { font-size: 10pt; font-weight: bold; color: #ffffff; letter-spacing: 1.5pt; margin: 0 0 8pt 0; border-bottom: 1pt solid #555555; padding-bottom: 4pt; page-break-after: avoid; }
   .side-block { margin-bottom: 16pt; }
+  .side-entry { page-break-inside: avoid; }
   .side-item { font-size: 9pt; color: #dddddd; margin-bottom: 4pt; }
   .side-item a, .entry-sub a { color: {{ accent }}; text-decoration: underline; }
   .skill-cat { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 2pt 0; }
@@ -30,8 +38,8 @@
   .strength-title { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 1pt 0; }
   .strength-desc { font-size: 8.5pt; color: #cccccc; }
 
-  .main-h { font-size: 11pt; font-weight: bold; color: #111111; letter-spacing: 1pt; border-bottom: 1.5pt solid #262626; margin: 14pt 0 8pt 0; padding-bottom: 3pt; }
-  .entry { margin-bottom: 10pt; }
+  .main-h { font-size: 11pt; font-weight: bold; color: #111111; letter-spacing: 1pt; border-bottom: 1.5pt solid #262626; margin: 14pt 0 8pt 0; padding-bottom: 3pt; page-break-after: avoid; }
+  .entry { margin-bottom: 10pt; page-break-inside: avoid; }
   .entry-title { font-size: 10.5pt; font-weight: bold; color: #111111; }
   .entry-sub { font-size: 9pt; color: #666666; margin-bottom: 3pt; }
   ul.bullets { margin: 3pt 0 0 12pt; padding: 0; }
@@ -40,9 +48,86 @@
 </style>
 </head>
 <body>
-<table class="layout"><tr>
+<table class="layout">
+{% if rows %}
+{% for row in rows %}
+<tr>
+  <td class="sidebar">
+    {% if row.sidebar == "contact" %}
+      <div class="side-h">CONTACT</div>
+      <div class="side-block">
+        {% if sections.personal_info.phone %}<div class="side-item">{{ sections.personal_info.phone }}</div>{% endif %}
+        {% if sections.personal_info.email %}<div class="side-item">{{ sections.personal_info.email }}</div>{% endif %}
+        {% if sections.personal_info.location %}<div class="side-item">{{ sections.personal_info.location }}</div>{% endif %}
+        {% for link in sections.personal_info.links %}<div class="side-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
+      </div>
+    {% elif row.sidebar.kind == "skill_group_item" %}
+      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
+        {% if row.sidebar.show_header %}<div class="side-h">SKILLS</div>{% endif %}
+        {% if row.sidebar.data.category %}<div class="skill-cat">{{ row.sidebar.data.category }}</div>{% endif %}
+        {% for skill in row.sidebar.data.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
+      </div>
+    {% elif row.sidebar.kind == "education_item" %}
+      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
+        {% if row.sidebar.show_header %}<div class="side-h">EDUCATION</div>{% endif %}
+        <div class="strength-title">{{ row.sidebar.data.school }}</div>
+        {% if row.sidebar.data.location %}<div class="strength-desc">{{ row.sidebar.data.location }}</div>{% endif %}
+        {% if row.sidebar.data.degree %}<div class="strength-desc">{{ row.sidebar.data.degree }}</div>{% endif %}
+        {% if row.sidebar.data.start_date or row.sidebar.data.end_date %}<div class="strength-desc">{{ row.sidebar.data.start_date }} – {{ row.sidebar.data.end_date }}</div>{% endif %}
+      </div>
+    {% elif row.sidebar.kind == "strength_item" %}
+      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
+        {% if row.sidebar.show_header %}<div class="side-h">STRENGTHS</div>{% endif %}
+        <div class="strength-title">{{ row.sidebar.data.title }}</div>
+        {% if row.sidebar.data.description %}<div class="strength-desc">{{ row.sidebar.data.description }}</div>{% endif %}
+      </div>
+    {% endif %}
+  </td>
 
-<td class="sidebar">
+  <td class="main">
+    {% if row.main.kind == "header_and_summary" or row.main.kind == "header_only" %}
+      <h1 class="name">{{ sections.personal_info.name|default:"Untitled CV" }}</h1>
+      {% if sections.personal_info.title %}<p class="tagline">{{ sections.personal_info.title }}</p>{% endif %}
+      <hr class="divider">
+      {% if row.main.kind == "header_and_summary" %}
+        <p class="summary">{{ row.main.summary }}</p>
+      {% endif %}
+    {% elif row.main.kind == "summary_item" %}
+      <p class="summary">{{ row.main.data }}</p>
+    {% elif row.main.kind == "experience_item" %}
+      {% if row.main.show_header %}<div class="main-h">WORK EXPERIENCE</div>{% endif %}
+      <div class="entry">
+        <div class="entry-title">{{ row.main.data.title }}{% if row.main.data.company %} | {{ row.main.data.company }}{% endif %}</div>
+        {% if row.main.data.start_date or row.main.data.end_date or row.main.data.location %}
+        <div class="entry-sub">{% if row.main.data.start_date or row.main.data.end_date %}{{ row.main.data.start_date }} – {{ row.main.data.end_date }}{% if row.main.data.location %} • {{ row.main.data.location }}{% endif %}{% elif row.main.data.location %}{{ row.main.data.location }}{% endif %}</div>
+        {% endif %}
+        {% if row.main.data.bullets %}
+        <ul class="bullets">{% for bullet in row.main.data.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+    {% elif row.main.kind == "project_item" %}
+      {% if row.main.show_header %}<div class="main-h">PROJECTS</div>{% endif %}
+      <div class="entry">
+        <div class="entry-title">{{ row.main.data.title }}</div>
+        {% if row.main.data.link %}<div class="entry-sub">{% if row.main.data.href %}<a href="{{ row.main.data.href }}">{{ row.main.data.link }}</a>{% else %}{{ row.main.data.link }}{% endif %}</div>{% endif %}
+        {% if row.main.data.tech %}<div class="entry-sub">{{ row.main.data.tech }}</div>{% endif %}
+        {% if row.main.data.description_lines %}
+        <ul class="bullets">{% for line in row.main.data.description_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+    {% elif row.main.kind == "certification_item" %}
+      {% if row.main.show_header %}<div class="main-h">CERTIFICATIONS</div>{% endif %}
+      <div class="entry">
+        <div class="entry-title">{{ row.main.data.name }}{% if row.main.data.issuer %} — {{ row.main.data.issuer }}{% endif %}</div>
+        <div class="entry-sub">{{ row.main.data.date }}</div>
+      </div>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+{% else %}
+<tr>
+<td class="sidebar" style="background-color: {{ sidebar_bg }}; padding: 26pt 16pt;">
   <div class="side-h">CONTACT</div>
   <div class="side-block">
     {% if sections.personal_info.phone %}<div class="side-item">{{ sections.personal_info.phone }}</div>{% endif %}
@@ -52,9 +137,7 @@
   </div>
 
   {% for block in sidebar_blocks %}
-
-  {% if block.kind == "skills" %}
-  {% if block.data %}
+  {% if block.kind == "skills" and block.data %}
   <div class="side-h">SKILLS</div>
   <div class="side-block">
     {% for group in block.data %}
@@ -63,10 +146,7 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% endif %}
-
-  {% if block.kind == "education" %}
-  {% if block.data %}
+  {% if block.kind == "education" and block.data %}
   <div class="side-h">EDUCATION</div>
   <div class="side-block">
     {% for edu in block.data %}
@@ -79,10 +159,7 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% endif %}
-
-  {% if block.kind == "strengths" %}
-  {% if block.data %}
+  {% if block.kind == "strengths" and block.data %}
   <div class="side-h">STRENGTHS</div>
   <div class="side-block">
     {% for strength in block.data %}
@@ -93,24 +170,19 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% endif %}
-
   {% endfor %}
 </td>
 
-<td class="main">
+<td class="main" style="padding: 26pt 24pt;">
   <h1 class="name">{{ sections.personal_info.name|default:"Untitled CV" }}</h1>
   {% if sections.personal_info.title %}<p class="tagline">{{ sections.personal_info.title }}</p>{% endif %}
   <hr class="divider">
 
   {% for block in main_blocks %}
-
-  {% if block.kind == "summary" %}
-  {% if block.data %}<p class="summary">{{ block.data }}</p>{% endif %}
+  {% if block.kind == "summary" and block.data %}
+  <p class="summary">{{ block.data }}</p>
   {% endif %}
-
-  {% if block.kind == "experience" %}
-  {% if block.data %}
+  {% if block.kind == "experience" and block.data %}
   <div class="main-h">WORK EXPERIENCE</div>
   {% for exp in block.data %}
   {% if exp.title or exp.company or exp.bullets %}
@@ -126,10 +198,7 @@
   {% endif %}
   {% endfor %}
   {% endif %}
-  {% endif %}
-
-  {% if block.kind == "projects" %}
-  {% if block.data %}
+  {% if block.kind == "projects" and block.data %}
   <div class="main-h">PROJECTS</div>
   {% for proj in block.data %}
   {% if proj.title or proj.description_lines %}
@@ -144,10 +213,7 @@
   {% endif %}
   {% endfor %}
   {% endif %}
-  {% endif %}
-
-  {% if block.kind == "certifications" %}
-  {% if block.data %}
+  {% if block.kind == "certifications" and block.data %}
   <div class="main-h">CERTIFICATIONS</div>
   {% for cert in block.data %}
   {% if cert.name %}
@@ -158,11 +224,9 @@
   {% endif %}
   {% endfor %}
   {% endif %}
-  {% endif %}
-
   {% endfor %}
 </td>
-
-</tr></table>
+</tr>
+{% endif %}</table>
 </body>
 </html>

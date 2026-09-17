@@ -474,6 +474,55 @@ class CvExportPdfEndpointTests(CvAPITestCase):
         )
         self.assertIn(theme["sidebar_bg"], html)
 
+    def test_export_two_column_standard_cv_renders_one_page(self):
+        cv = _create_cv()
+        cv.sections = SAMPLE_SECTIONS
+        cv.save()
+
+        response = self.client.get(reverse("cv-export", args=[cv.id]))
+        self.assertEqual(response.status_code, 200)
+        reader = PdfReader(io.BytesIO(response.content))
+        self.assertEqual(len(reader.pages), 1)
+        text = reader.pages[0].extract_text()
+        self.assertIn("Jane Doe", text)
+        self.assertIn("Backend Engineer", text)
+        self.assertIn("WORK EXPERIENCE", text)
+        self.assertIn("Engineer | Acme", text)
+
+    def test_export_two_column_long_cv_paginates_across_multiple_pages(self):
+        cv = _create_cv()
+        long_sections = dict(SAMPLE_SECTIONS)
+        long_sections["experience"] = SAMPLE_SECTIONS["experience"] * 8
+        long_sections["projects"] = SAMPLE_PROJECTS * 8
+        long_sections["skill_groups"] = SAMPLE_SKILL_GROUPS
+        cv.sections = long_sections
+        cv.save()
+
+        response = self.client.get(reverse("cv-export", args=[cv.id]))
+        self.assertEqual(response.status_code, 200)
+        reader = PdfReader(io.BytesIO(response.content))
+        # Long CV must naturally paginate into 2+ A4 pages instead of shrinking or truncating
+        self.assertGreaterEqual(len(reader.pages), 2)
+        page1_text = reader.pages[0].extract_text()
+        page2_text = reader.pages[1].extract_text()
+        self.assertIn("Jane Doe", page1_text)
+        self.assertIn("WORK EXPERIENCE", page1_text)
+        # Verify content flowed into page 2 naturally
+        self.assertTrue(len(page2_text.strip()) > 0)
+        full_text = "".join(p.extract_text() for p in reader.pages)
+        self.assertIn("PROJECTS", full_text)
+        self.assertIn("iTags", full_text)
+        self.assertIn("SKILLS", full_text)
+
+    def test_export_two_column_sidebar_bg_data_uri(self):
+        from cv.services.pdf_export import _generate_sidebar_bg_data_uri
+
+        uri1 = _generate_sidebar_bg_data_uri("#262626")
+        self.assertTrue(uri1.startswith("data:image/png;base64,"))
+        # LRU cache returns same instance
+        uri2 = _generate_sidebar_bg_data_uri("#262626")
+        self.assertIs(uri1, uri2)
+
     def test_export_minimal_template_renders_one_page(self):
         cv = _create_cv()
         cv.sections = {**SAMPLE_SECTIONS, "skill_groups": SAMPLE_SKILL_GROUPS}
@@ -485,6 +534,8 @@ class CvExportPdfEndpointTests(CvAPITestCase):
         reader = PdfReader(io.BytesIO(response.content))
         self.assertEqual(len(reader.pages), 1)
         text = reader.pages[0].extract_text()
+        self.assertIn("BACKEND ENGINEER", text)
+        self.assertIn("SUMMARY", text)
         self.assertIn("WORK EXPERIENCE", text)
         self.assertIn("SKILLS", text)
 

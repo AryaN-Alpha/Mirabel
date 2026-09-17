@@ -1,3 +1,4 @@
+import functools
 import io
 import os
 import re
@@ -102,6 +103,26 @@ def _with_hrefs(links: list[dict]) -> list[dict]:
     return [{**link, "href": _as_href(link.get("url", ""))} for link in links]
 
 
+def _build_contact_items(personal_info: dict) -> list[dict]:
+    """Flattens phone, email, location, and web links into an ordered list
+    of text/href dicts so templates (like resume_minimal.html) can render a
+    single inline contact row separated by middots with no floating/dangling
+    delimiters when fields are omitted."""
+    items = []
+    if personal_info.get("phone"):
+        items.append({"text": personal_info["phone"], "href": ""})
+    if personal_info.get("email"):
+        items.append({"text": personal_info["email"], "href": f"mailto:{personal_info['email']}"})
+    if personal_info.get("location"):
+        items.append({"text": personal_info["location"], "href": ""})
+    for link in personal_info.get("links", []):
+        url = link.get("url", "")
+        label = link.get("label", "") or url
+        if label or url:
+            items.append({"text": label, "href": link.get("href") or _as_href(url)})
+    return items
+
+
 def _ordered_blocks(sections: dict, section_order: dict) -> tuple[list[dict], list[dict]]:
     """Builds the two columns' block lists in the order `section_order`
     specifies, one dict per section keyed by `kind` so the template can
@@ -141,6 +162,125 @@ _TEMPLATE_FILES = {
 }
 
 
+@functools.lru_cache(maxsize=32)
+def _generate_sidebar_bg_data_uri(sidebar_bg: str) -> str:
+    """Generates a base64 PNG data URI of A4 dimensions (595x842 pt) where the
+    left 34% (202 pt) is filled with `sidebar_bg` and the remaining 66% is
+    white. This is applied as @page background-image so every single page of
+    a multi-page two-column CV maintains the full-height sidebar background
+    without relying on fixed CSS height constraints that break pagination.
+    """
+    import base64
+    from PIL import Image, ImageDraw
+
+    bg_color = sidebar_bg or _DEFAULT_THEME["sidebar_bg"]
+    try:
+        img = Image.new("RGB", (595, 842), "#ffffff")
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([0, 0, 202, 842], fill=bg_color)
+    except Exception:
+        img = Image.new("RGB", (595, 842), "#ffffff")
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([0, 0, 202, 842], fill=_DEFAULT_THEME["sidebar_bg"])
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
+def _build_cv_rows(main_blocks: list[dict], sidebar_blocks: list[dict]) -> list[dict]:
+    """Flattens main and sidebar blocks into sequential rows for template 2 column
+    so xhtml2pdf can naturally paginate across multiple A4 pages when content is long.
+    """
+    sidebar_units = ["contact"]
+    for block in sidebar_blocks:
+        kind = block.get("kind")
+        data = block.get("data")
+        if not data:
+            continue
+        if kind == "skills":
+            groups = [g for g in data if g.get("category") or g.get("skills")]
+            for idx, grp in enumerate(groups):
+                sidebar_units.append({
+                    "kind": "skill_group_item",
+                    "show_header": (idx == 0),
+                    "is_last_in_section": (idx == len(groups) - 1),
+                    "data": grp,
+                })
+        elif kind == "education":
+            edus = [e for e in data if e.get("degree") or e.get("school")]
+            for idx, edu in enumerate(edus):
+                sidebar_units.append({
+                    "kind": "education_item",
+                    "show_header": (idx == 0),
+                    "is_last_in_section": (idx == len(edus) - 1),
+                    "data": edu,
+                })
+        elif kind == "strengths":
+            strengths = [s for s in data if s.get("title")]
+            for idx, strength in enumerate(strengths):
+                sidebar_units.append({
+                    "kind": "strength_item",
+                    "show_header": (idx == 0),
+                    "is_last_in_section": (idx == len(strengths) - 1),
+                    "data": strength,
+                })
+        else:
+            sidebar_units.append(block)
+
+    main_units = []
+    first_block = main_blocks[0] if main_blocks else None
+    if first_block and first_block["kind"] == "summary" and first_block.get("data"):
+        main_units.append({"kind": "header_and_summary", "summary": first_block["data"]})
+        remaining_main = main_blocks[1:]
+    else:
+        main_units.append({"kind": "header_only"})
+        remaining_main = main_blocks
+
+    for block in remaining_main:
+        if block["kind"] == "summary":
+            if block.get("data"):
+                main_units.append({"kind": "summary_item", "data": block["data"]})
+        elif block["kind"] == "experience":
+            exps = [e for e in block.get("data", []) if e.get("title") or e.get("company") or e.get("bullets")]
+            for idx, exp in enumerate(exps):
+                main_units.append({
+                    "kind": "experience_item",
+                    "show_header": (idx == 0),
+                    "data": exp,
+                })
+        elif block["kind"] == "projects":
+            projs = [p for p in block.get("data", []) if p.get("title") or p.get("description_lines")]
+            for idx, proj in enumerate(projs):
+                main_units.append({
+                    "kind": "project_item",
+                    "show_header": (idx == 0),
+                    "data": proj,
+                })
+        elif block["kind"] == "certifications":
+            certs = [c for c in block.get("data", []) if c.get("name")]
+            for idx, cert in enumerate(certs):
+                main_units.append({
+                    "kind": "certification_item",
+                    "show_header": (idx == 0),
+                    "data": cert,
+                })
+
+    max_rows = max(len(sidebar_units), len(main_units))
+    rows = []
+    for i in range(max_rows):
+        s_unit = sidebar_units[i] if i < len(sidebar_units) else None
+        m_unit = main_units[i] if i < len(main_units) else None
+        rows.append({
+            "sidebar": s_unit,
+            "main": m_unit,
+            "is_first": (i == 0),
+            "is_last": (i == max_rows - 1),
+        })
+    return rows
+
+
 def render_cv_pdf(sections: dict, style: dict | None = None) -> bytes:
     # Imported lazily so a machine without xhtml2pdf's (pure-Python, no
     # system deps) dependencies installed doesn't break every manage.py
@@ -164,11 +304,21 @@ def render_cv_pdf(sections: dict, style: dict | None = None) -> bytes:
         "projects": _with_description_lines(sections.get("projects", [])),
     }
     main_blocks, sidebar_blocks = _ordered_blocks(resolved_sections, section_order)
+    contact_items = _build_contact_items(resolved_sections["personal_info"])
+    rows = []
+    sidebar_bg_data_uri = ""
+    if template_name == _TEMPLATE_FILES["two-column"]:
+        rows = _build_cv_rows(main_blocks, sidebar_blocks)
+        sidebar_bg_data_uri = _generate_sidebar_bg_data_uri(theme["sidebar_bg"])
+
     context = {
         "font_family": FONT_FAMILY,
         "sections": resolved_sections,
+        "contact_items": contact_items,
         "main_blocks": main_blocks,
         "sidebar_blocks": sidebar_blocks,
+        "rows": rows,
+        "sidebar_bg_data_uri": sidebar_bg_data_uri,
         "sidebar_bg": theme["sidebar_bg"],
         "sidebar_text": theme["sidebar_text"],
         "accent": theme["accent"],
