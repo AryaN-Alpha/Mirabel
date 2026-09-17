@@ -378,7 +378,8 @@ export async function listLinkedInAutomationRuns(automationId) {
 // ---------------------------------------------------------------------------
 
 export function threadsConnectUrl() {
-  return `${client.defaults.baseURL}/api/threads/auth/start/`;
+  const base = import.meta.env.VITE_THREADS_API_URL || client.defaults.baseURL;
+  return `${base}/api/threads/auth/start/`;
 }
 
 export async function getThreadsStatus() {

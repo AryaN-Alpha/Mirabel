@@ -119,6 +119,7 @@ class GeminiProvider(Provider):
         if not api_key:
             raise ProviderError("No Gemini API key configured.")
         client = genai.Client(api_key=api_key)
+        started = time.perf_counter()
         try:
             stream = await client.aio.models.generate_content_stream(
                 model=model,
@@ -131,15 +132,34 @@ class GeminiProvider(Provider):
                 ),
             )
             finish_reason = None
+            usage = None
             async for chunk in stream:
                 if chunk.text:
                     yield chunk.text
+                if getattr(chunk, "usage_metadata", None) is not None:
+                    usage = chunk.usage_metadata
                 candidates = getattr(chunk, "candidates", None) or []
                 if candidates:
                     finish_reason = getattr(candidates[0], "finish_reason", None) or finish_reason
             if getattr(finish_reason, "name", finish_reason) == "MAX_TOKENS":
                 log_output_truncated(provider="gemini", model=model, call_site=call_site, max_tokens=max_tokens)
+            log_llm_call(
+                provider="gemini",
+                model=model,
+                call_site=call_site,
+                input_tokens=getattr(usage, "prompt_token_count", None),
+                output_tokens=getattr(usage, "candidates_token_count", None),
+                latency_ms=(time.perf_counter() - started) * 1000,
+                cache_read_tokens=getattr(usage, "cached_content_token_count", None),
+            )
         except genai_errors.APIError as exc:
+            log_llm_call(
+                provider="gemini",
+                model=model,
+                call_site=call_site,
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
             raise ProviderError(str(exc)) from exc
 
     def list_models(self) -> list[dict[str, str]]:

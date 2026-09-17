@@ -441,7 +441,11 @@ class MemoryDeletionServiceTests(TestCase):
         )
         mock_get_collection.return_value = _fake_collection(
             ids=["msg_1", "fact_1", "summary_1"],
-            metadatas=[{"kind": "turn"}, {"kind": "fact"}, {"kind": "summary"}],
+            metadatas=[
+                {"kind": "turn", "created_at": "2026-01-02"},
+                {"kind": "fact", "created_at": "2026-01-02"},
+                {"kind": "summary", "created_at": "2026-01-02"},
+            ],
         )
 
         result = deletion.delete_range(date_from="2026-01-01")
@@ -557,3 +561,32 @@ class MemoryDeletionViewTests(TestCase):
         response = self.client.delete("/api/memory/delete/?date_from=2026-01-01&date_to=2026-01-31")
         self.assertEqual(response.status_code, 200)
         mock_delete.assert_called_once_with(date_from="2026-01-01", date_to="2026-01-31", kind=None)
+
+
+class FormatMemoriesForPromptTests(SimpleTestCase):
+    def test_facts_and_summaries_prioritized_over_turns(self):
+        from memory.services.retrieval import format_memories_for_prompt
+
+        memories = [
+            {
+                "text": "User talked about the weather",
+                "metadata": {"kind": "turn", "created_at": "2026-03-01T10:00:00Z", "mood": "playful"},
+            },
+            {
+                "text": "User is a software engineer",
+                "metadata": {"kind": "fact", "fact_type": "biographical", "created_at": "2026-01-01T10:00:00Z"},
+            },
+            {
+                "text": "Summary of week 1",
+                "metadata": {"kind": "summary", "created_at": "2026-02-01T10:00:00Z"},
+            },
+        ]
+        result = format_memories_for_prompt(memories)
+        lines = result.split("\n")
+        self.assertIn("RELEVANT MEMORIES", lines[0])
+        # Fact should appear before summary and turn
+        self.assertIn("[fact · biographical] User is a software engineer", lines[1])
+        # Summary should appear before turn
+        self.assertIn("[weekly summary", lines[2])
+        # Turn should use compact format
+        self.assertIn("[2026-03-01 · mood=playful] User talked about the weather", lines[3])

@@ -110,8 +110,15 @@ def format_memories_for_prompt(memories: list[dict]) -> str:
     budget = settings.MEMORY_BLOCK_MAX_CHARS
     lines = [header]
     used = len(header)
-    for m in memories:
-        meta = m["metadata"]
+    # Prioritize durable facts and summaries over verbose conversation turns
+    # so high-density knowledge consumes the character budget first.
+    _KIND_PRIORITY = {"fact": 0, "summary": 1, "turn": 2}
+    sorted_memories = sorted(
+        memories,
+        key=lambda m: _KIND_PRIORITY.get((m.get("metadata") or {}).get("kind", "turn"), 3),
+    )
+    for m in sorted_memories:
+        meta = m.get("metadata") or {}
         kind = meta.get("kind", "turn")
         when = meta.get("created_at", "")[:10]
         if kind == "summary":
@@ -120,9 +127,8 @@ def format_memories_for_prompt(memories: list[dict]) -> str:
             fact_type = meta.get("fact_type", "fact")
             line = f"- [fact · {fact_type}] {m['text']}"
         else:
-            role = meta.get("role", "?")
             mood = meta.get("mood", "neutral")
-            line = f"- [{when} · {role} · mood={mood}] {m['text']}"
+            line = f"- [{when} · mood={mood}] {m['text']}"
         if used + len(line) + 1 > budget:
             break
         lines.append(line)

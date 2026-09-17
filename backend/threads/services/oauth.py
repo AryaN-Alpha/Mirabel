@@ -183,7 +183,7 @@ def fetch_userinfo(access_token: str) -> dict:
         resp = requests.get(
             USERINFO_URL,
             params={
-                "fields": "id,username,name,threads_profile_picture_url,threads_biography,is_private",
+                "fields": "id,username,name,threads_profile_picture_url,threads_biography",
                 "access_token": access_token,
             },
             timeout=_TIMEOUT,
@@ -192,6 +192,18 @@ def fetch_userinfo(access_token: str) -> dict:
         raise ThreadsError(f"Couldn't reach Meta Threads profile endpoint: {exc}") from exc
 
     if not resp.ok:
+        # Fallback to minimal supported fields if extended fields fail
+        try:
+            fb_resp = requests.get(
+                USERINFO_URL,
+                params={"fields": "id,username,name", "access_token": access_token},
+                timeout=_TIMEOUT,
+            )
+            if fb_resp.ok:
+                return fb_resp.json()
+        except Exception:
+            pass
+
         msg, code_val, subcode = parse_error_response(resp)
         raise ThreadsError(
             f"Failed fetching Threads profile ({resp.status_code}): {msg}",

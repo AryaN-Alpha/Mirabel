@@ -11,9 +11,17 @@ from threads.prompts import post_system_prompt, reply_system_prompt
 logger = logging.getLogger("threads")
 
 
-def _generate(*, system: str, user_content: str, call_site: str, system_suffix: str = "") -> dict[str, Any]:
+def _generate(
+    *,
+    system: str,
+    user_content: str,
+    call_site: str,
+    system_suffix: str = "",
+    max_tokens: int | None = None,
+) -> dict[str, Any]:
     """Never-crash contract, matching core/services/llm.py::generate_reply."""
     pref = ModelPreference.current()
+    effective_max_tokens = min(pref.max_tokens, max_tokens) if max_tokens else pref.max_tokens
     try:
         provider = get_provider(pref.provider)
         text = provider.generate_text(
@@ -21,7 +29,7 @@ def _generate(*, system: str, user_content: str, call_site: str, system_suffix: 
             system=system,
             system_suffix=system_suffix,
             history=[{"role": "user", "content": user_content}],
-            max_tokens=pref.max_tokens,
+            max_tokens=effective_max_tokens,
             temperature=pref.temperature,
             call_site=call_site,
         )
@@ -55,6 +63,7 @@ def generate_post(*, prompt: str, tone: str = "casual", length: str = "medium") 
         system_suffix=memory_block,
         user_content=prompt,
         call_site="threads.generate_post",
+        max_tokens=600,
     )
 
 
@@ -68,4 +77,5 @@ def generate_reply(*, post_context: str, instructions: str = "") -> dict[str, An
         system=reply_system_prompt(),
         user_content=user_content,
         call_site="threads.generate_reply",
+        max_tokens=400,
     )

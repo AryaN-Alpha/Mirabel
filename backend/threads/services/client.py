@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 
 from threads.services.oauth import ThreadsError, parse_error_response, reason_for_status
+
+if TYPE_CHECKING:
+    from threads.models import ThreadsRateLimitSnapshot
 
 logger = logging.getLogger("threads")
 
@@ -135,6 +140,21 @@ def get_publishing_limit(access_token: str, user_id: str) -> dict:
 
     _raise_for_response(resp)
     return resp.json()
+
+
+def sync_rate_limit_snapshot(access_token: str, user_id: str) -> ThreadsRateLimitSnapshot:
+    """Fetches rate limits from Meta API and persists a new ThreadsRateLimitSnapshot record."""
+    from threads.models import ThreadsRateLimitSnapshot
+
+    data = get_publishing_limit(access_token, user_id)
+    usage = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data["data"] else data
+    return ThreadsRateLimitSnapshot.objects.create(
+        quota_usage=usage.get("quota_usage", 0),
+        quota_total=usage.get("config", {}).get("quota_total", 250),
+        reply_quota_usage=usage.get("reply_quota_usage"),
+        reply_quota_total=usage.get("reply_config", {}).get("quota_total"),
+        raw_response=data,
+    )
 
 
 def get_user_threads(access_token: str, user_id: str = "me", limit: int = 20) -> list[dict]:

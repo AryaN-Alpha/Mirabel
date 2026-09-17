@@ -11,12 +11,18 @@ ALLOWED_PERIOD_DAYS = (7, 30, 90)
 DEFAULT_PERIOD_DAYS = 30
 
 
-def content_activity(period_days: int = DEFAULT_PERIOD_DAYS) -> dict:
+def content_activity(
+    period_days: int = DEFAULT_PERIOD_DAYS,
+    rate_limit: ThreadsRateLimitSnapshot | None = None,
+) -> dict:
     period_days = period_days if period_days in ALLOWED_PERIOD_DAYS else DEFAULT_PERIOD_DAYS
-    return activity_since(period_days)
+    return activity_since(period_days, rate_limit=rate_limit)
 
 
-def activity_since(period_days: int) -> dict:
+def activity_since(
+    period_days: int,
+    rate_limit: ThreadsRateLimitSnapshot | None = None,
+) -> dict:
     since = timezone.now() - timedelta(days=period_days)
     published = ThreadsDraft.objects.filter(
         status=ThreadsDraft.Status.PUBLISHED, updated_at__gte=since
@@ -31,7 +37,8 @@ def activity_since(period_days: int) -> dict:
         if draft.image:
             with_image_count += 1
 
-    rate_limit = ThreadsRateLimitSnapshot.latest()
+    if rate_limit is None:
+        rate_limit = ThreadsRateLimitSnapshot.latest()
 
     return {
         "period_days": period_days,

@@ -8,14 +8,13 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 from core.models import ModelPreference
-from core.services.providers import ProviderError, get_provider
+from core.services.providers import get_provider
 from core.services.providers.model_select import fast_model_for
 from threads.models import (
     ThreadsAutomation,
     ThreadsAutomationRun,
     ThreadsCredential,
     ThreadsProfileChange,
-    ThreadsRateLimitSnapshot,
 )
 from threads.services import client, oauth
 from threads.services.activity import activity_since
@@ -123,15 +122,7 @@ def _run_by_type(automation: ThreadsAutomation) -> str:
         if not cred.is_connected:
             return "Threads account is not connected; skipping rate limit sync."
         token = oauth.get_active_access_token()
-        data = client.get_publishing_limit(token, cred.threads_user_id)
-        usage = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data["data"] else data
-        snapshot = ThreadsRateLimitSnapshot.objects.create(
-            quota_usage=usage.get("quota_usage", 0),
-            quota_total=usage.get("config", {}).get("quota_total", 250),
-            reply_quota_usage=usage.get("reply_quota_usage"),
-            reply_quota_total=usage.get("reply_config", {}).get("quota_total"),
-            raw_response=data,
-        )
+        snapshot = client.sync_rate_limit_snapshot(token, cred.threads_user_id)
         return f"Rate limit synced: {snapshot.quota_usage}/{snapshot.quota_total} posts used."
 
     if automation.type == ThreadsAutomation.Type.DAILY_BRIEFING:
@@ -179,7 +170,7 @@ def _generate_briefing(*, period_days: int, title: str) -> str:
             model=fast_model_for(pref),
             system=system_prompt,
             history=[{"role": "user", "content": user_prompt}],
-            max_tokens=pref.max_tokens,
+            max_tokens=min(pref.max_tokens, 500),
             temperature=0.3,
             call_site="threads.automation.briefing",
         )

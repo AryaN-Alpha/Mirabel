@@ -5,6 +5,7 @@ import json
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -12,11 +13,8 @@ from rest_framework.test import APIClient
 from agent.tools import threads_tools
 from threads.models import (
     ThreadsAutomation,
-    ThreadsAutomationRun,
     ThreadsCredential,
     ThreadsDraft,
-    ThreadsProfileChange,
-    ThreadsProfileSnapshot,
     ThreadsRateLimitSnapshot,
 )
 from threads.services import client, oauth, publishing
@@ -221,6 +219,26 @@ class ThreadsComplianceTests(TestCase):
         self.assertFalse(self.cred.is_connected)
         self.assertEqual(ThreadsDraft.objects.count(), 0)
 
+    @patch.dict("os.environ", {}, clear=True)
+    def test_callback_rejected_when_secret_unset(self):
+        signed_req = self._generate_signed_request({"user_id": "test-user-id-555"}, "any-secret")
+        resp = self.client.post("/api/threads/deauthorize/", {"signed_request": signed_req})
+        self.assertEqual(resp.status_code, 200)
+
+        self.cred.refresh_from_db()
+        self.assertTrue(self.cred.is_connected)
+        self.assertEqual(self.cred.get_access_token(), "valid-token")
+
+    @patch.dict("os.environ", {"THREADS_APP_SECRET": "test-secret-key"})
+    def test_callback_rejected_on_signature_mismatch(self):
+        signed_req = self._generate_signed_request({"user_id": "test-user-id-555"}, "wrong-secret-key")
+        resp = self.client.post("/api/threads/deauthorize/", {"signed_request": signed_req})
+        self.assertEqual(resp.status_code, 200)
+
+        self.cred.refresh_from_db()
+        self.assertTrue(self.cred.is_connected)
+        self.assertEqual(self.cred.get_access_token(), "valid-token")
+
 
 class ThreadsAgentToolsTests(TestCase):
     def setUp(self):
@@ -264,6 +282,40 @@ class ThreadsAgentToolsTests(TestCase):
         res = threads_tools.publish_threads_draft.invoke({"draft_id": draft.id})
         self.assertTrue(res["published"])
         self.assertEqual(res["post_id"], "agent-p1")
+
+    @patch("agent.tools.threads_tools.require_confirmation")
+    @patch("threads.services.client.delete_post")
+    def test_delete_threads_post_semantics(self, mock_delete, mock_confirm):
+        mock_confirm.return_value = {"approved": True}
+        mock_delete.return_value = True
+
+        draft = ThreadsDraft.objects.create(
+            body="Published post to be deleted",
+            status=ThreadsDraft.Status.PUBLISHED,
+            threads_post_id="post-to-delete-123",
+            permalink="https://threads.net/p/123",
+        )
+
+        res = threads_tools.delete_threads_post.invoke({"post_id": "post-to-delete-123"})
+        self.assertTrue(res["deleted"])
+
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, ThreadsDraft.Status.PUBLISHED)
+        self.assertEqual(draft.threads_post_id, "")
+        self.assertEqual(draft.permalink, "")
+
+    def test_list_threads_drafts_compact_encoding_at_threshold(self):
+        for i in range(5):
+            ThreadsDraft.objects.create(body=f"Draft number {i}")
+        drafts = threads_tools.list_threads_drafts.invoke({})
+        self.assertIsInstance(drafts, str)
+        self.assertIn("Draft number", drafts)
+
+    def test_get_threads_automation_status_compact_encoding(self):
+        for i in range(5):
+            ThreadsAutomation.objects.create(name=f"Auto {i}", type=ThreadsAutomation.Type.PROFILE_SYNC)
+        res = threads_tools.get_threads_automation_status.invoke({})
+        self.assertIsInstance(res["automations"], str)
 
 
 class ThreadsViewsTests(TestCase):
@@ -327,3 +379,66 @@ class ThreadsViewsTests(TestCase):
         # Delete
         del_resp = self.client.delete(f"/api/threads/automations/{auto_id}/")
         self.assertEqual(del_resp.status_code, 204)
+
+    def test_generate_reply_validation(self):
+        # Missing post_context
+        resp = self.client.post("/api/threads/replies/generate/", {"post_context": ""})
+        self.assertEqual(resp.status_code, 400)
+
+        # Exceeds MAX_POST_CONTEXT_LENGTH (3000)
+        resp = self.client.post(
+            "/api/threads/replies/generate/",
+            {"post_context": "X" * 3001, "instructions": "reply"},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("post_context cannot exceed", resp.json()["error"])
+
+        # Exceeds MAX_INSTRUCTIONS_LENGTH (1000)
+        resp = self.client.post(
+            "/api/threads/replies/generate/",
+            {"post_context": "Normal post", "instructions": "Y" * 1001},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("instructions cannot exceed", resp.json()["error"])
+
+    def test_upload_image_validation(self):
+        # Missing image
+        resp = self.client.post("/api/threads/images/", {})
+        self.assertEqual(resp.status_code, 400)
+
+        # Unsupported content type
+        bad_file = SimpleUploadedFile("test.txt", b"plain text", content_type="text/plain")
+        resp = self.client.post("/api/threads/images/", {"image": bad_file}, format="multipart")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Unsupported image content type", resp.json()["error"])
+
+        # Oversized file
+        oversized = SimpleUploadedFile("large.png", b"0" * (10 * 1024 * 1024 + 1), content_type="image/png")
+        resp = self.client.post("/api/threads/images/", {"image": oversized}, format="multipart")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("exceeds", resp.json()["error"])
+
+        # Valid image file
+        valid_file = SimpleUploadedFile("photo.png", b"\x89PNG\r\n\x1a\nfakebytes", content_type="image/png")
+        resp = self.client.post("/api/threads/images/", {"image": valid_file}, format="multipart")
+        self.assertEqual(resp.status_code, 201)
+        self.assertIn("draft_id", resp.json())
+        self.assertIn("image_url", resp.json())
+
+    @patch("threads.services.client.get_publishing_limit")
+    def test_sync_rate_limit_snapshot_helper(self, mock_limit):
+        mock_limit.return_value = {
+            "data": [
+                {
+                    "quota_usage": 42,
+                    "config": {"quota_total": 250},
+                    "reply_quota_usage": 10,
+                    "reply_config": {"quota_total": 1000},
+                }
+            ]
+        }
+        snap = client.sync_rate_limit_snapshot("dummy-token", "dummy-user")
+        self.assertEqual(snap.quota_usage, 42)
+        self.assertEqual(snap.quota_total, 250)
+        self.assertEqual(snap.reply_quota_usage, 10)
+        self.assertEqual(snap.reply_quota_total, 1000)

@@ -25,6 +25,15 @@ ALLOWED_IMAGE_ASPECT_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4"}
 ALLOWED_VIDEO_ASPECT_RATIOS = {"16:9", "9:16"}
 
 
+def _parse_int(value: object, default: int, param_name: str) -> tuple[int | None, str | None]:
+    if value is None or value == "":
+        return default, None
+    try:
+        return int(value), None  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None, f"Invalid value for {param_name}; must be an integer."
+
+
 class MediaAssetListView(APIView):
     """List assets or filter by media_type / search query."""
 
@@ -85,7 +94,9 @@ class GenerateImageView(APIView):
             )
 
         negative_prompt = request.data.get("negative_prompt", "").strip()
-        number_of_images = int(request.data.get("number_of_images", 1))
+        number_of_images, err = _parse_int(request.data.get("number_of_images"), 1, "number_of_images")
+        if err:
+            return Response({"error": err}, status=status.HTTP_400_BAD_REQUEST)
         if not 1 <= number_of_images <= MAX_VARIATIONS:
             return Response(
                 {"error": f"number_of_images must be between 1 and {MAX_VARIATIONS}."},
@@ -111,7 +122,7 @@ class GenerateImageView(APIView):
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
         except Exception as exc:
             logger.exception("Unexpected error in GenerateImageView: %s", exc)
-            return Response({"error": f"Image generation failed: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Image generation failed. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GenerateVideoView(APIView):
@@ -134,7 +145,9 @@ class GenerateVideoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        duration_seconds = int(request.data.get("duration_seconds", 6))
+        duration_seconds, err = _parse_int(request.data.get("duration_seconds"), 6, "duration_seconds")
+        if err:
+            return Response({"error": err}, status=status.HTTP_400_BAD_REQUEST)
         if not MIN_DURATION_SECONDS <= duration_seconds <= MAX_DURATION_SECONDS:
             return Response(
                 {"error": f"duration_seconds must be between {MIN_DURATION_SECONDS} and {MAX_DURATION_SECONDS}."},
@@ -153,7 +166,7 @@ class GenerateVideoView(APIView):
             return Response({"error": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as exc:
             logger.exception("Unexpected error in GenerateVideoView: %s", exc)
-            return Response({"error": f"Failed to submit video generation job: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Failed to submit video generation job. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GenerateImageToVideoView(APIView):
@@ -178,7 +191,9 @@ class GenerateImageToVideoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        duration_seconds = int(request.data.get("duration_seconds", 6))
+        duration_seconds, err = _parse_int(request.data.get("duration_seconds"), 6, "duration_seconds")
+        if err:
+            return Response({"error": err}, status=status.HTTP_400_BAD_REQUEST)
         if not MIN_DURATION_SECONDS <= duration_seconds <= MAX_DURATION_SECONDS:
             return Response(
                 {"error": f"duration_seconds must be between {MIN_DURATION_SECONDS} and {MAX_DURATION_SECONDS}."},
@@ -202,14 +217,16 @@ class GenerateImageToVideoView(APIView):
             return Response({"error": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception as exc:
             logger.exception("Unexpected error in GenerateImageToVideoView: %s", exc)
-            return Response({"error": f"Failed to submit image-to-video job: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Failed to submit image-to-video job. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MediaAssetVariationsView(APIView):
     """Generate variations of an existing image asset."""
 
     def post(self, request, pk):
-        count = int(request.data.get("count", 1))
+        count, err = _parse_int(request.data.get("count"), 1, "count")
+        if err:
+            return Response({"error": err}, status=status.HTTP_400_BAD_REQUEST)
         if not 1 <= count <= MAX_VARIATIONS:
             return Response(
                 {"error": f"count must be between 1 and {MAX_VARIATIONS}."},
@@ -230,7 +247,7 @@ class MediaAssetVariationsView(APIView):
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
         except Exception as exc:
             logger.exception("Unexpected error in MediaAssetVariationsView: %s", exc)
-            return Response({"error": f"Failed to generate variations: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Failed to generate variations. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MediaAssetAnalyzeView(APIView):
@@ -245,9 +262,11 @@ class MediaAssetAnalyzeView(APIView):
             return Response({"error": "Media asset not found."}, status=status.HTTP_404_NOT_FOUND)
         except ProviderAuthenticationError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as exc:
             logger.exception("Unexpected error in MediaAssetAnalyzeView: %s", exc)
-            return Response({"error": f"Failed to analyze media asset: {exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Failed to analyze media asset. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MediaJobDetailView(APIView):

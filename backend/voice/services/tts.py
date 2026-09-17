@@ -162,16 +162,24 @@ def _close_cartesia_client() -> None:
 # Public interface — used by voice/consumers.py::_tts_worker
 # ---------------------------------------------------------------------------
 
-async def stream_tts(text: str) -> AsyncIterator[bytes]:
+async def stream_tts(text: str, *, force_edge_tts: bool = False) -> AsyncIterator[bytes]:
     """
     Async generator that yields MP3 bytes for *text*.
 
-    1. If the circuit-breaker is open, goes straight to edge-tts.
-    2. Otherwise tries Cartesia; on failure increments the circuit-breaker
+    1. If force_edge_tts is True (e.g. Agent Mode operational speech), goes
+       straight to edge-tts without touching Cartesia.
+    2. If the circuit-breaker is open, goes straight to edge-tts.
+    3. Otherwise tries Cartesia; on failure increments the circuit-breaker
        counter and falls back to edge-tts.
-    3. On success resets the circuit-breaker.
+    4. On success resets the circuit-breaker.
     """
     if not text.strip():
+        return
+
+    if force_edge_tts:
+        logger.debug("tts: forcing edge-tts for %r", text[:80])
+        async for chunk in _edge_tts_stream(text):
+            yield chunk
         return
 
     if _circuit_is_open():

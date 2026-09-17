@@ -127,33 +127,48 @@ export function GhostLink({ children, onClick, disabled, muted, danger, classNam
 
 // Bordered pill-ish outline button — the mockup's "Save changes", "Connect",
 // "Download PDF" primary actions.
-export function OutlineButton({ children, onClick, disabled, danger, className = "", ...rest }) {
+export function OutlineButton({
+  children,
+  onClick,
+  disabled,
+  danger,
+  accent: isAccent,
+  size,
+  busy,
+  icon: Icon,
+  className = "",
+  style = {},
+  ...rest
+}) {
   const [hovered, setHovered] = useState(false);
   const tint = danger ? "rgba(224,140,140,0.9)" : accent[400];
+  const isSm = size === "sm";
   return (
     <a
       href="#"
       onClick={(e) => {
         e.preventDefault();
-        if (!disabled) onClick?.();
+        if (!disabled && !busy) onClick?.();
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`no-underline inline-flex items-center justify-center ${className}`}
+      className={`no-underline inline-flex items-center justify-center gap-2 ${className}`}
       style={{
-        padding: `${space[2]}px ${space[6] - 4.6}px`,
+        padding: isSm ? `${space[1] + 2}px ${space[3]}px` : `${space[2]}px ${space[6] - 4.6}px`,
         border: `1px solid ${danger ? tint : `${tint}8c`}`,
         borderRadius: radius.md,
         fontFamily: fontHeading,
-        fontSize: 16,
+        fontSize: isSm ? 13 : 16,
         color: danger ? "rgba(224,140,140,0.95)" : accent[200],
-        background: hovered && !disabled ? (danger ? "rgba(224,140,140,0.14)" : `${accent[400]}1f`) : "transparent",
-        opacity: disabled ? 0.45 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
+        background: hovered && !disabled && !busy ? (danger ? "rgba(224,140,140,0.14)" : `${accent[400]}1f`) : "transparent",
+        opacity: disabled || busy ? 0.45 : 1,
+        cursor: disabled || busy ? "not-allowed" : "pointer",
         transition: "background 0.5s ease",
+        ...style,
       }}
       {...rest}
     >
+      {Icon && <Icon size={isSm ? 14 : 16} className={busy ? "animate-spin" : ""} />}
       {children}
     </a>
   );

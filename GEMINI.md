@@ -1,0 +1,47 @@
+# Mirabel — Gemini / Antigravity Agent Instructions
+
+Voice assistant, Tsundere persona, emotional RAG memory. Monorepo:
+`/backend` (Django 6 + DRF + Channels, Python 3.13+) and `/frontend` (React 19 + Vite 6).
+Detailed architectural guide lives in `CLAUDE.md`.
+
+## ⚠️ CRITICAL NON-NEGOTIABLE PRODUCTION RULES (ALL AGENTS)
+
+> **LIVE PRODUCTION SYSTEM WITH 20+ MONTHS OF IRREPLACEABLE DATA**  
+> This application is running live in production with sensitive, mission-critical data gathered over 20 months of work. Any data loss or downtime is catastrophic. Every AI agent MUST strictly follow these 6 rules:
+
+1. **Zero Data Loss & Data Integrity (20 Months of Production Data)**:
+   - Under NO circumstances may any change alter, corrupt, truncate, drop, or delete existing production data.
+   - Database migrations must be purely additive, non-destructive, and backward-compatible (e.g. nullable fields, sensible defaults, new tables only).
+   - NEVER drop tables, drop columns, or run destructive raw SQL / flush commands (`flush`, `reset_db`).
+   - ChromaDB collections (`mirabel_memories`) and stored vector embeddings must NEVER be wiped, re-initialized, or bulk deleted without explicit instruction.
+
+2. **Production Reliability & Mandatory Comprehensive Testing**:
+   - The application is live in production; no modification may break the running system.
+   - Test every change thoroughly before marking it complete: run backend/frontend tests, verify type checks and linting, and perform real runtime verification (check server logs in `backend/logs/mirabel.log`, test API endpoints, check WebSockets, inspect DB values after writes). Never assume code works simply because it compiles.
+
+3. **Strict Backward Compatibility (Protect Existing Features)**:
+   - New features must NEVER break, regress, or silently degrade existing features or contracts.
+   - Retain existing API response contracts, WebSocket payload schemas, and fallback behaviors (e.g. REST fallback for chat, graceful degradation when services are unavailable).
+
+4. **Pragmatic Engineering — Strictly NO Over-Engineering**:
+   - Keep all implementations simple, clean, direct, and maintainable.
+   - Do NOT add unnecessary abstraction layers, superfluous wrappers, speculative generalization, or redundant dependencies. Adhere to YAGNI ("You Aren't Gonna Need It"). Solve the exact requirement with the minimal blast radius.
+
+5. **Clarify Requirements & Proactively Recommend Better Solutions**:
+   - NEVER assume requirements when details are ambiguous or underspecified. Ask clarifying questions until requirements and constraints are 100% clear.
+   - If you see a more optimal, standard, secure, or cost-effective architecture or solution, proactively suggest and recommend it before proceeding.
+
+6. **Mandatory Post-Change Self-Audit Checklist**:
+   After designing, implementing, or modifying any code, you MUST ask yourself and verify:
+   i. *Is this the most efficient way to do it?* (Cheapest correct path, no N+1 queries, no wasted compute/retries).
+   ii. *Is this the most secure way?* (Secrets protected, input validated, auth/origin checked, no leaks).
+   iii. *Did it break any previous feature?* (Backward compatibility, existing tests, no regression in data flow).
+   iv. *Is this the most optimized way? Did we overengineer anything?* (Clean, minimal, readable, maintainable).
+
+## Core Architecture Pointers
+- Backend services live in `core/services/`, never in `views.py`.
+- Frontend: function components + hooks only (no classes, except `ErrorBoundary`).
+- Never remove an import you didn't add unless you can prove it's dead in that file.
+- Never hardcode a secret or fallback default. Required env vars fail fast (`os.environ[...]`).
+- Provider credentials must be retrieved via `get_api_key(provider)` (async code calls via `asyncio.to_thread`).
+- Error handling: Backend DRF handler standardizes errors to `{"error": "..."}`. Frontend uses `frontend/src/utils/errors.js`.

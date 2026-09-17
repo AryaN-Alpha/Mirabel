@@ -210,6 +210,24 @@ class MediaAPITests(TestCase):
         resp = self.client.post("/api/media/generate/image/", {"prompt": "A cat", "aspect_ratio": "99:99"})
         self.assertEqual(resp.status_code, 400)
 
+        # Non-integer number_of_images -> 400
+        resp = self.client.post("/api/media/generate/image/", {"prompt": "A cat", "number_of_images": "not-a-number"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("must be an integer", resp.data["error"])
+
+    def test_generate_video_validation(self):
+        # Non-integer duration_seconds -> 400
+        resp = self.client.post("/api/media/generate/video/", {"prompt": "A cat", "duration_seconds": "not-a-number"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("must be an integer", resp.data["error"])
+
+    def test_generate_variations_validation(self):
+        # Non-integer count -> 400
+        fake_uuid = "00000000-0000-0000-0000-000000000001"
+        resp = self.client.post(f"/api/media/assets/{fake_uuid}/variations/", {"count": "not-a-number"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("must be an integer", resp.data["error"])
+
     @patch("media_assets.services.media_service.generate_image")
     def test_generate_image_endpoint(self, mock_gen):
         asset = MediaAsset.objects.create(

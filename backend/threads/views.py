@@ -4,10 +4,12 @@ import hmac
 import json
 import logging
 import secrets
+from urllib.parse import urlparse
 import uuid
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.core import signing
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from rest_framework import status as http_status
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
@@ -23,7 +25,7 @@ from threads.models import (
 )
 from threads.services import client, oauth, publishing
 from threads.services.activity import content_activity
-from threads.services.automation import MAX_INTERVAL_HOURS, MIN_INTERVAL_HOURS, compute_next_run_at
+from threads.services.automation import compute_next_run_at
 from threads.services.automation import run_now as run_automation_now
 from threads.services.generation import generate_post, generate_reply
 from threads.services.oauth import ThreadsError
@@ -34,6 +36,10 @@ logger = logging.getLogger("threads")
 
 MAX_POST_LENGTH = 500
 MAX_PROMPT_LENGTH = 2000
+MAX_POST_CONTEXT_LENGTH = 3000
+MAX_INSTRUCTIONS_LENGTH = 1000
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 SESSION_STATE_KEY = "threads_oauth_state"
 DEFAULT_PERIOD_DAYS = 30
 PROFILE_HISTORY_LIMIT = 50
@@ -41,48 +47,80 @@ AUTOMATION_RUNS_LIMIT = 50
 
 _AUTOMATION_TYPES = {choice for choice in ThreadsAutomation.Type.values}
 
-
 # ---------------------------------------------------------------------------
 # OAuth & Connection Views
 # ---------------------------------------------------------------------------
 
 
 def auth_start(request: HttpRequest) -> HttpResponse:
-    state = secrets.token_urlsafe(24)
+    referer = request.headers.get("referer", "")
+    target_frontend = settings.FRONTEND_URL
+    if referer and ("/home/threads" in referer or "5173" in referer or "tail" in referer):
+        parsed = urlparse(referer)
+        target_frontend = f"{parsed.scheme}://{parsed.netloc}"
+
+    # Cryptographically sign the state so it is verifiable even if session cookies
+    # are blocked or not shared across domains (e.g. localhost -> Tailscale HTTPS)
+    payload = {
+        "nonce": secrets.token_urlsafe(16),
+        "frontend_url": target_frontend,
+    }
+    state = signing.dumps(payload, salt="threads_oauth")
     request.session[SESSION_STATE_KEY] = state
     try:
         url = oauth.get_auth_url(state)
     except ThreadsError as exc:
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL}/home/threads?error={exc}")
+        return HttpResponseRedirect(f"{target_frontend}/home/threads?error={exc}")
     return HttpResponseRedirect(url)
 
 
 def auth_callback(request: HttpRequest) -> HttpResponse:
-    expected_state = request.session.pop(SESSION_STATE_KEY, None)
     got_state = request.GET.get("state")
-    if not expected_state or expected_state != got_state:
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL}/home/threads?error=Invalid+OAuth+state")
+    expected_state = request.session.pop(SESSION_STATE_KEY, None)
+    target_frontend = settings.FRONTEND_URL
+
+    state_valid = False
+    if got_state:
+        try:
+            payload = signing.loads(got_state, salt="threads_oauth", max_age=900)
+            state_valid = True
+            if isinstance(payload, dict) and payload.get("frontend_url"):
+                target_frontend = payload["frontend_url"]
+        except (signing.BadSignature, signing.SignatureExpired) as exc:
+            logger.warning("threads.auth_callback: state signature verification failed: %s", exc)
+
+    if not state_valid and expected_state and expected_state == got_state:
+        state_valid = True
+
+    if not state_valid:
+        logger.warning("threads.auth_callback: invalid state (got %s, expected %s)", got_state, expected_state)
+        return HttpResponseRedirect(f"{target_frontend}/home/threads?error=Invalid+OAuth+state")
 
     code = request.GET.get("code")
     if not code:
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL}/home/threads?error=No+authorization+code+returned")
+        return HttpResponseRedirect(f"{target_frontend}/home/threads?error=No+authorization+code+returned")
 
     try:
         token_data = oauth.exchange_code_for_token(code)
         cred = ThreadsCredential.current()
         oauth.save_token_result(cred, token_data)
-        userinfo = oauth.fetch_userinfo(cred.get_access_token())
-        oauth.save_profile(cred, userinfo)
+        try:
+            userinfo = oauth.fetch_userinfo(cred.get_access_token())
+            oauth.save_profile(cred, userinfo)
+        except Exception as profile_exc:
+            logger.warning("threads.auth_callback: profile enrichment failed (non-fatal): %s", profile_exc)
         cred.save()
+        logger.info("threads.auth_callback: successfully connected Threads account @%s", cred.username or cred.threads_user_id)
     except ThreadsError as exc:
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL}/home/threads?error={exc}")
+        logger.exception("threads.auth_callback: failed to exchange token: %s", exc)
+        return HttpResponseRedirect(f"{target_frontend}/home/threads?error={exc}")
 
     try:
         record_snapshot(cred)
     except Exception:
         logger.exception("threads.auth_callback: failed to record baseline profile snapshot")
 
-    return HttpResponseRedirect(f"{settings.FRONTEND_URL}/home/threads?connected=1")
+    return HttpResponseRedirect(f"{target_frontend}/home/threads?connected=1")
 
 
 @api_view(["GET"])
@@ -129,14 +167,16 @@ def disconnect(_request: Request) -> Response:
 def _parse_signed_request(signed_request: str, secret: str) -> dict | None:
     """Decodes and validates a Meta signed request using HMAC-SHA256."""
     try:
+        if not secret:
+            logger.warning("threads.signed_request: THREADS_APP_SECRET not configured, rejecting")
+            return None
         encoded_sig, payload = signed_request.split(".", 1)
         sig = base64.urlsafe_b64decode(encoded_sig + "=" * ((4 - len(encoded_sig) % 4) % 4))
         data = json.loads(base64.urlsafe_b64decode(payload + "=" * ((4 - len(payload) % 4) % 4)).decode("utf-8"))
-        if secret:
-            expected_sig = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).digest()
-            if not hmac.compare_digest(sig, expected_sig):
-                logger.warning("threads.signed_request: signature mismatch")
-                return None
+        expected_sig = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).digest()
+        if not hmac.compare_digest(sig, expected_sig):
+            logger.warning("threads.signed_request: signature mismatch")
+            return None
         return data
     except Exception as exc:
         logger.warning("threads.signed_request: failed to parse: %s", exc)
@@ -338,6 +378,23 @@ def upload_image(request: Request) -> Response:
     if not image_file:
         return Response({"error": "No image file provided."}, status=http_status.HTTP_400_BAD_REQUEST)
 
+    if image_file.size > MAX_IMAGE_SIZE:
+        return Response(
+            {"error": f"Image file exceeds {MAX_IMAGE_SIZE // (1024 * 1024)}MB limit."},
+            status=http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    if image_file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        return Response(
+            {
+                "error": (
+                    f"Unsupported image content type: {image_file.content_type}. "
+                    f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_CONTENT_TYPES))}."
+                )
+            },
+            status=http_status.HTTP_400_BAD_REQUEST,
+        )
+
     draft_id = request.data.get("draft_id")
     if draft_id:
         try:
@@ -379,6 +436,16 @@ def generate_reply_view(request: Request) -> Response:
     instructions = request.data.get("instructions", "").strip()
     if not post_context:
         return Response({"error": "post_context is required."}, status=http_status.HTTP_400_BAD_REQUEST)
+    if len(post_context) > MAX_POST_CONTEXT_LENGTH:
+        return Response(
+            {"error": f"post_context cannot exceed {MAX_POST_CONTEXT_LENGTH} characters."},
+            status=http_status.HTTP_400_BAD_REQUEST,
+        )
+    if len(instructions) > MAX_INSTRUCTIONS_LENGTH:
+        return Response(
+            {"error": f"instructions cannot exceed {MAX_INSTRUCTIONS_LENGTH} characters."},
+            status=http_status.HTTP_400_BAD_REQUEST,
+        )
 
     res = generate_reply(post_context=post_context, instructions=instructions)
     return Response(res)
@@ -474,15 +541,7 @@ def rate_limit_status(_request: Request) -> Response:
 
     try:
         token = oauth.get_active_access_token()
-        data = client.get_publishing_limit(token, cred.threads_user_id)
-        usage = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data["data"] else data
-        snapshot = ThreadsRateLimitSnapshot.objects.create(
-            quota_usage=usage.get("quota_usage", 0),
-            quota_total=usage.get("config", {}).get("quota_total", 250),
-            reply_quota_usage=usage.get("reply_quota_usage"),
-            reply_quota_total=usage.get("reply_config", {}).get("quota_total"),
-            raw_response=data,
-        )
+        snapshot = client.sync_rate_limit_snapshot(token, cred.threads_user_id)
         return Response(
             {
                 "quota_usage": snapshot.quota_usage,

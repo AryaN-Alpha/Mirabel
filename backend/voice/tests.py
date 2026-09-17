@@ -36,7 +36,7 @@ class ClassifyYesNoTests(SimpleTestCase):
             self.assertEqual(classify_yes_no(phrase), "unclear", phrase)
 
 
-async def _empty_tts(_text):
+async def _empty_tts(_text, *args, **kwargs):
     return
     yield  # pragma: no cover - makes this an async generator
 
@@ -354,3 +354,124 @@ class ChatConsumerAgentSpeakTests(TransactionTestCase):
             AgentTask.voice_group_name(task_id),
             {"type": "agent.speak", "task_id": task_id, "text": "should reach nobody"},
         )
+
+
+class StreamTtsRoutingTests(SimpleTestCase):
+    def test_force_edge_tts_routes_directly_to_edge_tts(self):
+        async_to_sync(self._force_edge_tts_routes_directly)()
+
+    async def _force_edge_tts_routes_directly(self):
+        from voice.services.tts import stream_tts
+
+        async def _mock_edge_stream(text):
+            yield b"edge_audio"
+
+        with patch("voice.services.tts._edge_tts_stream", side_effect=_mock_edge_stream) as mock_edge, \
+             patch("voice.services.tts._get_cartesia_client", new_callable=AsyncMock) as mock_cartesia:
+            chunks = []
+            async for chunk in stream_tts("Hello agent", force_edge_tts=True):
+                chunks.append(chunk)
+
+            self.assertEqual(chunks, [b"edge_audio"])
+            mock_edge.assert_called_once_with("Hello agent")
+            mock_cartesia.assert_not_called()
+
+    def test_default_attempts_cartesia_first(self):
+        async_to_sync(self._default_attempts_cartesia)()
+
+    async def _default_attempts_cartesia(self):
+        from voice.services.tts import stream_tts
+
+        async def _mock_cartesia_stream(client, text):
+            yield b"cartesia_audio"
+
+        mock_client = MagicMock()
+        with patch("voice.services.tts._get_cartesia_client", new_callable=AsyncMock, return_value=mock_client) as mock_get_client, \
+             patch("voice.services.tts._cartesia_stream", side_effect=_mock_cartesia_stream) as mock_cartesia_stream, \
+             patch("voice.services.tts._circuit_is_open", return_value=False):
+            chunks = []
+            async for chunk in stream_tts("Hello user", force_edge_tts=False):
+                chunks.append(chunk)
+
+            self.assertEqual(chunks, [b"cartesia_audio"])
+            mock_get_client.assert_called_once()
+            mock_cartesia_stream.assert_called_once_with(mock_client, "Hello user")
+
+
+class ConsumerTtsRoutingTests(SimpleTestCase):
+    def test_speak_ack_uses_force_edge_tts(self):
+        async_to_sync(self._speak_ack_uses_force_edge_tts)()
+
+    async def _speak_ack_uses_force_edge_tts(self):
+        calls = []
+
+        async def _spy_stream_tts(text, *, force_edge_tts=False):
+            calls.append((text, force_edge_tts))
+            yield b"ack_audio"
+
+        consumer = ChatConsumer()
+        consumer._tts_lock = asyncio.Lock()
+        consumer._send_json = AsyncMock()
+
+        with patch("voice.consumers.stream_tts", side_effect=_spy_stream_tts):
+            await consumer._speak_ack("On it.", "determined")
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], ("On it.", True))
+
+    def test_agent_speak_uses_force_edge_tts(self):
+        async_to_sync(self._agent_speak_uses_force_edge_tts)()
+
+    async def _agent_speak_uses_force_edge_tts(self):
+        calls = []
+
+        async def _spy_stream_tts(text, *, force_edge_tts=False):
+            calls.append((text, force_edge_tts))
+            yield b"clarify_audio"
+
+        consumer = ChatConsumer()
+        consumer._tts_lock = asyncio.Lock()
+        consumer._send_json = AsyncMock()
+        consumer._pending_agent_task_id = 99
+
+        with patch("voice.consumers.stream_tts", side_effect=_spy_stream_tts):
+            await consumer.agent_speak({"task_id": 99, "text": "Which email should I reply to?"})
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0], ("Which email should I reply to?", True))
+
+    def test_tts_worker_respects_force_edge_tts_flag(self):
+        async_to_sync(self._tts_worker_respects_force_edge_tts)()
+
+    async def _tts_worker_respects_force_edge_tts(self):
+        calls = []
+
+        async def _spy_stream_tts(text, *, force_edge_tts=False):
+            calls.append((text, force_edge_tts))
+            yield b"audio"
+
+        consumer = ChatConsumer()
+        consumer._tts_lock = asyncio.Lock()
+        consumer._send_json = AsyncMock()
+
+        # When force_edge_tts=False
+        queue = asyncio.Queue()
+        await queue.put("Sentence one.")
+        await queue.put(None)
+
+        with patch("voice.consumers.stream_tts", side_effect=_spy_stream_tts):
+            await consumer._tts_worker(queue, force_edge_tts=False)
+
+        self.assertEqual(calls, [("Sentence one.", False)])
+
+        # When force_edge_tts=True
+        calls.clear()
+        queue = asyncio.Queue()
+        await queue.put("Sentence two.")
+        await queue.put(None)
+
+        with patch("voice.consumers.stream_tts", side_effect=_spy_stream_tts):
+            await consumer._tts_worker(queue, force_edge_tts=True)
+
+        self.assertEqual(calls, [("Sentence two.", True)])
+

@@ -43,7 +43,7 @@ def build_overview(period_days: int = 30) -> dict:
         "is_private": cred.is_private_profile,
         "needs_reauth": cred.needs_reauth,
         "profile_health": profile_health(),
-        "activity": content_activity(period_days),
+        "activity": content_activity(period_days, rate_limit=rate_limit),
         "recent_profile_changes": recent_changes,
         "automations": automations,
         "rate_limit": {

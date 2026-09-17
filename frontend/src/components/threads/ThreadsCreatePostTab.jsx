@@ -12,7 +12,7 @@ import {
   uploadThreadsImage,
 } from "../../services/api";
 import { getErrorMessage } from "../../utils/errors";
-import { fontHeading, fontMono, text, space, cream, surface, glassBorder, radius, motion, success, danger, warning } from "../homeTheme";
+import { fontHeading, fontMono, text, accent, space, cream, surface, glassBorder, radius, motion, success, danger, warning } from "../homeTheme";
 import {
   labelStyle,
   GhostLink,

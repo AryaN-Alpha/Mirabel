@@ -49,7 +49,7 @@ _DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
         "linkedin", "li post", "post to linkedin", "comment on", "connections",
     ),
     "threads": (
-        "thread", "threads", "threads post", "meta threads", "post to threads",
+        "threads", "threads post", "meta threads", "post to threads",
         "threads reply", "reply on threads",
     ),
     "outlook": (

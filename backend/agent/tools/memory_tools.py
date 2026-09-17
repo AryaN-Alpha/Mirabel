@@ -16,7 +16,20 @@ def search_memories(query: str) -> dict:
         query: What to search for.
     """
     memories = retrieve_relevant_memories(query_text=query)
-    return {"memories": [{"text": m["text"], "metadata": m["metadata"]} for m in memories]}
+    compact_memories = []
+    for m in memories:
+        meta = m.get("metadata") or {}
+        item = {
+            "text": m.get("text", ""),
+            "date": meta.get("created_at", "")[:10],
+            "type": meta.get("kind", "turn"),
+        }
+        if meta.get("fact_type"):
+            item["fact_type"] = meta["fact_type"]
+        elif meta.get("mood") and meta.get("mood") != "neutral":
+            item["mood"] = meta["mood"]
+        compact_memories.append(item)
+    return {"memories": compact_memories}
 
 
 @tool

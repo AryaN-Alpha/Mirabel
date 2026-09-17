@@ -55,15 +55,7 @@ def check_threads_rate_limit() -> dict:
     if not snapshot:
         try:
             token = oauth.get_active_access_token()
-            data = client.get_publishing_limit(token, cred.threads_user_id)
-            usage = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data["data"] else data
-            snapshot = ThreadsRateLimitSnapshot.objects.create(
-                quota_usage=usage.get("quota_usage", 0),
-                quota_total=usage.get("config", {}).get("quota_total", 250),
-                reply_quota_usage=usage.get("reply_quota_usage"),
-                reply_quota_total=usage.get("reply_config", {}).get("quota_total"),
-                raw_response=data,
-            )
+            snapshot = client.sync_rate_limit_snapshot(token, cred.threads_user_id)
         except Exception:
             return {"quota_usage": 0, "quota_total": 250, "is_exhausted": False}
 
@@ -114,9 +106,11 @@ def create_threads_draft(body: str, reply_control: str = "everyone", link_url: s
 
 
 @tool
-def list_threads_drafts() -> list[dict]:
+def list_threads_drafts() -> list[dict] | str:
     """List saved, not-yet-published Threads drafts, most recently updated first."""
-    return [_serialize_draft(d) for d in ThreadsDraft.objects.filter(status=ThreadsDraft.Status.DRAFT)]
+    drafts = [_serialize_draft(d) for d in ThreadsDraft.objects.filter(status=ThreadsDraft.Status.DRAFT)]
+    compact = encode_compact_list(drafts)
+    return compact if compact is not None else drafts
 
 
 @tool
@@ -164,8 +158,11 @@ def delete_threads_post(post_id: str) -> dict:
     try:
         token = oauth.get_active_access_token()
         success = client.delete_post(token, target_post_id)
-        # Update local draft if present
-        ThreadsDraft.objects.filter(threads_post_id=target_post_id).update(status=ThreadsDraft.Status.DRAFT)
+        # Update local draft if present: retain PUBLISHED status, clear live post IDs
+        ThreadsDraft.objects.filter(threads_post_id=target_post_id).update(
+            threads_post_id="",
+            permalink="",
+        )
         return {"deleted": success, "post_id": target_post_id}
     except ThreadsError as exc:
         return {"deleted": False, "error": str(exc)}
@@ -268,7 +265,8 @@ def get_threads_automation_status() -> dict:
         }
         for a in ThreadsAutomation.objects.all()
     ]
-    return {"automations": automations}
+    compact = encode_compact_list(automations)
+    return {"automations": compact if compact is not None else automations}
 
 
 @tool

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
+import time
 import uuid
 from typing import Any
 
@@ -15,6 +17,7 @@ from core.services.providers.media_base import (
     ProviderAuthenticationError,
     UnsupportedMediaOperation,
 )
+from core.services.telemetry import log_llm_call
 from core.services.text_utils import truncate_chars
 from media_assets.models import MediaAsset, MediaGenerationJob
 
@@ -190,11 +193,29 @@ def generate_variations(
     return created
 
 
+def _b64_encode(raw_bytes: bytes) -> str:
+    return base64.b64encode(raw_bytes).decode("utf-8")
+
+
 def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
     """Multimodal analysis of a media asset using the active ModelPreference provider."""
     asset = MediaAsset.objects.get(id=asset_id)
     if not asset.file:
         raise ValueError(f"MediaAsset {asset_id} has no associated file.")
+
+    # Validate MIME type / file extension
+    mime = (asset.mime_type or "").lower()
+    if not mime:
+        ext = os.path.splitext(asset.file.name)[1].lower() if asset.file else ""
+        if ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+            mime = "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext.lstrip('.')}"
+        elif ext in (".mp4", ".mov", ".webm"):
+            mime = "video/mp4" if ext == ".mp4" else f"video/{ext.lstrip('.')}"
+        else:
+            mime = "video/mp4" if asset.media_type == "video" else "image/jpeg"
+
+    if not (mime.startswith("image/") or mime.startswith("video/")):
+        raise ValueError(f"MediaAsset {asset_id} has unsupported MIME type {mime!r} for analysis.")
 
     # Guard against loading huge video files into memory (50 MB cap)
     MAX_ANALYSIS_BYTES = 50 * 1024 * 1024
@@ -229,6 +250,7 @@ def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
         prompt_text += f" Focus specifically on: {focus}"
 
     analysis_text = ""
+    started = time.perf_counter()
 
     if provider_name == "gemini":
         from google import genai
@@ -239,15 +261,33 @@ def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
             raise ProviderAuthenticationError("No Gemini API key configured.")
 
         client = genai.Client(api_key=api_key)
-        mime = asset.mime_type or ("video/mp4" if asset.media_type == "video" else "image/jpeg")
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[
-                types.Part(inline_data=types.Blob(mime_type=mime, data=raw_bytes)),
-                prompt_text,
-            ],
-        )
-        analysis_text = response.text or ""
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part(inline_data=types.Blob(mime_type=mime, data=raw_bytes)),
+                    prompt_text,
+                ],
+            )
+            analysis_text = response.text or ""
+            usage = getattr(response, "usage_metadata", None)
+            log_llm_call(
+                provider="gemini",
+                model=model_name,
+                call_site="media_service.analyze",
+                input_tokens=getattr(usage, "prompt_token_count", None),
+                output_tokens=getattr(usage, "candidates_token_count", None),
+                latency_ms=(time.perf_counter() - started) * 1000,
+            )
+        except Exception as exc:
+            log_llm_call(
+                provider="gemini",
+                model=model_name,
+                call_site="media_service.analyze",
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
+            raise MediaGenerationError(f"Gemini media analysis failed: {exc}") from exc
 
     elif provider_name == "openai":
         import openai
@@ -257,22 +297,40 @@ def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
             raise ProviderAuthenticationError("No OpenAI API key configured.")
 
         client = openai.OpenAI(api_key=api_key)
-        b64 = base64.b64encode(raw_bytes).decode("utf-8")
-        mime = asset.mime_type or "image/jpeg"
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_text},
-                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
-                    ],
-                }
-            ],
-            max_completion_tokens=600,
-        )
-        analysis_text = response.choices[0].message.content or ""
+        b64 = _b64_encode(raw_bytes)
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_text},
+                            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                        ],
+                    }
+                ],
+                max_completion_tokens=600,
+            )
+            analysis_text = response.choices[0].message.content or ""
+            usage = getattr(response, "usage", None)
+            log_llm_call(
+                provider="openai",
+                model=model_name,
+                call_site="media_service.analyze",
+                input_tokens=getattr(usage, "prompt_tokens", None),
+                output_tokens=getattr(usage, "completion_tokens", None),
+                latency_ms=(time.perf_counter() - started) * 1000,
+            )
+        except Exception as exc:
+            log_llm_call(
+                provider="openai",
+                model=model_name,
+                call_site="media_service.analyze",
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
+            raise MediaGenerationError(f"OpenAI media analysis failed: {exc}") from exc
 
     elif provider_name == "anthropic":
         import anthropic
@@ -282,25 +340,43 @@ def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
             raise ProviderAuthenticationError("No Anthropic API key configured.")
 
         client = anthropic.Anthropic(api_key=api_key)
-        b64 = base64.b64encode(raw_bytes).decode("utf-8")
-        mime = asset.mime_type or "image/jpeg"
-        response = client.messages.create(
-            model=model_name,
-            max_tokens=600,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {"type": "base64", "media_type": mime, "data": b64},
-                        },
-                        {"type": "text", "text": prompt_text},
-                    ],
-                }
-            ],
-        )
-        analysis_text = response.content[0].text if response.content else ""
+        b64 = _b64_encode(raw_bytes)
+        try:
+            response = client.messages.create(
+                model=model_name,
+                max_tokens=600,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {"type": "base64", "media_type": mime, "data": b64},
+                            },
+                            {"type": "text", "text": prompt_text},
+                        ],
+                    }
+                ],
+            )
+            analysis_text = response.content[0].text if response.content else ""
+            usage = getattr(response, "usage", None)
+            log_llm_call(
+                provider="anthropic",
+                model=model_name,
+                call_site="media_service.analyze",
+                input_tokens=getattr(usage, "input_tokens", None),
+                output_tokens=getattr(usage, "output_tokens", None),
+                latency_ms=(time.perf_counter() - started) * 1000,
+            )
+        except Exception as exc:
+            log_llm_call(
+                provider="anthropic",
+                model=model_name,
+                call_site="media_service.analyze",
+                latency_ms=(time.perf_counter() - started) * 1000,
+                error=True,
+            )
+            raise MediaGenerationError(f"Anthropic media analysis failed: {exc}") from exc
 
     else:
         # Fallback to Gemini if current text provider lacks multimodal direct adapter
@@ -310,17 +386,35 @@ def analyze_media(asset_id: str | uuid.UUID, focus: str = "") -> dict[str, Any]:
             from google.genai import types
 
             client = genai.Client(api_key=gemini_key)
-            mime = asset.mime_type or "image/jpeg"
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    types.Part(inline_data=types.Blob(mime_type=mime, data=raw_bytes)),
-                    prompt_text,
-                ],
-            )
-            analysis_text = response.text or ""
-            provider_name = "gemini"
-            model_name = "gemini-2.5-flash"
+            try:
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[
+                        types.Part(inline_data=types.Blob(mime_type=mime, data=raw_bytes)),
+                        prompt_text,
+                    ],
+                )
+                analysis_text = response.text or ""
+                provider_name = "gemini"
+                model_name = "gemini-2.5-flash"
+                usage = getattr(response, "usage_metadata", None)
+                log_llm_call(
+                    provider="gemini",
+                    model="gemini-2.5-flash",
+                    call_site="media_service.analyze",
+                    input_tokens=getattr(usage, "prompt_token_count", None),
+                    output_tokens=getattr(usage, "candidates_token_count", None),
+                    latency_ms=(time.perf_counter() - started) * 1000,
+                )
+            except Exception as exc:
+                log_llm_call(
+                    provider="gemini",
+                    model="gemini-2.5-flash",
+                    call_site="media_service.analyze",
+                    latency_ms=(time.perf_counter() - started) * 1000,
+                    error=True,
+                )
+                raise MediaGenerationError(f"Gemini media analysis fallback failed: {exc}") from exc
         else:
             raise UnsupportedMediaOperation(
                 f"Provider {provider_name} does not support media analysis and no Gemini fallback key is available."

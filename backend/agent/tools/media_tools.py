@@ -8,12 +8,10 @@ media to social media drafts (LinkedIn, Threads).
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from langchain_core.tools import tool
 
-from core.services.text_utils import encode_compact_list, truncate_chars
 from linkedin.models import LinkedInDraft
 from media_assets.models import MediaAsset, MediaGenerationJob
 from media_assets.services import media_service
@@ -190,6 +188,17 @@ def get_media_asset_details(asset_id: str) -> dict[str, Any]:
         return {"error": f"Error fetching asset: {exc}"}
 
 
+def _serialize_compact_asset(asset: MediaAsset) -> dict[str, Any]:
+    prompt_snippet = (asset.prompt[:60] + "...") if len(asset.prompt) > 60 else asset.prompt
+    return {
+        "id": str(asset.id),
+        "media_type": asset.media_type,
+        "prompt": prompt_snippet,
+        "aspect_ratio": asset.aspect_ratio,
+        "created_at": asset.created_at.strftime("%Y-%m-%d") if asset.created_at else None,
+    }
+
+
 @tool
 def list_recent_media_assets(media_type: str = "", limit: int = 5) -> list[dict[str, Any]]:
     """List recently generated images or videos in the Media Library.
@@ -203,7 +212,7 @@ def list_recent_media_assets(media_type: str = "", limit: int = 5) -> list[dict[
         if media_type in ("image", "video"):
             qs = qs.filter(media_type=media_type)
         safe_limit = max(1, min(limit, 20))
-        return [_serialize_asset(a) for a in qs[:safe_limit]]
+        return [_serialize_compact_asset(a) for a in qs[:safe_limit]]
     except Exception as exc:
         return [{"error": f"Failed to list media assets: {exc}"}]
 

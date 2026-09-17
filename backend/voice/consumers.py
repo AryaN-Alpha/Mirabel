@@ -334,7 +334,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         parser = ProtocolParser()
         sentence_buffer = StreamingSentenceBuffer()
         tts_queue: asyncio.Queue[str | None] = asyncio.Queue()
-        tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
+        tts_worker = asyncio.create_task(self._tts_worker(tts_queue, force_edge_tts=self._agent_mode))
 
         started = time.perf_counter()
         provider_name = model = None
@@ -476,7 +476,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # ------------------------------------------------------------------
     async def _speak_ack(self, text: str, mood: str) -> None:
         tts_queue: asyncio.Queue[str | None] = asyncio.Queue()
-        tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
+        tts_worker = asyncio.create_task(self._tts_worker(tts_queue, force_edge_tts=True))
         try:
             await self._send_json({"type": "text_delta", "text": text})
             await tts_queue.put(text)
@@ -524,7 +524,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not text:
             return
         tts_queue: asyncio.Queue[str | None] = asyncio.Queue()
-        tts_worker = asyncio.create_task(self._tts_worker(tts_queue))
+        tts_worker = asyncio.create_task(self._tts_worker(tts_queue, force_edge_tts=True))
         try:
             await tts_queue.put(text)
             await tts_queue.put(None)
@@ -539,7 +539,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # ------------------------------------------------------------------
     # TTS worker — single consumer of the sentence queue, ordered output
     # ------------------------------------------------------------------
-    async def _tts_worker(self, queue: asyncio.Queue[str | None]) -> None:
+    async def _tts_worker(self, queue: asyncio.Queue[str | None], *, force_edge_tts: bool = False) -> None:
         while True:
             sentence = await queue.get()
             if sentence is None:
@@ -550,7 +550,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # audio never interleaves before either's audio_sentence_end.
             async with self._tts_lock:
                 try:
-                    async for audio_chunk in stream_tts(sentence):
+                    async for audio_chunk in stream_tts(sentence, force_edge_tts=force_edge_tts):
                         if not audio_chunk:
                             continue
                         await self._send_json({

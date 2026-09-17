@@ -22,7 +22,6 @@ from .media_base import (
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderVideoJobResult,
-    UnsupportedMediaOperation,
 )
 
 logger = logging.getLogger("media_assets")
@@ -31,21 +30,23 @@ _RETRYABLE = (genai_errors.ServerError,)
 
 
 def _map_genai_error(exc: Exception) -> Exception:
-    err_str = str(exc).upper()
+    if isinstance(exc, (TimeoutError, socket.timeout)):
+        return ProviderTimeoutError(f"Google AI request timed out: {exc}")
+
     if isinstance(exc, genai_errors.ClientError):
-        if any(k in err_str for k in ("401", "403", "API_KEY", "UNAUTHENTICATED", "PERMISSION_DENIED")):
+        code = getattr(exc, "code", None)
+        err_str = str(exc).upper()
+        if code in (401, 403) or any(k in err_str for k in ("401", "403", "API_KEY", "UNAUTHENTICATED", "PERMISSION_DENIED")):
             return ProviderAuthenticationError(f"Authentication failed with Google AI: {exc}")
-        if any(k in err_str for k in ("429", "RESOURCE_EXHAUSTED", "QUOTA")):
+        if code == 429 or any(k in err_str for k in ("429", "RESOURCE_EXHAUSTED", "QUOTA")):
             return ProviderRateLimitError(f"Google AI quota or rate limit exceeded: {exc}")
         if any(k in err_str for k in ("SAFETY", "BLOCKED", "POLICY", "PROHIBITED")):
             return ProviderPolicyRejection(f"Google AI safety/policy rejection: {exc}")
         return MediaGenerationError(f"Google AI client error: {exc}")
+
     if isinstance(exc, genai_errors.ServerError):
         return MediaGenerationError(f"Google AI server error: {exc}")
-    if isinstance(exc, (TimeoutError, socket.timeout)):
-        return ProviderTimeoutError(f"Google AI request timed out: {exc}")
-    if isinstance(exc, genai_errors.APIError):
-        return MediaGenerationError(f"Google AI API error: {exc}")
+
     return MediaGenerationError(f"Media generation failed: {exc}")
 
 

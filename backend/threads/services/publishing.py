@@ -23,15 +23,7 @@ def _check_rate_limit(cred: ThreadsCredential, is_reply: bool = False) -> None:
     if not snapshot or (now - snapshot.fetched_at).total_seconds() > 300:
         try:
             token = oauth.get_active_access_token()
-            data = client.get_publishing_limit(token, cred.threads_user_id)
-            usage = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data["data"] else data
-            snapshot = ThreadsRateLimitSnapshot.objects.create(
-                quota_usage=usage.get("quota_usage", 0),
-                quota_total=usage.get("config", {}).get("quota_total", 250),
-                reply_quota_usage=usage.get("reply_quota_usage"),
-                reply_quota_total=usage.get("reply_config", {}).get("quota_total"),
-                raw_response=data,
-            )
+            snapshot = client.sync_rate_limit_snapshot(token, cred.threads_user_id)
         except Exception as exc:
             logger.warning("threads.publishing: failed to refresh rate limit snapshot: %s", exc)
 

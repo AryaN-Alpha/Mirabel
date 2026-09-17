@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Plus, Trash2, CheckCircle2, AlertCircle, HelpCircle,
-  Zap, ChevronDown, KeyRound, Cpu, RotateCcw, ShieldCheck,
+  Zap, ChevronDown, KeyRound, Cpu, RotateCcw, ShieldCheck, Bot,
 } from "lucide-react";
 import {
   listTtsKeys, createTtsKey, updateTtsKey, deleteTtsKey,
@@ -361,6 +361,27 @@ function TtsConfigPanel({ config, onSave }) {
   return (
     <GlassPanel float={2} delay={-3} style={{ padding: `${space[6]}px` }}>
       <PanelEyebrow icon={Cpu}>Model & Language</PanelEyebrow>
+
+      <div
+        style={{
+          padding: `${space[3]}px ${space[4]}px`,
+          borderRadius: radius.md,
+          background: "rgba(255,151,131,0.06)",
+          border: `1px solid ${cream(0.12)}`,
+          fontSize: 13,
+          color: cream(0.70),
+          marginBottom: space[4],
+          display: "flex",
+          alignItems: "flex-start",
+          gap: space[2.5],
+          lineHeight: 1.5,
+        }}
+      >
+        <Bot size={15} style={{ color: accent[400], flexShrink: 0, marginTop: 2 }} />
+        <div>
+          <span style={{ color: text.cream, fontWeight: 500 }}>Dynamic Voice Routing:</span> Cartesia Sonic powers natural conversational chat. When Agent Mode is active, operational speech (task acks, clarifying questions, approvals) automatically routes through free Microsoft Edge-TTS to preserve your Cartesia quota.
+        </div>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: space[4] }}>
         {/* Model */}
