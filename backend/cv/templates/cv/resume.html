@@ -16,32 +16,68 @@
     margin-top: 26pt;
     margin-bottom: 26pt;
     margin-left: 0;
-    margin-right: 0;
+    /* 26pt right margin prevents text from being clipped at the paper edge.
+       The sidebar background image is sized to 193px (34% of 569pt content
+       width) in pdf_export.py to stay in sync with this margin. */
+    margin-right: 26pt;
     {% if sidebar_bg_data_uri %}background-image: '{{ sidebar_bg_data_uri }}';{% endif %}
   }
-  body { font-family: "{{ font_family }}"; font-size: 9.5pt; color: #222222; margin: 0; }
+  /* Main column text color matches CvPreview.jsx mainStyle (#1f1a17). */
+  body { font-family: "{{ font_family }}"; font-size: 9.5pt; color: #1f1a17; margin: 0; }
   table.layout { width: 100%; border-collapse: collapse; }
   td.sidebar { width: 34%; {% if not sidebar_bg_data_uri %}background-color: {{ sidebar_bg }};{% endif %} color: {{ sidebar_text }}; padding: 0 16pt; vertical-align: top; }
-  td.main { width: 66%; padding: 0 24pt; vertical-align: top; }
+  /* background-color matches CvPreview.jsx mainStyle background (#faf6f1 warm off-white). */
+  td.main { width: 66%; padding: 0 24pt; vertical-align: top; background-color: #faf6f1; }
 
-  h1.name { font-size: 21pt; font-weight: bold; color: #111111; margin: 0 0 3pt 0; }
-  p.tagline { font-size: 10.5pt; color: #555555; margin: 0 0 12pt 0; letter-spacing: 0.5pt; text-transform: uppercase; }
-  hr.divider { border: none; border-top: 1pt solid #dddddd; margin: 0 0 12pt 0; }
+  h1.name { font-size: 21pt; font-weight: bold; color: #1a1410; margin: 0 0 3pt 0; }
+  /* Tagline/subtitle: muted warm brown matching CvPreview.jsx mutedMainStyle. */
+  p.tagline { font-size: 10.5pt; color: #6b5d54; margin: 0 0 12pt 0; letter-spacing: 0.5pt; text-transform: uppercase; }
+  /* Divider under name: matches CvPreview.jsx #e3d7c9 warm beige border. */
+  hr.divider { border: none; border-top: 1pt solid #e3d7c9; margin: 0 0 12pt 0; }
 
-  .side-h { font-size: 10pt; font-weight: bold; color: #ffffff; letter-spacing: 1.5pt; margin: 0 0 8pt 0; border-bottom: 1pt solid #555555; padding-bottom: 4pt; page-break-after: avoid; }
-  .side-block { margin-bottom: 16pt; }
-  .side-entry { page-break-inside: avoid; }
-  .side-item { font-size: 9pt; color: #dddddd; margin-bottom: 4pt; }
-  .side-item a, .entry-sub a { color: {{ accent }}; text-decoration: underline; }
-  .skill-cat { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 2pt 0; }
-  .skill-item { font-size: 8.5pt; color: #cccccc; margin: 0 0 1pt 6pt; }
-  .strength-title { font-size: 9pt; font-weight: bold; color: #ffffff; margin: 8pt 0 1pt 0; }
-  .strength-desc { font-size: 8.5pt; color: #cccccc; }
+  /* Sidebar section wrapper matching React's mb-5 (~15pt) */
+  .side-section { margin-bottom: 14pt; }
+  /* Sidebar section headers: matching CvPreview.jsx SideSection h2 */
+  .side-h {
+    font-size: 8.5pt;
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+    margin: 12pt 0 6.5pt 0;
+    padding-bottom: 3.5pt;
+    border-bottom: 1pt solid #4a4a4a;
+    page-break-after: avoid;
+  }
+  .side-h-first {
+    margin-top: 0;
+  }
 
-  .main-h { font-size: 11pt; font-weight: bold; color: #111111; letter-spacing: 1pt; border-bottom: 1.5pt solid #262626; margin: 14pt 0 8pt 0; padding-bottom: 3pt; page-break-after: avoid; }
+  /* Contact items matching React's gap-1.5 text-[11.5px] (~8.75pt) */
+  .contact-item { font-size: 8.5pt; color: #bbbbbb; margin-bottom: 3.5pt; line-height: 1.3; }
+  .contact-item a { color: {{ accent }}; text-decoration: underline; }
+
+  /* Education entries matching React's mb-3 (~9pt) */
+  .edu-entry { margin-bottom: 8pt; page-break-inside: avoid; }
+  .edu-school { font-size: 8.75pt; font-weight: bold; color: #ffffff; margin-bottom: 1pt; }
+  .edu-detail { font-size: 8pt; color: #bbbbbb; margin-bottom: 1pt; line-height: 1.25; }
+
+  /* Skills matching React: group mb-2.5, category text-[11px] mb-1, skills gap-0.5 */
+  .skill-group { margin-bottom: 6.5pt; page-break-inside: avoid; }
+  .skill-cat { font-size: 8.5pt; font-weight: bold; color: #ffffff; margin: 0 0 2pt 0; }
+  .skill-item { font-size: 8.25pt; color: #bbbbbb; margin: 0 0 1pt 0; line-height: 1.2; }
+
+  /* Strengths matching React: entry mb-3, title font-semibold, desc leading-relaxed */
+  .strength-entry { margin-bottom: 7.5pt; page-break-inside: avoid; }
+  .strength-title { font-size: 8.75pt; font-weight: bold; color: #ffffff; margin: 0 0 1.5pt 0; }
+  .strength-desc { font-size: 8pt; color: #bbbbbb; line-height: 1.35; }
+
+  /* Main section headers: color + border aligned with CvPreview.jsx MainSection style. */
+  .main-h { font-size: 11pt; font-weight: bold; color: #8a7a6d; letter-spacing: 1pt; border-bottom: 1.5pt solid #d4c9b8; margin: 14pt 0 8pt 0; padding-bottom: 3pt; page-break-after: avoid; }
   .entry { margin-bottom: 10pt; page-break-inside: avoid; }
-  .entry-title { font-size: 10.5pt; font-weight: bold; color: #111111; }
-  .entry-sub { font-size: 9pt; color: #666666; margin-bottom: 3pt; }
+  .entry-title { font-size: 10.5pt; font-weight: bold; color: #1a1410; }
+  /* Dates, locations: muted warm brown matching CvPreview.jsx mutedMainStyle (#6b5d54). */
+  .entry-sub { font-size: 9pt; color: #6b5d54; margin-bottom: 3pt; }
   ul.bullets { margin: 3pt 0 0 12pt; padding: 0; }
   ul.bullets li { margin-bottom: 2pt; font-size: 9.5pt; }
   p.summary { font-size: 9.5pt; line-height: 1.45; margin: 0 0 8pt 0; }
@@ -53,119 +89,147 @@
 {% for row in rows %}
 <tr>
   <td class="sidebar">
-    {% if row.sidebar == "contact" %}
-      <div class="side-h">CONTACT</div>
-      <div class="side-block">
-        {% if sections.personal_info.phone %}<div class="side-item">{{ sections.personal_info.phone }}</div>{% endif %}
-        {% if sections.personal_info.email %}<div class="side-item">{{ sections.personal_info.email }}</div>{% endif %}
-        {% if sections.personal_info.location %}<div class="side-item">{{ sections.personal_info.location }}</div>{% endif %}
-        {% for link in sections.personal_info.links %}<div class="side-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
+    {% if row.is_row_0 %}
+      <div class="side-section">
+        <div class="side-h side-h-first">CONTACT</div>
+        {% if sections.personal_info.phone %}<div class="contact-item">{{ sections.personal_info.phone }}</div>{% endif %}
+        {% if sections.personal_info.email %}<div class="contact-item">{{ sections.personal_info.email }}</div>{% endif %}
+        {% if sections.personal_info.location %}<div class="contact-item">{{ sections.personal_info.location }}</div>{% endif %}
+        {% for link in sections.personal_info.links %}<div class="contact-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
       </div>
-    {% elif row.sidebar.kind == "skill_group_item" %}
-      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
-        {% if row.sidebar.show_header %}<div class="side-h">SKILLS</div>{% endif %}
-        {% if row.sidebar.data.category %}<div class="skill-cat">{{ row.sidebar.data.category }}</div>{% endif %}
-        {% for skill in row.sidebar.data.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
-      </div>
-    {% elif row.sidebar.kind == "education_item" %}
-      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
-        {% if row.sidebar.show_header %}<div class="side-h">EDUCATION</div>{% endif %}
-        <div class="strength-title">{{ row.sidebar.data.school }}</div>
-        {% if row.sidebar.data.location %}<div class="strength-desc">{{ row.sidebar.data.location }}</div>{% endif %}
-        {% if row.sidebar.data.degree %}<div class="strength-desc">{{ row.sidebar.data.degree }}</div>{% endif %}
-        {% if row.sidebar.data.start_date or row.sidebar.data.end_date %}<div class="strength-desc">{{ row.sidebar.data.start_date }} – {{ row.sidebar.data.end_date }}</div>{% endif %}
-      </div>
-    {% elif row.sidebar.kind == "strength_item" %}
-      <div class="side-entry{% if row.sidebar.is_last_in_section %} side-block{% endif %}">
-        {% if row.sidebar.show_header %}<div class="side-h">STRENGTHS</div>{% endif %}
-        <div class="strength-title">{{ row.sidebar.data.title }}</div>
-        {% if row.sidebar.data.description %}<div class="strength-desc">{{ row.sidebar.data.description }}</div>{% endif %}
-      </div>
+
+      {% for block in sidebar_blocks %}
+        {% if block.kind == "education" and block.data %}
+          <div class="side-section">
+            <div class="side-h">EDUCATION</div>
+            {% for edu in block.data %}
+              {% if edu.degree or edu.school %}
+              <div class="edu-entry">
+                <div class="edu-school">{{ edu.school }}</div>
+                {% if edu.location %}<div class="edu-detail">{{ edu.location }}</div>{% endif %}
+                {% if edu.degree %}<div class="edu-detail">{{ edu.degree }}</div>{% endif %}
+                {% if edu.start_date or edu.end_date %}<div class="edu-detail">{{ edu.start_date }} – {{ edu.end_date }}</div>{% endif %}
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% elif block.kind == "skills" and block.data %}
+          <div class="side-section">
+            <div class="side-h">SKILLS</div>
+            {% for group in block.data %}
+              <div class="skill-group">
+                {% if group.category %}<div class="skill-cat">{{ group.category }}</div>{% endif %}
+                {% for skill in group.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        {% elif block.kind == "strengths" and block.data %}
+          <div class="side-section">
+            <div class="side-h">STRENGTHS</div>
+            {% for strength in block.data %}
+              {% if strength.title %}
+              <div class="strength-entry">
+                <div class="strength-title">{{ strength.title }}</div>
+                {% if strength.description %}<div class="strength-desc">{{ strength.description }}</div>{% endif %}
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
     {% endif %}
   </td>
 
   <td class="main">
-    {% if row.main.kind == "header_and_summary" or row.main.kind == "header_only" %}
-      <h1 class="name">{{ sections.personal_info.name|default:"Untitled CV" }}</h1>
-      {% if sections.personal_info.title %}<p class="tagline">{{ sections.personal_info.title }}</p>{% endif %}
-      <hr class="divider">
-      {% if row.main.kind == "header_and_summary" %}
-        <p class="summary">{{ row.main.summary }}</p>
+    {% for unit in row.main_units %}
+      {% if unit.kind == "header_and_summary" or unit.kind == "header_only" %}
+        <h1 class="name">{{ sections.personal_info.name|default:"Untitled CV" }}</h1>
+        {% if sections.personal_info.title %}<p class="tagline">{{ sections.personal_info.title }}</p>{% endif %}
+        <hr class="divider">
+        {% if unit.kind == "header_and_summary" %}
+          <p class="summary">{{ unit.summary }}</p>
+        {% endif %}
+      {% elif unit.kind == "summary_item" %}
+        <p class="summary">{{ unit.data }}</p>
+      {% elif unit.kind == "experience_item" %}
+        {% if unit.show_header %}<div class="main-h">WORK EXPERIENCE</div>{% endif %}
+        <div class="entry">
+          <div class="entry-title">{{ unit.data.title }}{% if unit.data.company %} | {{ unit.data.company }}{% endif %}</div>
+          {% if unit.data.start_date or unit.data.end_date or unit.data.location %}
+          <div class="entry-sub">{% if unit.data.start_date or unit.data.end_date %}{{ unit.data.start_date }} – {{ unit.data.end_date }}{% if unit.data.location %} • {{ unit.data.location }}{% endif %}{% elif unit.data.location %}{{ unit.data.location }}{% endif %}</div>
+          {% endif %}
+          {% if unit.data.bullets %}
+          <ul class="bullets">{% for bullet in unit.data.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      {% elif unit.kind == "project_item" %}
+        {% if unit.show_header %}<div class="main-h">PROJECTS</div>{% endif %}
+        <div class="entry">
+          <div class="entry-title">{{ unit.data.title }}</div>
+          {% if unit.data.link %}<div class="entry-sub">{% if unit.data.href %}<a href="{{ unit.data.href }}">{{ unit.data.link }}</a>{% else %}{{ unit.data.link }}{% endif %}</div>{% endif %}
+          {% if unit.data.tech %}<div class="entry-sub">{{ unit.data.tech }}</div>{% endif %}
+          {% if unit.data.description_lines %}
+          <ul class="bullets">{% for line in unit.data.description_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      {% elif unit.kind == "certification_item" %}
+        {% if unit.show_header %}<div class="main-h">CERTIFICATIONS</div>{% endif %}
+        <div class="entry">
+          <div class="entry-title">{{ unit.data.name }}{% if unit.data.issuer %} — {{ unit.data.issuer }}{% endif %}</div>
+          <div class="entry-sub">{{ unit.data.date }}</div>
+        </div>
       {% endif %}
-    {% elif row.main.kind == "summary_item" %}
-      <p class="summary">{{ row.main.data }}</p>
-    {% elif row.main.kind == "experience_item" %}
-      {% if row.main.show_header %}<div class="main-h">WORK EXPERIENCE</div>{% endif %}
-      <div class="entry">
-        <div class="entry-title">{{ row.main.data.title }}{% if row.main.data.company %} | {{ row.main.data.company }}{% endif %}</div>
-        {% if row.main.data.start_date or row.main.data.end_date or row.main.data.location %}
-        <div class="entry-sub">{% if row.main.data.start_date or row.main.data.end_date %}{{ row.main.data.start_date }} – {{ row.main.data.end_date }}{% if row.main.data.location %} • {{ row.main.data.location }}{% endif %}{% elif row.main.data.location %}{{ row.main.data.location }}{% endif %}</div>
-        {% endif %}
-        {% if row.main.data.bullets %}
-        <ul class="bullets">{% for bullet in row.main.data.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
-        {% endif %}
-      </div>
-    {% elif row.main.kind == "project_item" %}
-      {% if row.main.show_header %}<div class="main-h">PROJECTS</div>{% endif %}
-      <div class="entry">
-        <div class="entry-title">{{ row.main.data.title }}</div>
-        {% if row.main.data.link %}<div class="entry-sub">{% if row.main.data.href %}<a href="{{ row.main.data.href }}">{{ row.main.data.link }}</a>{% else %}{{ row.main.data.link }}{% endif %}</div>{% endif %}
-        {% if row.main.data.tech %}<div class="entry-sub">{{ row.main.data.tech }}</div>{% endif %}
-        {% if row.main.data.description_lines %}
-        <ul class="bullets">{% for line in row.main.data.description_lines %}<li>{{ line }}</li>{% endfor %}</ul>
-        {% endif %}
-      </div>
-    {% elif row.main.kind == "certification_item" %}
-      {% if row.main.show_header %}<div class="main-h">CERTIFICATIONS</div>{% endif %}
-      <div class="entry">
-        <div class="entry-title">{{ row.main.data.name }}{% if row.main.data.issuer %} — {{ row.main.data.issuer }}{% endif %}</div>
-        <div class="entry-sub">{{ row.main.data.date }}</div>
-      </div>
-    {% endif %}
+    {% endfor %}
   </td>
 </tr>
 {% endfor %}
 {% else %}
 <tr>
 <td class="sidebar" style="background-color: {{ sidebar_bg }}; padding: 26pt 16pt;">
-  <div class="side-h">CONTACT</div>
-  <div class="side-block">
-    {% if sections.personal_info.phone %}<div class="side-item">{{ sections.personal_info.phone }}</div>{% endif %}
-    {% if sections.personal_info.email %}<div class="side-item">{{ sections.personal_info.email }}</div>{% endif %}
-    {% if sections.personal_info.location %}<div class="side-item">{{ sections.personal_info.location }}</div>{% endif %}
-    {% for link in sections.personal_info.links %}<div class="side-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
+  <div class="side-section">
+    <div class="side-h side-h-first">CONTACT</div>
+    {% if sections.personal_info.phone %}<div class="contact-item">{{ sections.personal_info.phone }}</div>{% endif %}
+    {% if sections.personal_info.email %}<div class="contact-item">{{ sections.personal_info.email }}</div>{% endif %}
+    {% if sections.personal_info.location %}<div class="contact-item">{{ sections.personal_info.location }}</div>{% endif %}
+    {% for link in sections.personal_info.links %}<div class="contact-item">{% if link.href %}<a href="{{ link.href }}">{{ link.label|default:link.url }}</a>{% else %}{{ link.label|default:link.url }}{% endif %}</div>{% endfor %}
   </div>
 
   {% for block in sidebar_blocks %}
-  {% if block.kind == "skills" and block.data %}
-  <div class="side-h">SKILLS</div>
-  <div class="side-block">
-    {% for group in block.data %}
-    {% if group.category %}<div class="skill-cat">{{ group.category }}</div>{% endif %}
-    {% for skill in group.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
-    {% endfor %}
-  </div>
-  {% endif %}
   {% if block.kind == "education" and block.data %}
-  <div class="side-h">EDUCATION</div>
-  <div class="side-block">
+  <div class="side-section">
+    <div class="side-h">EDUCATION</div>
     {% for edu in block.data %}
     {% if edu.degree or edu.school %}
-    <div class="strength-title">{{ edu.school }}</div>
-    {% if edu.location %}<div class="strength-desc">{{ edu.location }}</div>{% endif %}
-    {% if edu.degree %}<div class="strength-desc">{{ edu.degree }}</div>{% endif %}
-    {% if edu.start_date or edu.end_date %}<div class="strength-desc">{{ edu.start_date }} – {{ edu.end_date }}</div>{% endif %}
+    <div class="edu-entry">
+      <div class="edu-school">{{ edu.school }}</div>
+      {% if edu.location %}<div class="edu-detail">{{ edu.location }}</div>{% endif %}
+      {% if edu.degree %}<div class="edu-detail">{{ edu.degree }}</div>{% endif %}
+      {% if edu.start_date or edu.end_date %}<div class="edu-detail">{{ edu.start_date }} – {{ edu.end_date }}</div>{% endif %}
+    </div>
     {% endif %}
     {% endfor %}
   </div>
   {% endif %}
+  {% if block.kind == "skills" and block.data %}
+  <div class="side-section">
+    <div class="side-h">SKILLS</div>
+    {% for group in block.data %}
+    <div class="skill-group">
+      {% if group.category %}<div class="skill-cat">{{ group.category }}</div>{% endif %}
+      {% for skill in group.skills %}<div class="skill-item">• {{ skill }}</div>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if block.kind == "strengths" and block.data %}
-  <div class="side-h">STRENGTHS</div>
-  <div class="side-block">
+  <div class="side-section">
+    <div class="side-h">STRENGTHS</div>
     {% for strength in block.data %}
     {% if strength.title %}
-    <div class="strength-title">{{ strength.title }}</div>
-    {% if strength.description %}<div class="strength-desc">{{ strength.description }}</div>{% endif %}
+    <div class="strength-entry">
+      <div class="strength-title">{{ strength.title }}</div>
+      {% if strength.description %}<div class="strength-desc">{{ strength.description }}</div>{% endif %}
+    </div>
     {% endif %}
     {% endfor %}
   </div>

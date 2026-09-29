@@ -174,14 +174,18 @@ def _generate_sidebar_bg_data_uri(sidebar_bg: str) -> str:
     from PIL import Image, ImageDraw
 
     bg_color = sidebar_bg or _DEFAULT_THEME["sidebar_bg"]
+    # Main column background: #faf6f1 (warm off-white, matches CvPreview.jsx mainStyle).
+    # Sidebar strip width: 34% of (595 − 26pt right margin) = 193px. The background
+    # image covers the full 595×842pt A4 page, so the dark stripe must align with
+    # the sidebar td's actual rendered width inside the content area.
     try:
-        img = Image.new("RGB", (595, 842), "#ffffff")
+        img = Image.new("RGB", (595, 842), "#faf6f1")
         draw = ImageDraw.Draw(img)
-        draw.rectangle([0, 0, 202, 842], fill=bg_color)
+        draw.rectangle([0, 0, 193, 842], fill=bg_color)
     except Exception:
-        img = Image.new("RGB", (595, 842), "#ffffff")
+        img = Image.new("RGB", (595, 842), "#faf6f1")
         draw = ImageDraw.Draw(img)
-        draw.rectangle([0, 0, 202, 842], fill=_DEFAULT_THEME["sidebar_bg"])
+        draw.rectangle([0, 0, 193, 842], fill=_DEFAULT_THEME["sidebar_bg"])
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
@@ -189,45 +193,88 @@ def _generate_sidebar_bg_data_uri(sidebar_bg: str) -> str:
     return f"data:image/png;base64,{b64}"
 
 
-def _build_cv_rows(main_blocks: list[dict], sidebar_blocks: list[dict]) -> list[dict]:
-    """Flattens main and sidebar blocks into sequential rows for template 2 column
-    so xhtml2pdf can naturally paginate across multiple A4 pages when content is long.
-    """
-    sidebar_units = ["contact"]
+def _estimate_sidebar_height(personal_info: dict, sidebar_blocks: list[dict]) -> int:
+    h = 0
+    contact_count = sum(1 for k in ["phone", "email", "location"] if personal_info.get(k))
+    contact_count += len(personal_info.get("links", []))
+    h += 20 + contact_count * 14 + 16
+
     for block in sidebar_blocks:
         kind = block.get("kind")
-        data = block.get("data")
+        data = block.get("data", [])
         if not data:
             continue
+        h += 20
         if kind == "skills":
-            groups = [g for g in data if g.get("category") or g.get("skills")]
-            for idx, grp in enumerate(groups):
-                sidebar_units.append({
-                    "kind": "skill_group_item",
-                    "show_header": (idx == 0),
-                    "is_last_in_section": (idx == len(groups) - 1),
-                    "data": grp,
-                })
+            for grp in data:
+                if grp.get("category"):
+                    h += 16
+                h += len(grp.get("skills", [])) * 12
         elif kind == "education":
-            edus = [e for e in data if e.get("degree") or e.get("school")]
-            for idx, edu in enumerate(edus):
-                sidebar_units.append({
-                    "kind": "education_item",
-                    "show_header": (idx == 0),
-                    "is_last_in_section": (idx == len(edus) - 1),
-                    "data": edu,
-                })
+            for edu in data:
+                if edu.get("school") or edu.get("degree"):
+                    h += 45
         elif kind == "strengths":
-            strengths = [s for s in data if s.get("title")]
-            for idx, strength in enumerate(strengths):
-                sidebar_units.append({
-                    "kind": "strength_item",
-                    "show_header": (idx == 0),
-                    "is_last_in_section": (idx == len(strengths) - 1),
-                    "data": strength,
-                })
-        else:
-            sidebar_units.append(block)
+            for s in data:
+                if s.get("title"):
+                    h += 32
+        h += 16
+    return h
+
+
+def _estimate_main_unit_height(unit: dict) -> int:
+    kind = unit.get("kind")
+    h = 0
+    if unit.get("show_header"):
+        h += 25
+    if kind == "header_only":
+        return 65
+    elif kind == "header_and_summary":
+        summary = unit.get("summary", "")
+        lines = max(1, len(summary) // 80)
+        return 65 + lines * 14 + 10
+    elif kind == "summary_item":
+        lines = max(1, len(str(unit.get("data", ""))) // 80)
+        return lines * 14 + 10
+    elif kind == "experience_item":
+        h += 35
+        bullets = unit.get("data", {}).get("bullets", [])
+        for b in bullets:
+            h += max(1, len(str(b)) // 70) * 14
+        h += 10
+    elif kind == "project_item":
+        h += 35
+        lines = unit.get("data", {}).get("description_lines", [])
+        for line in lines:
+            h += max(1, len(str(line)) // 70) * 14
+        h += 10
+    elif kind == "certification_item":
+        h += 30
+    return h
+
+
+def _build_cv_rows(
+    main_blocks: list[dict],
+    sidebar_blocks: list[dict],
+    personal_info: dict | None = None,
+) -> list[dict]:
+    """Packs sidebar sections and main sections into rows for the two-column template.
+
+    To avoid artificial vertical gaps between sidebar items (which occurs when each
+    sidebar item is stretched to match a tall main item in its table row), all sidebar
+    sections (Contact, Education, Skills, Strengths) are rendered together in Row 0's
+    sidebar cell.
+
+    Row 0's main cell is filled with the header, summary, and initial main items
+    (experience/projects/certifications) up to the height of the sidebar (or up to
+    page 1 limit).
+
+    Any remaining main items are placed into individual subsequent rows with an empty
+    sidebar cell. Because an empty sidebar cell has height 0, subsequent rows are sized
+    exactly to their own main item and break cleanly across pages (Page 2, Page 3, etc.)
+    with zero font shrinking and natural vertical spacing.
+    """
+    personal_info = personal_info or {}
 
     main_units = []
     first_block = main_blocks[0] if main_blocks else None
@@ -267,17 +314,33 @@ def _build_cv_rows(main_blocks: list[dict], sidebar_blocks: list[dict]) -> list[
                     "data": cert,
                 })
 
-    max_rows = max(len(sidebar_units), len(main_units))
+    sidebar_h = _estimate_sidebar_height(personal_info, sidebar_blocks)
+
+    row0_main = []
+    current_main_h = 0
+    remaining_idx = 0
+
+    for idx, unit in enumerate(main_units):
+        unit_h = _estimate_main_unit_height(unit)
+        if not row0_main or (current_main_h + unit_h <= max(sidebar_h + 80, 450) and current_main_h + unit_h <= 620):
+            row0_main.append(unit)
+            current_main_h += unit_h
+            remaining_idx = idx + 1
+        else:
+            break
+
     rows = []
-    for i in range(max_rows):
-        s_unit = sidebar_units[i] if i < len(sidebar_units) else None
-        m_unit = main_units[i] if i < len(main_units) else None
+    rows.append({
+        "is_row_0": True,
+        "main_units": row0_main,
+    })
+
+    for unit in main_units[remaining_idx:]:
         rows.append({
-            "sidebar": s_unit,
-            "main": m_unit,
-            "is_first": (i == 0),
-            "is_last": (i == max_rows - 1),
+            "is_row_0": False,
+            "main_units": [unit],
         })
+
     return rows
 
 
@@ -308,7 +371,11 @@ def render_cv_pdf(sections: dict, style: dict | None = None) -> bytes:
     rows = []
     sidebar_bg_data_uri = ""
     if template_name == _TEMPLATE_FILES["two-column"]:
-        rows = _build_cv_rows(main_blocks, sidebar_blocks)
+        rows = _build_cv_rows(
+            main_blocks,
+            sidebar_blocks,
+            personal_info=resolved_sections.get("personal_info"),
+        )
         sidebar_bg_data_uri = _generate_sidebar_bg_data_uri(theme["sidebar_bg"])
 
     context = {
