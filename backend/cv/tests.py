@@ -473,6 +473,7 @@ class CvExportPdfEndpointTests(CvAPITestCase):
             },
         )
         self.assertIn(theme["sidebar_bg"], html)
+        self.assertIn(f".entry-sub a {{ color: {theme['accent']};", html)
 
     def test_export_two_column_standard_cv_renders_one_page(self):
         cv = _create_cv()
